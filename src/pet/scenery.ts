@@ -16,7 +16,7 @@ const TERRAIN: Record<string, Terrain> = {
   turtle: "pond",
 };
 
-export const terrainFor = (species: string): Terrain => TERRAIN[species] ?? "beach";
+export const terrainFor = (species: string): Terrain => (Object.hasOwn(TERRAIN, species) ? TERRAIN[species]! : "beach");
 
 /** Laid over the theme's ground color; fainter at night so dark themes stay dark. */
 const TINT: Record<Terrain, string | null> = {

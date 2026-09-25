@@ -1,3 +1,5 @@
+import type { CareView } from "./care/view.js";
+
 /** One day of the contribution calendar, oldest first. */
 export interface ContributionDay {
   date: string; // YYYY-MM-DD
@@ -59,4 +61,12 @@ export interface PetState {
   streak: number;
   daysSinceLastContribution: number;
   stats: PetStats;
+  /** Gone after a month of silence: nothing to eat, nobody around. */
+  ranAway: boolean;
+  /** Forces a trick instead of today's (previews only). */
+  trick?: Trick;
+  /** Visitors' care, when the owner turned it on. */
+  care?: CareView;
 }
+
+export type Trick = "dance" | "twirl" | "heart-eyes" | "sneeze" | "tongue" | "signature";

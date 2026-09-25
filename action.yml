@@ -18,6 +18,15 @@ inputs:
       (widget, name, theme, hide_border, species, pet, season, hemisphere). Examples:
       `profileforge/pet.svg?name=Pinchy&theme=dark`, `profileforge/city.svg?widget=city`
     default: profileforge/pet.svg
+  care:
+    description: |
+      "true" lets visitors feed, bathe and play with your pet by opening issues titled
+      "ProfileForge: feed" (or bath, play). Needs `issues: write` and an `issues: [opened]`
+      trigger; see the README. Off by default.
+    default: "false"
+  care_file:
+    description: Where the care log is kept (a .json file in your repo).
+    default: profileforge/care.json
   commit:
     description: Commit and push the generated SVGs. Set to "false" to handle that yourself.
     default: "true"

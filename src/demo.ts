@@ -1,4 +1,5 @@
-import type { ContributionDay, GitHubProfile, Mood, PetState, Stage } from "./types.js";
+import type { ContributionDay, GitHubProfile, Mood, PetState, Stage, Trick } from "./types.js";
+import type { CareAction } from "./care/commands.js";
 import { seeded } from "./random.js";
 import { classForLanguage } from "./pet/classes.js";
 import { getSpecies } from "./pet/species/index.js";
@@ -27,7 +28,23 @@ const DEMO_LANGUAGE: Record<string, string> = {
 };
 
 /** A made-up pet for docs, the gallery and `?user=demo`. */
-export function demoState(mood: Mood = "happy", stage: Stage = "adult", petName?: string, speciesId = "crab"): PetState {
+export interface DemoExtras {
+  trick?: Trick;
+  /** Pretend the pet has run away (a month without contributions). */
+  away?: boolean;
+  /** Pretend a visitor just did this (care previews). */
+  visit?: CareAction;
+  /** Pretend it's gone this long without a bath: 0 clean … 3 flies. */
+  dirt?: 0 | 1 | 2 | 3;
+}
+
+export function demoState(
+  mood: Mood = "happy",
+  stage: Stage = "adult",
+  petName?: string,
+  speciesId = "crab",
+  { trick, away = false, visit, dirt }: DemoExtras = {},
+): PetState {
   const species = getSpecies(speciesId);
   const language = DEMO_LANGUAGE[species.id] ?? "Rust";
   const level = LEVEL[stage];
@@ -48,6 +65,20 @@ export function demoState(mood: Mood = "happy", stage: Stage = "adult", petName?
     xpLevelStart: start,
     xpNextLevel: next,
     ...ACTIVITY[mood],
+    ...(away ? { daysSinceLastContribution: 41, activeDays14: 0, streak: 0 } : {}),
+    ranAway: away && stage !== "egg",
+    trick,
+    ...(visit || dirt !== undefined
+      ? {
+          care: {
+            fed: visit === "feed",
+            bathed: visit === "bath",
+            played: visit === "play",
+            dirt: visit === "bath" ? 0 : (dirt ?? 0),
+            visitor: visit ? { login: "octocat", action: visit } : null,
+          },
+        }
+      : {}),
     stats: {
       str: Math.round(20 + 75 * power),
       int: Math.round(15 + 60 * power),

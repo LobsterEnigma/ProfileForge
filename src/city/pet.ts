@@ -20,8 +20,9 @@ const REST_X = 214;
 
 /** Your pet out on the sidewalk: strolling when content, resting when not. */
 export function strollingPet(pet: PetState | null): string {
-  if (!pet) return "";
-  const sprite = renderPetSprite(pet, 1);
+  if (!pet || pet.ranAway) return "";
+  // Too small for emote bubbles; the tricks stay on the pet card.
+  const sprite = renderPetSprite(pet, 1, { lively: false });
   const y = ROAD_Y + 1 - sprite.height;
   const walking = pet.stage !== "egg" && (pet.mood === "happy" || pet.mood === "idle");
 

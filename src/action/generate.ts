@@ -4,7 +4,8 @@ import { fetchProfile } from "../github/fetch.js";
 import { parsePetParams, type PetParams } from "../options.js";
 import { computePetState } from "../pet/state.js";
 import type { GitHubProfile, PetState } from "../types.js";
-import { renderWidget } from "../widgets.js";
+import { applyCare } from "../care/view.js";
+import { renderWidget, type Care } from "../widgets.js";
 
 export interface OutputSpec {
   /** Relative to the workspace, e.g. `profileforge/pet.svg`. */
@@ -50,6 +51,7 @@ export interface GenerateOptions {
   outputs: OutputSpec[];
   workspace: string;
   fetch?: (login: string, token: string) => Promise<GitHubProfile>;
+  care?: Care;
 }
 
 export interface GenerateResult {
@@ -58,16 +60,17 @@ export interface GenerateResult {
   state: PetState;
 }
 
-export async function generate({ user, token, outputs, workspace, fetch = fetchProfile }: GenerateOptions): Promise<GenerateResult> {
+export async function generate({ user, token, outputs, workspace, fetch = fetchProfile, care }: GenerateOptions): Promise<GenerateResult> {
   // Validate every path before touching the network or the disk.
   const targets = outputs.map((o) => ({ ...o, full: resolveInside(workspace, o.path) }));
   const profile = await fetch(user, token);
 
   for (const { full, params } of targets) {
     await mkdir(dirname(full), { recursive: true });
-    await writeFile(full, renderWidget(profile, params));
+    await writeFile(full, renderWidget(profile, params, care));
   }
   const pet = targets.find((t) => t.params.widget === "pet")?.params;
-  const state = computePetState(profile, { petName: pet?.petName, species: pet?.species });
+  const plain = computePetState(profile, { petName: pet?.petName, species: pet?.species });
+  const state = care ? applyCare(plain, care.state, care.now) : plain;
   return { files: targets.map((t) => t.full), state };
 }

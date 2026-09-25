@@ -56,6 +56,28 @@ createServer(async (req, res) => {
     res.end(`<body style="margin:0;background:#888"><img src="/api/${widget}${url.search}" style="width:${(widget === "city" ? 800 : 480) * scale}px;image-rendering:pixelated">`);
     return;
   }
+  if (url.pathname === "/frames") {
+    // /frames?t=9.5&q=user=demo%26trick=dance&q=... → cards frozen at t seconds, for checking
+    // animations that only show part of the time (tricks play at 8.4–10.6s of a 12s cycle).
+    const t = Number(url.searchParams.get("t") ?? 0);
+    const zoom = Number(url.searchParams.get("zoom") ?? 1);
+    const cards = await Promise.all(
+      url.searchParams.getAll("q").map(async (q) => {
+        const params = new URLSearchParams(q);
+        const widget = params.get("widget") === "city" ? "city" : "pet";
+        const svg = await (await handleWidget(widget, new URL(`http://x/?${params}`), { GITHUB_TOKEN: process.env.GITHUB_TOKEN })).text();
+        const [w, h] = widget === "city" ? [800, 260] : [480, 190];
+        const doc = `<body style="margin:0">${svg}</body>`.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+        return `<figure style="margin:0 0 8px;width:${w * zoom}px;height:${h * zoom + 16}px"><iframe srcdoc="${doc}" width="${w}" height="${h}" style="border:0;display:block;transform:scale(${zoom});transform-origin:0 0"></iframe><figcaption style="font:12px system-ui;margin-top:${h * (zoom - 1)}px">${q.replaceAll("<", "&lt;")}</figcaption></figure>`;
+      }),
+    );
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    res.end(`<body style="margin:8px;background:#888">${cards.join("")}<script>
+      addEventListener("load", () => { for (const f of document.querySelectorAll("iframe"))
+        for (const a of f.contentDocument.getAnimations()) { a.pause(); a.currentTime = ${t * 1000}; } });
+    </script>`);
+    return;
+  }
   if (url.pathname === "/") {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     res.end(gallery(url.searchParams.get("theme") ?? "auto"));

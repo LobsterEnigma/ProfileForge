@@ -69,6 +69,8 @@ jobs:
 | `github_token` | `${{ github.token }}` | The built-in token can read public contributions. |
 | `commit` | `true` | Commit and push the SVGs (only when they changed). |
 | `commit_message` | `chore: feed the ProfileForge pet` | |
+| `care` | `false` | `true` lets visitors feed, bathe and play with your pet. See [Let visitors care for it](#let-visitors-care-for-it). |
+| `care_file` | `profileforge/care.json` | Where the care log lives. |
 
 Step outputs: `mood`, `level`, `stage` (of the pet).
 </details>
@@ -122,6 +124,73 @@ XP = lifetime contributions + 2 × stars + 3 × followers, so **levels never go 
 | Adult | 15–49 | <img src="examples/stage-adult.svg" width="300"> |
 | Legendary | 50+ (gold, crown, sparkles) | <img src="examples/stage-legendary.svg" width="300"> |
 
+### It has a life of its own
+
+- It **looks around**, pops up little emote bubbles, and does **a trick of the day**: a dance, a twirl, heart eyes, a sneeze, or its species' signature move (crab bubbles, gopher digging, snake hissing, elephant spraying, chick pecking, turtle zoomies).
+- After **30 days without contributions it runs away**, leaving a note and a trail of footprints. Your next commit brings it home.
+
+### Let visitors care for it
+
+Turn on `care` and anyone visiting your profile can **feed**, **bathe** or **play** with your pet, just by opening an issue. Skip baths for too long and it gets smudged, then smelly, then flies start circling. 🪰
+
+**1.** Give your workflow an issues trigger and permission, and turn care on:
+
+```yaml
+name: ProfileForge
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+# One run at a time, so visits never race each other.
+concurrency:
+  group: profileforge
+  cancel-in-progress: false
+
+jobs:
+  forge:
+    # Skip issues that aren't for the pet. The Action checks the title again itself.
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'ProfileForge:')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: LobsterEnigma/ProfileForge@v1
+        with:
+          care: true
+          outputs: |
+            profileforge/pet.svg
+```
+
+**2.** Put the care links under your pet (replace `you` with your username):
+
+```md
+[🍖 Feed](https://github.com/you/you/issues/new?title=ProfileForge%3A%20feed) ·
+[🛁 Bath](https://github.com/you/you/issues/new?title=ProfileForge%3A%20bath) ·
+[🎾 Play](https://github.com/you/you/issues/new?title=ProfileForge%3A%20play)
+```
+
+A visit shows on the card within a few minutes ("Fed by …"), the pet gets a food bowl, a ball or soap bubbles, and the issue gets a reply and closes itself.
+
+<details>
+<summary>How care stays safe</summary>
+
+- **Issue text is never trusted.** Only the title is read, and only to match `feed`, `bath` or `play` exactly. It's never echoed, rendered, logged or passed to a shell; the issue body is ignored entirely. The only visitor data kept is their login, validated against GitHub's username rules.
+- **Replies are fixed templates** with your pet's name and the visitor's login, without `@` mentions.
+- **Limits:** each visitor can do each action once a day, there are at most 60 visits a day in total, at most 30 issues handled per run, and issues from bots are ignored.
+- **The care log (`care.json`) is validated on every read.** Unknown fields are dropped, sizes are capped, and a corrupted log simply starts over.
+- **Every issue is applied exactly once.** Handled issue numbers are remembered, and issues are only answered after the new state is committed, so a failed run is safely retried.
+- **Least privilege:** the workflow only needs `contents: write` (to commit the SVGs) and `issues: write` (to reply and close).
+
+To turn it off, remove `care: true` (and the `issues` trigger). Existing issues stay as they are.
+</details>
+
 ### It has RPG stats
 
 - **Class**: picked from your top language. Rust → *Berserker*, Haskell → *Archmage*, CSS → *Bard*, Shell → *Necromancer*, … ([full list](src/pet/classes.ts))
@@ -173,7 +242,7 @@ Light themes paint it at sunset, dark themes at night. Seasons follow the date, 
 | `hide_border` | `false` | `true` to drop the card border. |
 | `season` | from the date | Pin `spring` · `summer` · `autumn` · `winter` instead of following the date. |
 | `hemisphere` | `north` | `south` flips the automatic seasons (December is summer) and mirrors the city's moon. |
-| `mood`, `stage` | | Pet only, with `user=demo`, to preview any state. |
+| `mood`, `stage`, `trick`, `away`, `visit`, `dirt` | | Pet only, with `user=demo`, to preview any state. |
 
 `auto` follows the viewer's light/dark setting: the beach gets stars and the city switches from sunset to night.
 
@@ -228,6 +297,8 @@ Then map your language to it in `BY_LANGUAGE` and give it a home in `pet/scenery
 - [x] GitHub Action mode (generate the SVG in your own repo, no shared rate limits)
 - [x] 🌃 Pixel city: your contribution graph as a skyline
 - [x] Web configurator: build your card and copy the Markdown
+- [x] Visitors can feed, bathe and play with your pet
+- [ ] Talk to your pet (AI, opt-in, with strict limits)
 
 ## License
 

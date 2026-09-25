@@ -187,7 +187,7 @@ function vars(t: Theme): string {
 
 /** CSS custom properties for the chosen theme, scoped to the root `.pf` element. */
 export function themeCss(name: string | undefined): string {
-  const theme = THEMES[name ?? "auto"] ?? THEMES.auto!;
+  const theme = name && Object.hasOwn(THEMES, name) ? THEMES[name]! : THEMES.auto!;
   if ("light" in theme) {
     return `.pf{${vars(theme.light)}}@media (prefers-color-scheme:dark){.pf{${vars(theme.dark)}}}`;
   }
@@ -211,6 +211,6 @@ const FILTERS: Record<string, string> = {
 
 /** The theme's sprite filter: `defs` goes in the SVG, `attr` on the group to recolor. */
 export function themeFilter(name: string | undefined): { defs: string; attr: string } {
-  const filter = name ? FILTERS[name] : undefined;
+  const filter = name && Object.hasOwn(FILTERS, name) ? FILTERS[name] : undefined;
   return filter ? { defs: `<defs>${filter}</defs>`, attr: ` filter="url(#pf-theme)"` } : { defs: "", attr: "" };
 }

@@ -46,5 +46,5 @@ const CLASS_BY_LANGUAGE: Record<string, string> = {
 
 export function classForLanguage(language: string | null): string {
   if (!language) return "Adventurer";
-  return CLASS_BY_LANGUAGE[language] ?? "Adventurer";
+  return Object.hasOwn(CLASS_BY_LANGUAGE, language) ? CLASS_BY_LANGUAGE[language]! : "Adventurer";
 }

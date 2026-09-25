@@ -20,7 +20,7 @@ const BY_LANGUAGE: Record<string, string> = {
 };
 
 export function speciesForLanguage(language: string | null): string {
-  return (language && BY_LANGUAGE[language]) || "crab";
+  return language && Object.hasOwn(BY_LANGUAGE, language) ? BY_LANGUAGE[language]! : "crab";
 }
 
 export function isSpecies(id: string | null | undefined): id is string {

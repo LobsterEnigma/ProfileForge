@@ -82,8 +82,8 @@ function fallingParticles(look, rng, area = CITY_AREA) {
   const f = look.falling;
   if (!f) return "";
   const out = [];
-  const count = Math.round(f.count * area.w / W) + 4;
-  for (let i = 0; i < count; i++) {
+  const count2 = Math.round(f.count * area.w / W) + 4;
+  for (let i = 0; i < count2; i++) {
     const x = area.x + Math.round(rng() * area.w);
     const seconds = f.minSeconds + rng() * 7;
     const delay = rng() * seconds;
@@ -115,8 +115,8 @@ function litter(look, rng) {
 function fireflies(look, rng, area = CITY_AREA) {
   if (!look.fireflies) return "";
   const out = [];
-  const count = Math.max(4, Math.round(12 * area.w / W));
-  for (let i = 0; i < count; i++) {
+  const count2 = Math.max(4, Math.round(12 * area.w / W));
+  for (let i = 0; i < count2; i++) {
     const x = Math.round(area.x + 12 + rng() * (area.w - 24));
     const y = Math.round(area.ground - 30 + rng() * 26);
     const dx = Math.round((rng() - 0.5) * 16);
@@ -191,7 +191,7 @@ var CLASS_BY_LANGUAGE = {
 };
 function classForLanguage(language) {
   if (!language) return "Adventurer";
-  return CLASS_BY_LANGUAGE[language] ?? "Adventurer";
+  return Object.hasOwn(CLASS_BY_LANGUAGE, language) ? CLASS_BY_LANGUAGE[language] : "Adventurer";
 }
 
 // src/svg/pixel.ts
@@ -715,7 +715,7 @@ var BY_LANGUAGE = {
   TypeScript: "turtle"
 };
 function speciesForLanguage(language) {
-  return language && BY_LANGUAGE[language] || "crab";
+  return language && Object.hasOwn(BY_LANGUAGE, language) ? BY_LANGUAGE[language] : "crab";
 }
 function isSpecies(id) {
   return !!id && Object.hasOwn(SPECIES, id);
@@ -726,6 +726,7 @@ function getSpecies(id) {
 
 // src/pet/state.ts
 var MAX_LEVEL = 99;
+var RUN_AWAY_DAYS = 30;
 function xpForLevel(level) {
   return 5 * (level - 1) ** 2;
 }
@@ -792,13 +793,248 @@ function computePetState(profile, options = {}) {
     activeDays14: lastDays(profile.calendar, 14).filter((d) => d.count > 0).length,
     streak: currentStreak(profile.calendar),
     daysSinceLastContribution: daysSinceLastContribution(profile.calendar),
-    stats
+    stats,
+    ranAway: level >= 3 && daysSinceLastContribution(profile.calendar) >= RUN_AWAY_DAYS
   };
 }
 
 // src/demo.ts
 var MOODS = ["happy", "idle", "hungry", "sleeping"];
 var STAGES = ["egg", "baby", "adult", "legendary"];
+
+// src/care/commands.ts
+var CARE_ACTIONS = ["feed", "bath", "play"];
+var TITLE_PREFIX = "ProfileForge:";
+var SYNONYMS = {
+  feed: "feed",
+  food: "feed",
+  eat: "feed",
+  bath: "bath",
+  wash: "bath",
+  clean: "bath",
+  play: "play",
+  ball: "play"
+};
+function parseTitle(title) {
+  if (title.length > 256) return null;
+  const match = /^\s*profileforge\s*:\s*([a-z]+)?/i.exec(title);
+  if (!match) return null;
+  const word = (match[1] ?? "").toLowerCase();
+  return Object.hasOwn(SYNONYMS, word) ? { kind: "action", action: SYNONYMS[word] } : { kind: "unknown" };
+}
+
+// src/svg/batch.ts
+var RectBatch = class {
+  paths = /* @__PURE__ */ new Map();
+  add(fill, x, y, w, h) {
+    const segs = this.paths.get(fill) ?? [];
+    segs.push(`M${x} ${y}h${w}v${h}h${-w}z`);
+    this.paths.set(fill, segs);
+    return this;
+  }
+  toString() {
+    return [...this.paths].map(([fill, segs]) => {
+      const attr = fill.startsWith("var(") ? `style="fill:${fill}"` : `fill="${fill}"`;
+      return `<path ${attr} d="${segs.join("")}"/>`;
+    }).join("");
+  }
+};
+
+// src/pet/sprites.ts
+var EGG = [
+  "...oooo...",
+  "..occcco..",
+  ".occsscco.",
+  ".occcccco.",
+  "occcccccso",
+  "occcccccco",
+  "ocssccccco",
+  "ocsscccceo",
+  "oeccccccco",
+  ".oeccccco.",
+  "..oeeeeo..",
+  "...oooo..."
+];
+var EGG_CRACK = [
+  "..........",
+  "..........",
+  "..........",
+  "..........",
+  "..........",
+  "..x.x.....",
+  "...x.x.x..",
+  ".........."
+];
+var EGG_PALETTE = {
+  o: "#5b4636",
+  c: "#fbf3e4",
+  e: "#e0cfb1",
+  s: "#7fc8a9",
+  x: "#5b4636"
+};
+var CROWN = [
+  "y..y..y",
+  "yy.y.yy",
+  "yyyyyyy",
+  "ygyyygy",
+  "YYYYYYY"
+];
+var HEART = ["pp.pp", "ppppp", ".ppp.", "..p.."];
+var ZED = ["zzz", "..z", ".z.", "z..", "zzz"];
+var SPARKLE = ["..s..", "..s..", "sssss", "..s..", "..s.."];
+var COMMIT = ["gggg", "gGGg", "gGGg", "gggg"];
+var FX_PALETTE = {
+  y: "#ffd54a",
+  Y: "#c99a1a",
+  g: "#216e39",
+  G: "#40c463",
+  p: "#ff5c7a",
+  s: "#fff3a0",
+  z: "var(--pf-muted)"
+};
+
+// src/pet/behavior.ts
+function shiftPupils(grid, dir) {
+  return grid.map((row) => {
+    const px = [...row];
+    const order = dir === -1 ? px.keys() : [...px.keys()].reverse();
+    for (const i of order) {
+      if (px[i] === "k" && px[i + dir] === "w") [px[i], px[i + dir]] = [px[i + dir], px[i]];
+    }
+    return px.join("");
+  });
+}
+function glance(eyes4) {
+  for (const dir of [-1, 1]) {
+    const moved = eyes4.map((l) => ({ ...l, grid: shiftPupils(l.grid, dir) }));
+    if (moved.some((l, i) => l.grid.join() !== eyes4[i].grid.join())) return moved;
+  }
+  return null;
+}
+var width = (l) => Math.max(...l.grid.map((r) => r.length));
+function anchors(species) {
+  const eyes4 = species.eyes.open.filter((l) => /[kw]/.test(l.grid.join(""))).map((l) => ({ x: l.x + width(l) / 2, y: l.y + l.grid.length / 2 }));
+  const mouthLayers = [species.mouths.smile, species.mouths.neutral, species.mouths.frown].find((m) => m.length) ?? [];
+  const mouth = mouthLayers.length ? {
+    x: (Math.min(...mouthLayers.map((l) => l.x)) + Math.max(...mouthLayers.map((l) => l.x + width(l)))) / 2,
+    y: Math.max(...mouthLayers.map((l) => l.y + l.grid.length))
+  } : { x: species.width / 2, y: species.height * 0.7 };
+  const top = Math.min(...species.eyes.open.map((l) => l.y));
+  return { eyes: eyes4, mouth, top };
+}
+var GLYPHS = {
+  question: ["xxx", "..x", ".xx", "...", ".x."],
+  note: ["..xx", "..x.", "..x.", "xxx.", "xx.."],
+  bang: [".x.", ".x.", ".x.", "...", ".x."]
+};
+function emoteBubble(emote, x, y, cls, style = "") {
+  const glyph = GLYPHS[emote];
+  const w = glyph[0].length * 2 + 8;
+  const h = 18;
+  return `<g class="${cls}"${style ? ` style="${style}"` : ""}><rect x="${x}" y="${y - h}" width="${w}" height="${h - 4}" rx="4" fill="#ffffff" stroke="#1f2328" stroke-width="1"/><rect x="${x + 3}" y="${y - 5}" width="3" height="3" fill="#ffffff" stroke="#1f2328" stroke-width="1"/>${renderPixels([{ x: 0, y: 0, grid: glyph }], { x: "#1f2328" }, { x: x + 4, y: y - h + 2, scale: 2 })}</g>`;
+}
+var TRICKS = ["dance", "twirl", "heart-eyes", "sneeze", "tongue", "signature"];
+var SIGNATURE = {
+  crab: "bubbles",
+  gopher: "dig",
+  snake: "hiss",
+  elephant: "spray",
+  chick: "peck",
+  turtle: "zoomies"
+};
+function trickFor(date, login) {
+  const pool = ["signature", "signature", "dance", "twirl", "heart-eyes", "sneeze", "tongue"];
+  return pool[Math.floor(seeded(`trick:${login}:${date}`)() * pool.length)];
+}
+var BEHAVIOR_CSS = `
+.pf-eo{animation:pf-eo 7s steps(1) infinite}
+.pf-eg{opacity:0;animation:pf-eg 7s steps(1) infinite}
+.pf-es{opacity:0;animation:pf-es 7s steps(1) infinite}
+@keyframes pf-eo{0%{opacity:1}38%{opacity:0}52%{opacity:1}90%{opacity:0}95%{opacity:1}100%{opacity:1}}
+@keyframes pf-eg{0%{opacity:0}38%{opacity:1}52%{opacity:0}100%{opacity:0}}
+@keyframes pf-es{0%{opacity:0}90%{opacity:1}95%{opacity:0}100%{opacity:0}}
+.pf-emote{opacity:0;transform-box:fill-box;transform-origin:0 100%;animation:pf-emote 9s ease-out infinite}
+@keyframes pf-emote{0%,40%{opacity:0;transform:scale(.3)}43%,51%{opacity:1;transform:scale(1)}54%,100%{opacity:0;transform:scale(1)}}
+.pf-emote-fast{opacity:0;transform-box:fill-box;transform-origin:0 100%;animation:pf-emote-fast 3.6s ease-out infinite}
+@keyframes pf-emote-fast{0%{opacity:0;transform:scale(.3)}8%,40%{opacity:1;transform:scale(1)}50%,100%{opacity:0}}
+.pf-show{opacity:0;animation:pf-show 12s steps(1) infinite}
+@keyframes pf-show{0%{opacity:0}70%{opacity:1}88%{opacity:0}100%{opacity:0}}
+.pf-flick{opacity:0;animation:pf-flick 12s steps(1) infinite}
+@keyframes pf-flick{0%{opacity:0}70%{opacity:1}73%{opacity:0}76%{opacity:1}79%{opacity:0}82%{opacity:1}85%,100%{opacity:0}}
+.pf-dance{transform-box:fill-box;transform-origin:50% 100%;animation:pf-dance 12s linear infinite}
+@keyframes pf-dance{0%,70%,88%,100%{transform:rotate(0)}72%,76%,80%,84%{transform:rotate(-10deg)}74%,78%,82%,86%{transform:rotate(10deg)}}
+.pf-twirl{transform-box:fill-box;transform-origin:center;animation:pf-twirl 12s steps(1) infinite}
+@keyframes pf-twirl{0%{transform:scaleX(1)}72%{transform:scaleX(-1)}75%{transform:scaleX(1)}78%{transform:scaleX(-1)}81%{transform:scaleX(1)}100%{transform:scaleX(1)}}
+.pf-sneeze{transform-box:fill-box;transform-origin:50% 100%;animation:pf-sneeze 12s ease-in-out infinite}
+@keyframes pf-sneeze{0%,70%,100%{transform:scale(1)}76%{transform:scale(1.05,.88)}79%{transform:scale(.95,1.08)}84%{transform:scale(1)}}
+.pf-peck{transform-box:fill-box;transform-origin:50% 100%;animation:pf-peck 12s ease-in-out infinite}
+@keyframes pf-peck{0%,70%,88%,100%{transform:rotate(0)}73%,79%,85%{transform:rotate(16deg)}76%,82%{transform:rotate(0)}}
+.pf-zoom{animation:pf-zoom 12s ease-in-out infinite}
+@keyframes pf-zoom{0%,70%,100%{transform:translateX(0)}75%{transform:translateX(44px)}81%{transform:translateX(-44px)}87%{transform:translateX(0)}}
+.pf-burst{opacity:0;animation:pf-burst 12s ease-out infinite}
+@keyframes pf-burst{0%,71%{transform:translate(0,0);opacity:0}72%,82%{opacity:1}88%{transform:translate(var(--dx),var(--dy));opacity:0}100%{opacity:0}}
+`;
+function burst(from, color, size, particles, round2 = false) {
+  return particles.map(
+    (p) => `<rect class="pf-burst" style="--dx:${p.dx}px;--dy:${p.dy}px;animation-delay:${p.delay}s" x="${from.x - size / 2}" y="${from.y - size / 2}" width="${size}" height="${size}"${round2 ? ` rx="${size / 2}" fill="none" stroke="${color}" stroke-width="1"` : ` fill="${color}"`}/>`
+  ).join("");
+}
+var fan = (n, spread, rise) => Array.from({ length: n }, (_, i) => ({ dx: Math.round((i / (n - 1) - 0.5) * spread), dy: -rise - i % 2 * 6, delay: i % 3 * 0.15 }));
+function trickLayers(trick, species, scale) {
+  const a = anchors(species);
+  const at = (p) => ({ x: p.x * scale, y: p.y * scale });
+  const mouth = at(a.mouth);
+  const w = species.width * scale;
+  const h = species.height * scale;
+  switch (trick) {
+    case "dance":
+      return { bodyClass: "pf-dance", overlay: emoteBubble("note", w - 6, a.top * scale - 2, "pf-show") };
+    case "twirl":
+      return { bodyClass: "pf-twirl", overlay: "" };
+    case "heart-eyes": {
+      const hs = Math.max(1, Math.round(scale * 0.75));
+      const hearts = a.eyes.map((e) => at(e)).map((e) => renderPixels([{ x: 0, y: 0, grid: HEART }], FX_PALETTE, { x: e.x - 5 * hs / 2, y: e.y - 2 * hs, scale: hs })).join("");
+      return { bodyClass: "", overlay: `<g class="pf-show">${hearts}</g>` };
+    }
+    case "sneeze":
+      return {
+        bodyClass: "pf-sneeze",
+        overlay: emoteBubble("bang", w - 6, a.top * scale - 2, "pf-show") + burst(mouth, "#8ec5ea", Math.max(2, scale * 0.75), fan(5, 50, 6))
+      };
+    case "tongue":
+      return {
+        bodyClass: "",
+        overlay: `<rect class="pf-show" x="${mouth.x - scale}" y="${mouth.y}" width="${2 * scale}" height="${2 * scale}" rx="${scale / 2}" fill="#e63946"/>`
+      };
+    case "signature":
+      return signature(SIGNATURE[species.id] ?? "bubbles", mouth, w, h, scale);
+  }
+}
+function signature(move, mouth, w, h, scale) {
+  switch (move) {
+    case "bubbles":
+      return { bodyClass: "", overlay: burst(mouth, "#dff4ff", 2 * scale, fan(4, 30, 34), true) };
+    case "dig":
+      return { bodyClass: "pf-sneeze", overlay: burst({ x: w / 2, y: h - scale }, "#7a5230", scale, fan(6, 70, 14)) };
+    case "hiss": {
+      const fork = new RectBatch().add("#e63946", mouth.x - scale / 2, mouth.y, scale, 2 * scale).add("#e63946", mouth.x - 1.5 * scale, mouth.y + 2 * scale, scale, scale).add("#e63946", mouth.x + 0.5 * scale, mouth.y + 2 * scale, scale, scale);
+      return { bodyClass: "", overlay: `<g class="pf-flick">${fork}</g>` };
+    }
+    case "spray":
+      return { bodyClass: "", overlay: burst({ x: w / 2, y: h - 2 * scale }, "#4ea8de", Math.max(2, scale), fan(7, 96, 84)) };
+    case "peck": {
+      const seeds = new RectBatch();
+      for (const dx of [-3, 2, 6]) seeds.add("#e9c46a", w / 2 + dx * scale, h - scale / 2, scale / 2 + 1, scale / 2 + 1);
+      return { bodyClass: "pf-peck", overlay: `<g class="pf-show">${seeds}</g>` };
+    }
+    case "zoomies": {
+      const lines = new RectBatch();
+      for (const y of [0.35, 0.55, 0.75]) lines.add("#8d96a0", -4 * scale, h * y, 3 * scale, Math.max(1, scale / 2));
+      return { bodyClass: "pf-zoom", overlay: `<g class="pf-show">${lines}</g>` };
+    }
+  }
+}
+var playful = (mood) => mood === "happy" || mood === "idle";
 
 // src/options.ts
 var LOGIN_RE = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
@@ -819,8 +1055,198 @@ function parsePetParams(q) {
     season: oneOf(q.get("season"), SEASONS),
     hemisphere: oneOf(q.get("hemisphere"), HEMISPHERES),
     mood: oneOf(q.get("mood"), MOODS),
-    stage: oneOf(q.get("stage"), STAGES)
+    stage: oneOf(q.get("stage"), STAGES),
+    trick: oneOf(q.get("trick"), TRICKS),
+    away: q.get("away") === "true",
+    visit: oneOf(q.get("visit"), CARE_ACTIONS),
+    dirt: oneOf(q.get("dirt"), ["0", "1", "2", "3"]) ? Number(q.get("dirt")) : void 0
   };
+}
+
+// src/action/care.ts
+import { mkdir as mkdir2, readFile, writeFile as writeFile2 } from "node:fs/promises";
+import { dirname as dirname2 } from "node:path";
+
+// src/care/state.ts
+var LIMITS = {
+  /** Each visitor may do each action once per UTC day. */
+  perVisitorPerAction: 1,
+  /** Across everyone, per UTC day. */
+  perDay: 60,
+  /** Issues handled per run; the rest wait for the next one. */
+  perRun: 30,
+  maxFileBytes: 64 * 1024,
+  maxHandled: 300,
+  maxRecent: 5,
+  maxTotal: 1e9
+};
+var utcDay = (d) => d.toISOString().slice(0, 10);
+var todayOf = (state, login) => Object.hasOwn(state.today, login) ? state.today[login] : [];
+function newCareState(now) {
+  return {
+    version: 1,
+    since: now.toISOString(),
+    last: { feed: null, bath: null, play: null },
+    day: utcDay(now),
+    today: {},
+    todayTotal: 0,
+    totals: { feed: 0, bath: 0, play: 0 },
+    recent: [],
+    handled: []
+  };
+}
+var isObject = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+var isAction = (v) => CARE_ACTIONS.includes(v);
+var isLogin = (v) => typeof v === "string" && LOGIN_RE.test(v);
+function isTime(v, now) {
+  if (typeof v !== "string" || v.length > 40) return false;
+  const t = Date.parse(v);
+  return Number.isFinite(t) && t <= now.getTime() + 6e4 && new Date(t).toISOString() === v;
+}
+var count = (v) => typeof v === "number" && Number.isInteger(v) && v >= 0 ? Math.min(v, LIMITS.maxTotal) : 0;
+function parseCareState(text, now) {
+  const fresh = newCareState(now);
+  if (text === null) return { state: fresh };
+  if (text.length > LIMITS.maxFileBytes) return { state: fresh, warning: "care file too large, starting over" };
+  let raw;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { state: fresh, warning: "care file is not valid JSON, starting over" };
+  }
+  if (!isObject(raw) || raw.version !== 1) return { state: fresh, warning: "unknown care file format, starting over" };
+  const state = fresh;
+  if (isTime(raw.since, now)) state.since = raw.since;
+  if (isObject(raw.last)) {
+    for (const a of CARE_ACTIONS) if (isTime(raw.last[a], now)) state.last[a] = raw.last[a];
+  }
+  if (isObject(raw.totals)) {
+    for (const a of CARE_ACTIONS) state.totals[a] = count(raw.totals[a]);
+  }
+  if (raw.day === state.day && isObject(raw.today)) {
+    for (const [login, actions] of Object.entries(raw.today).slice(0, LIMITS.perDay)) {
+      if (isLogin(login) && Array.isArray(actions)) {
+        const valid = [...new Set(actions.filter(isAction))];
+        if (valid.length) state.today[login] = valid;
+      }
+    }
+    state.todayTotal = Math.min(count(raw.todayTotal), LIMITS.perDay);
+  }
+  if (Array.isArray(raw.recent)) {
+    state.recent = raw.recent.filter((e) => isObject(e) && isAction(e.action) && isLogin(e.by) && isTime(e.at, now)).slice(0, LIMITS.maxRecent).map(({ action, by, at }) => ({ action, by, at }));
+  }
+  if (Array.isArray(raw.handled)) {
+    state.handled = raw.handled.filter((n) => Number.isInteger(n) && n > 0).slice(-LIMITS.maxHandled);
+  }
+  return { state };
+}
+var serializeCareState = (state) => JSON.stringify(state, null, 2) + "\n";
+function applyIssues(previous, issues, now) {
+  const state = structuredClone(previous);
+  if (state.day !== utcDay(now)) {
+    state.day = utcDay(now);
+    state.today = {};
+    state.todayTotal = 0;
+  }
+  const seen = new Set(state.handled);
+  const handled = [];
+  const queue = [...issues].sort((a, b) => a.number - b.number);
+  for (const issue of queue) {
+    if (handled.length >= LIMITS.perRun) break;
+    if (seen.has(issue.number) || issue.userType !== "User" || !isLogin(issue.login)) continue;
+    const parsed = parseTitle(issue.title);
+    if (!parsed) continue;
+    let outcome;
+    if (parsed.kind === "unknown") {
+      outcome = { kind: "unknown" };
+    } else if (state.todayTotal >= LIMITS.perDay) {
+      outcome = { kind: "busy" };
+    } else if (todayOf(state, issue.login).filter((a) => a === parsed.action).length >= LIMITS.perVisitorPerAction) {
+      outcome = { kind: "limited", action: parsed.action };
+    } else {
+      const at = now.toISOString();
+      state.today[issue.login] = [...todayOf(state, issue.login), parsed.action];
+      state.todayTotal++;
+      state.totals[parsed.action] = Math.min(state.totals[parsed.action] + 1, LIMITS.maxTotal);
+      state.last[parsed.action] = at;
+      state.recent = [{ action: parsed.action, by: issue.login, at }, ...state.recent].slice(0, LIMITS.maxRecent);
+      outcome = { kind: "done", action: parsed.action };
+    }
+    handled.push({ issue, outcome });
+    seen.add(issue.number);
+    state.handled = [...state.handled, issue.number].slice(-LIMITS.maxHandled);
+  }
+  return { state, handled };
+}
+function replyFor(outcome, petName, login) {
+  switch (outcome.kind) {
+    case "done":
+      return {
+        feed: `\u{1F356} Nom nom! ${petName} is fed. Thanks for stopping by, ${login}!`,
+        bath: `\u{1F6C1} Splash! ${petName} is squeaky clean again. Thanks, ${login}!`,
+        play: `\u{1F3BE} ${petName} chased the ball and had a blast. Thanks for playing, ${login}!`
+      }[outcome.action] + "\n\nThe card updates within a few minutes. This issue closes itself.";
+    case "limited":
+      return `${petName} already got that from you today. Come back tomorrow! \u{1F319}`;
+    case "busy":
+      return `${petName} has had a very busy day and is resting now. Try again tomorrow! \u{1F4A4}`;
+    case "unknown":
+      return `${petName} only understands \`feed\`, \`bath\` and \`play\`. Try a title like "ProfileForge: feed".`;
+  }
+}
+
+// src/github/issues.ts
+var API = "https://api.github.com";
+var REPO_RE = /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/;
+var IssuesError = class extends Error {
+};
+function headers(token) {
+  return {
+    authorization: `Bearer ${token}`,
+    accept: "application/vnd.github+json",
+    "x-github-api-version": "2022-11-28",
+    "user-agent": "ProfileForge"
+  };
+}
+function checkRepo(repo) {
+  if (!REPO_RE.test(repo)) throw new IssuesError(`"${repo}" is not a valid owner/repo`);
+}
+async function listCareIssues(token, repo, f = fetch) {
+  checkRepo(repo);
+  const res = await f(`${API}/repos/${repo}/issues?state=open&sort=created&direction=asc&per_page=100`, {
+    headers: headers(token)
+  });
+  if (!res.ok) throw new IssuesError(`listing issues failed: ${res.status}`);
+  const body = await res.json();
+  if (!Array.isArray(body)) throw new IssuesError("unexpected issues response");
+  const prefix = TITLE_PREFIX.toLowerCase();
+  return body.flatMap((item) => {
+    if (typeof item !== "object" || item === null) return [];
+    const i = item;
+    const user = i.user;
+    if ("pull_request" in i || !Number.isInteger(i.number) || typeof i.title !== "string" || !i.title.trim().toLowerCase().startsWith(prefix) || typeof user?.login !== "string" || typeof user?.type !== "string") {
+      return [];
+    }
+    return [{ number: i.number, title: i.title, login: user.login, userType: user.type }];
+  });
+}
+async function comment(token, repo, issue, body, f = fetch) {
+  checkRepo(repo);
+  const res = await f(`${API}/repos/${repo}/issues/${issue}/comments`, {
+    method: "POST",
+    headers: { ...headers(token), "content-type": "application/json" },
+    body: JSON.stringify({ body })
+  });
+  if (!res.ok) throw new IssuesError(`commenting on #${issue} failed: ${res.status}`);
+}
+async function close(token, repo, issue, f = fetch) {
+  checkRepo(repo);
+  const res = await f(`${API}/repos/${repo}/issues/${issue}`, {
+    method: "PATCH",
+    headers: { ...headers(token), "content-type": "application/json" },
+    body: JSON.stringify({ state: "closed", state_reason: "completed" })
+  });
+  if (!res.ok) throw new IssuesError(`closing #${issue} failed: ${res.status}`);
 }
 
 // src/action/generate.ts
@@ -942,6 +1368,34 @@ async function fetchProfile(login, token) {
   };
 }
 
+// src/care/view.ts
+var HOUR = 36e5;
+var DAY = 24 * HOUR;
+var FRESH = 12 * HOUR;
+var FED_KEEPS_HOME = 30 * DAY;
+var DIRT_DAYS = [3, 6, 10];
+var age = (iso, now) => iso ? now.getTime() - Date.parse(iso) : Infinity;
+function careView(state, now) {
+  const sinceBath = age(state.last.bath ?? state.since, now) / DAY;
+  const dirt = DIRT_DAYS.filter((d) => sinceBath >= d).length;
+  const latest = state.recent[0];
+  return {
+    fed: age(state.last.feed, now) < FRESH,
+    bathed: age(state.last.bath, now) < FRESH,
+    played: age(state.last.play, now) < FRESH,
+    dirt,
+    visitor: latest && age(latest.at, now) < FRESH ? { login: latest.by, action: latest.action } : null
+  };
+}
+function applyCare(pet2, state, now) {
+  const view = careView(state, now);
+  let mood = pet2.mood;
+  if (view.fed && mood === "hungry") mood = "idle";
+  if (view.played && mood === "idle") mood = "happy";
+  const ranAway = pet2.ranAway && age(state.last.feed, now) >= FED_KEEPS_HOME;
+  return { ...pet2, mood, ranAway, care: view };
+}
+
 // src/city/state.ts
 function groupWeeks(calendar) {
   const weeks = [];
@@ -984,23 +1438,6 @@ function computeCityState(profile, pet2 = {}) {
   };
 }
 
-// src/svg/batch.ts
-var RectBatch = class {
-  paths = /* @__PURE__ */ new Map();
-  add(fill, x, y, w, h) {
-    const segs = this.paths.get(fill) ?? [];
-    segs.push(`M${x} ${y}h${w}v${h}h${-w}z`);
-    this.paths.set(fill, segs);
-    return this;
-  }
-  toString() {
-    return [...this.paths].map(([fill, segs]) => {
-      const attr = fill.startsWith("var(") ? `style="fill:${fill}"` : `fill="${fill}"`;
-      return `<path ${attr} d="${segs.join("")}"/>`;
-    }).join("");
-  }
-};
-
 // src/svg/escape.ts
 var ENTITIES = {
   "&": "&amp;",
@@ -1012,59 +1449,6 @@ var ENTITIES = {
 function escapeXml(text) {
   return text.replace(/[&<>"']/g, (c) => ENTITIES[c]);
 }
-
-// src/pet/sprites.ts
-var EGG = [
-  "...oooo...",
-  "..occcco..",
-  ".occsscco.",
-  ".occcccco.",
-  "occcccccso",
-  "occcccccco",
-  "ocssccccco",
-  "ocsscccceo",
-  "oeccccccco",
-  ".oeccccco.",
-  "..oeeeeo..",
-  "...oooo..."
-];
-var EGG_CRACK = [
-  "..........",
-  "..........",
-  "..........",
-  "..........",
-  "..........",
-  "..x.x.....",
-  "...x.x.x..",
-  ".........."
-];
-var EGG_PALETTE = {
-  o: "#5b4636",
-  c: "#fbf3e4",
-  e: "#e0cfb1",
-  s: "#7fc8a9",
-  x: "#5b4636"
-};
-var CROWN = [
-  "y..y..y",
-  "yy.y.yy",
-  "yyyyyyy",
-  "ygyyygy",
-  "YYYYYYY"
-];
-var HEART = ["pp.pp", "ppppp", ".ppp.", "..p.."];
-var ZED = ["zzz", "..z", ".z.", "z..", "zzz"];
-var SPARKLE = ["..s..", "..s..", "sssss", "..s..", "..s.."];
-var COMMIT = ["gggg", "gGGg", "gGGg", "gggg"];
-var FX_PALETTE = {
-  y: "#ffd54a",
-  Y: "#c99a1a",
-  g: "#216e39",
-  G: "#40c463",
-  p: "#ff5c7a",
-  s: "#fff3a0",
-  z: "var(--pf-muted)"
-};
 
 // src/pet/sprite.ts
 var FACE = {
@@ -1079,10 +1463,7 @@ var SPRITE_CSS = `
 .pf-fb{opacity:0;animation:pf-b 1s steps(1) infinite}
 @keyframes pf-a{0%{opacity:1}50%{opacity:0}100%{opacity:0}}
 @keyframes pf-b{0%{opacity:0}50%{opacity:1}100%{opacity:1}}
-.pf-blink-open{animation:pf-blink-open 4.2s steps(1) infinite}
-.pf-blink-shut{opacity:0;animation:pf-blink-shut 4.2s steps(1) infinite}
-@keyframes pf-blink-open{0%{opacity:1}94%{opacity:0}98%{opacity:1}100%{opacity:1}}
-@keyframes pf-blink-shut{0%{opacity:0}94%{opacity:1}98%{opacity:0}100%{opacity:0}}
+${BEHAVIOR_CSS}
 .pf-bob{animation:pf-bob 2s ease-in-out infinite}
 @keyframes pf-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 `;
@@ -1091,7 +1472,7 @@ function frames(a, b, seconds) {
   const style = `style="animation-duration:${seconds * 2}s"`;
   return `<g class="pf-fa" ${style}>${a}</g><g class="pf-fb" ${style}>${b}</g>`;
 }
-function renderPetSprite(state, scale) {
+function renderPetSprite(state, scale, { lively = true } = {}) {
   if (state.stage === "egg") return eggSprite(state, scale);
   const species = getSpecies(state.species);
   const legendary = state.stage === "legendary";
@@ -1099,7 +1480,8 @@ function renderPetSprite(state, scale) {
   const px = (layers) => renderPixels(layers, palette, { scale });
   const face = FACE[state.mood];
   const [limbA, limbB] = species.limbs[state.mood];
-  const eyes4 = state.mood === "idle" ? `<g class="pf-blink-open">${px(species.eyes.open)}</g><g class="pf-blink-shut">${px(species.eyes.closed)}</g>` : px(species.eyes[face.eyes]);
+  const side = glance(species.eyes.open);
+  const eyes4 = state.mood === "idle" ? `<g class="pf-eo">${px(species.eyes.open)}</g>${side ? `<g class="pf-eg">${px(side)}</g>` : ""}<g class="pf-es">${px(species.eyes.closed)}</g>` : px(species.eyes[face.eyes]);
   let crown = "";
   if (legendary) {
     const cs = Math.max(1, Math.round(scale * 3 / 4));
@@ -1107,7 +1489,7 @@ function renderPetSprite(state, scale) {
     const cy = species.crownAnchor.y * scale - CROWN.length * cs - 1.5 * scale;
     crown = `<g class="pf-bob">${renderPixels([{ x: 0, y: 0, grid: CROWN }], FX_PALETTE, { x: cx, y: cy, scale: cs })}</g>`;
   }
-  const svg = [
+  let svg = [
     frames(px(limbA), px(limbB), FRAME_SPEED[state.mood]),
     px(species.body),
     px(species.mouths[face.mouth]),
@@ -1115,6 +1497,11 @@ function renderPetSprite(state, scale) {
     eyes4,
     crown
   ].join("");
+  if (lively && playful(state.mood)) {
+    const trick = trickLayers(state.trick ?? trickFor(state.date, state.login), species, scale);
+    const emote = emoteBubble(state.mood === "happy" ? "note" : "question", species.width * scale - 4, anchors(species).top * scale - 2, "pf-emote");
+    svg = `<g${trick.bodyClass ? ` class="${trick.bodyClass}"` : ""}>${svg}${trick.overlay}</g>${emote}`;
+  }
   return { svg, width: species.width * scale, height: species.height * scale };
 }
 function eggSprite(state, scale) {
@@ -1278,7 +1665,7 @@ function vars(t) {
   return Object.entries(t).map(([k, v]) => `--pf-${k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())}:${v}`).join(";");
 }
 function themeCss(name) {
-  const theme = THEMES[name ?? "auto"] ?? THEMES.auto;
+  const theme = name && Object.hasOwn(THEMES, name) ? THEMES[name] : THEMES.auto;
   if ("light" in theme) {
     return `.pf{${vars(theme.light)}}@media (prefers-color-scheme:dark){.pf{${vars(theme.dark)}}}`;
   }
@@ -1295,7 +1682,7 @@ var FILTERS = {
 </filter>`
 };
 function themeFilter(name) {
-  const filter = name ? FILTERS[name] : void 0;
+  const filter = name && Object.hasOwn(FILTERS, name) ? FILTERS[name] : void 0;
   return filter ? { defs: `<defs>${filter}</defs>`, attr: ` filter="url(#pf-theme)"` } : { defs: "", attr: "" };
 }
 
@@ -1522,14 +1909,14 @@ var LUNAR_NEW_YEAR = {
   2034: "02-19",
   2035: "02-08"
 };
-var DAY = 864e5;
+var DAY2 = 864e5;
 function holidayFor(date) {
   const md = date.slice(5);
   if (md >= "10-25" && md <= "10-31") return "halloween";
   if (md >= "12-18" && md <= "12-26") return "christmas";
   if (md === "12-31" || md === "01-01") return "new-year";
   const lny = LUNAR_NEW_YEAR[Number(date.slice(0, 4))];
-  if (lny && Math.abs(Date.parse(`${date}T00:00:00Z`) - Date.parse(`${date.slice(0, 4)}-${lny}T00:00:00Z`)) <= 3 * DAY) {
+  if (lny && Math.abs(Date.parse(`${date}T00:00:00Z`) - Date.parse(`${date.slice(0, 4)}-${lny}T00:00:00Z`)) <= 3 * DAY2) {
     return "lunar-new-year";
   }
   return null;
@@ -1619,8 +2006,8 @@ var CITY_PET_CSS = `
 `;
 var REST_X = 214;
 function strollingPet(pet2) {
-  if (!pet2) return "";
-  const sprite = renderPetSprite(pet2, 1);
+  if (!pet2 || pet2.ranAway) return "";
+  const sprite = renderPetSprite(pet2, 1, { lively: false });
   const y = ROAD_Y + 1 - sprite.height;
   const walking = pet2.stage !== "egg" && (pet2.mood === "happy" || pet2.mood === "idle");
   if (walking) {
@@ -1677,8 +2064,8 @@ function overcast(rng) {
 }
 function rain(rng, area = CITY_AREA) {
   const drops = [];
-  const count = Math.round(70 * area.w / W) + 6;
-  for (let i = 0; i < count; i++) {
+  const count2 = Math.round(70 * area.w / W) + 6;
+  for (let i = 0; i < count2; i++) {
     const x = area.x + Math.round(rng() * (area.w + 40));
     const seconds = (0.55 + rng() * 0.4).toFixed(2);
     const delay = (rng() * 1).toFixed(2);
@@ -1997,7 +2384,7 @@ var TERRAIN = {
   chick: "farm",
   turtle: "pond"
 };
-var terrainFor = (species) => TERRAIN[species] ?? "beach";
+var terrainFor = (species) => Object.hasOwn(TERRAIN, species) ? TERRAIN[species] : "beach";
 var TINT = {
   beach: null,
   meadow: "#79b865",
@@ -2078,6 +2465,74 @@ function fern(b, x, ground) {
   b.add(DARK_GREEN, x - 1, ground - 4, 3, 4);
 }
 
+// src/pet/care-fx.ts
+var CARE_CSS = `
+.pf-stink{opacity:0;animation:pf-stink 2.8s ease-out infinite}
+@keyframes pf-stink{0%{transform:translateY(0);opacity:0}20%{opacity:.8}100%{transform:translateY(-22px);opacity:0}}
+.pf-orbit{animation:pf-orbit 2.2s linear infinite}
+@keyframes pf-orbit{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.pf-buzz{animation:pf-buzz-fly .15s steps(1) infinite}
+@keyframes pf-buzz-fly{0%{opacity:1}50%{opacity:.4}100%{opacity:.4}}
+.pf-soap{opacity:0;animation:pf-soap 3s ease-out infinite}
+@keyframes pf-soap{0%{transform:translateY(0);opacity:0}15%{opacity:.9}100%{transform:translateY(-30px);opacity:0}}
+`;
+function careOverlay(care, w, h, scale) {
+  if (!care) return "";
+  const out = [];
+  if (care.dirt > 0) {
+    const rng = seeded("smudges");
+    const spots = new RectBatch();
+    for (let i = 0; i < [0, 3, 5, 7][care.dirt]; i++) {
+      const x = Math.round(w * (0.25 + rng() * 0.5));
+      const y = Math.round(h * (0.35 + rng() * 0.5));
+      spots.add("#6b4b2a", x, y, 2 * scale, Math.max(2, scale));
+    }
+    out.push(`<g opacity=".7">${spots}</g>`);
+  }
+  if (care.dirt >= 2) {
+    for (const [i, dx] of [w * 0.25, w * 0.5, w * 0.75].entries()) {
+      const x = Math.round(dx);
+      out.push(
+        `<path class="pf-stink" style="animation-delay:-${(i * 0.9).toFixed(1)}s" d="M${x} -2q3 -3 0 -6t0 -6" fill="none" stroke="#7aa35a" stroke-width="2"/>`
+      );
+    }
+  }
+  if (care.dirt >= 3) {
+    const cx = w / 2;
+    const cy = h * 0.2;
+    for (const [i, r] of [w * 0.45, w * 0.6, w * 0.38].entries()) {
+      out.push(
+        // Rotating around the group's own origin, which sits on the head.
+        `<g transform="translate(${cx} ${cy})"><g class="pf-orbit" style="animation-delay:-${(i * 0.7).toFixed(1)}s;animation-duration:${(1.8 + i * 0.5).toFixed(1)}s"><g class="pf-buzz"><rect x="${Math.round(r)}" y="0" width="3" height="2" fill="#1a1a1a"/><rect x="${Math.round(r)}" y="-2" width="2" height="2" fill="#ffffff" opacity=".8"/></g></g></g>`
+      );
+    }
+  }
+  if (care.bathed) {
+    for (const [i, x] of [w * 0.15, w * 0.5, w * 0.85].entries()) {
+      out.push(
+        `<rect class="pf-soap" style="animation-delay:-${(i * 1).toFixed(1)}s" x="${Math.round(x)}" y="${Math.round(h * 0.3)}" width="${2 * scale}" height="${2 * scale}" rx="${scale}" fill="none" stroke="#9fd0ec" stroke-width="1.5"/>`
+      );
+    }
+  }
+  return out.join("");
+}
+function careProps(care, left, right, ground) {
+  if (!care) return "";
+  const b = new RectBatch();
+  if (care.fed) {
+    b.add("#b5543a", left, ground + 2, 20, 6).add("#b5543a", left + 2, ground + 8, 16, 2).add("#e9c46a", left + 3, ground, 14, 3);
+  }
+  if (care.played) {
+    b.add("#e63946", right - 12, ground + 1, 10, 10).add("#ffffff", right - 12, ground + 5, 10, 2);
+  }
+  return b.toString();
+}
+function visitorLine(care) {
+  if (!care?.visitor) return null;
+  const who = care.visitor.login;
+  return { feed: `Fed by ${who} \u2665`, bath: `Bathed by ${who} \u2727`, play: `Played with ${who} \u266A` }[care.visitor.action];
+}
+
 // src/pet/render.ts
 var W2 = 480;
 var H2 = 190;
@@ -2112,6 +2567,7 @@ var CSS2 = `${SPRITE_CSS}
 ${SEASON_CSS}
 ${WEATHER_CSS}
 ${SCENERY_CSS}
+${CARE_CSS}
 @media (prefers-reduced-motion:reduce){.pf *{animation:none!important}}
 `;
 var round = (n) => Math.round(n * 100) / 100;
@@ -2199,9 +2655,22 @@ function motionClass(mood) {
       return { outer: "", inner: "pf-breathe" };
   }
 }
+function goodbye() {
+  const cx = SCENE.x + SCENE.w / 2;
+  const b = new RectBatch().add("#8a5a33", cx - 2, GROUND_Y - 30, 4, 34).add("#fbf3e4", cx - 16, GROUND_Y - 52, 32, 24).add("#5b4636", cx - 16, GROUND_Y - 52, 32, 2).add("#c9b79a", cx - 12, GROUND_Y - 45, 22, 2).add("#c9b79a", cx - 12, GROUND_Y - 40, 18, 2).add("#c9b79a", cx - 12, GROUND_Y - 35, 20, 2).add("#e63946", cx + 8, GROUND_Y - 36, 4, 4);
+  const steps = new RectBatch();
+  for (let i = 0; i < 6; i++) {
+    const x = cx + 14 + i * 14;
+    const y = GROUND_Y + 10 + i % 2 * 5;
+    steps.add("#3b2a1a", x, y, 4, 3).add("#3b2a1a", x + 5, y - 2, 2, 2);
+  }
+  return { svg: `${b}<g opacity=".3">${steps}</g>`, box: { x: cx - 16, y: GROUND_Y - 52, w: 32, h: 56 } };
+}
 function pet(state) {
+  if (state.ranAway) return goodbye();
   const scale = state.stage === "baby" ? 3 : 4;
   const sprite = renderPetSprite(state, scale);
+  sprite.svg += careOverlay(state.care, sprite.width, sprite.height, scale);
   const box = positionFor(sprite.width, sprite.height, scale);
   if (state.stage === "egg") {
     const wobble = state.mood === "happy" || state.mood === "idle" ? "pf-wobble" : "";
@@ -2218,7 +2687,8 @@ function fx(grid, x, y, scale, cls, delay) {
   return `<g class="${cls}" style="animation-delay:-${delay}s">${renderPixels([{ x: 0, y: 0, grid }], FX_PALETTE, { x: round(x), y: round(y), scale })}</g>`;
 }
 function effects(state, box) {
-  const out = [];
+  if (state.ranAway) return "";
+  const out = [careProps(state.care, SCENE.x + 14, SCENE.x + SCENE.w - 14, GROUND_Y)];
   switch (state.mood) {
     case "happy":
       out.push(
@@ -2275,6 +2745,9 @@ function bar(label, ratio, value, y, color) {
   <text x="${PANEL_RIGHT}" y="${y}" class="pf-value" text-anchor="end">${escapeXml(value)}</text>`;
 }
 function moodLine(state) {
+  if (state.ranAway) return "Ran away \xB7 a commit will bring it home";
+  const visit = visitorLine(state.care);
+  if (visit) return visit;
   if (state.stage === "egg") return "Egg \xB7 hatches at Lv.3";
   const d = state.daysSinceLastContribution;
   switch (state.mood) {
@@ -2351,10 +2824,15 @@ ${panel(state)}
 // src/widgets.ts
 var world = (p) => ({ theme: p.theme, hideBorder: p.hideBorder, season: p.season, hemisphere: p.hemisphere });
 var cityPet = (p) => p.showPet ? { petName: p.petName, species: p.species } : false;
-function renderWidget(profile, params) {
+function renderWidget(profile, params, care) {
   const style = { theme: params.theme, hideBorder: params.hideBorder };
-  if (params.widget === "city") return renderCityCard(computeCityState(profile, cityPet(params)), { ...style, season: params.season, hemisphere: params.hemisphere });
-  return renderPetCard(computePetState(profile, { petName: params.petName, species: params.species }), world(params));
+  if (params.widget === "city") {
+    const city = computeCityState(profile, cityPet(params));
+    if (care && city.pet) city.pet = applyCare(city.pet, care.state, care.now);
+    return renderCityCard(city, { ...style, season: params.season, hemisphere: params.hemisphere });
+  }
+  const pet2 = computePetState(profile, { petName: params.petName, species: params.species });
+  return renderPetCard(care ? applyCare(pet2, care.state, care.now) : pet2, world(params));
 }
 
 // src/action/generate.ts
@@ -2377,17 +2855,66 @@ function resolveInside(workspace, path) {
   }
   return full;
 }
-async function generate({ user, token, outputs, workspace, fetch: fetch2 = fetchProfile }) {
+async function generate({ user, token, outputs, workspace, fetch: fetch2 = fetchProfile, care }) {
   const targets = outputs.map((o) => ({ ...o, full: resolveInside(workspace, o.path) }));
   const profile = await fetch2(user, token);
   for (const { full, params } of targets) {
     await mkdir(dirname(full), { recursive: true });
-    await writeFile(full, renderWidget(profile, params));
+    await writeFile(full, renderWidget(profile, params, care));
   }
   const pet2 = targets.find((t) => t.params.widget === "pet")?.params;
-  const state = computePetState(profile, { petName: pet2?.petName, species: pet2?.species });
+  const plain = computePetState(profile, { petName: pet2?.petName, species: pet2?.species });
+  const state = care ? applyCare(plain, care.state, care.now) : plain;
   return { files: targets.map((t) => t.full), state };
 }
+
+// src/action/care.ts
+async function prepareCare({ workspace, file, token, repo, now, fetch: f = fetch }) {
+  if (!file.endsWith(".json")) throw new Error(`care_file "${file}" must be a .json file`);
+  const full = resolveInside(workspace, file);
+  const warnings = [];
+  const text = await readFile(full, "utf8").catch(() => null);
+  const parsed = parseCareState(text, now);
+  if (parsed.warning) warnings.push(parsed.warning);
+  let issues = [];
+  try {
+    issues = await listCareIssues(token, repo, f);
+  } catch (err) {
+    warnings.push(`couldn't list issues, skipping visits this run (${err.message})`);
+  }
+  const before = new Set(parsed.state.handled);
+  const { state, handled } = applyIssues(parsed.state, issues, now);
+  const leftOpen = issues.filter((i) => before.has(i.number)).map((i) => i.number);
+  await mkdir2(dirname2(full), { recursive: true });
+  await writeFile2(full, serializeCareState(state));
+  return { care: { state, now }, file: full, handled, leftOpen, warnings };
+}
+async function answerIssues(token, repo, prepared, petName, f = fetch) {
+  const warnings = [];
+  for (const { issue, outcome } of prepared.handled) {
+    try {
+      await comment(token, repo, issue.number, replyFor(outcome, petName, issue.login), f);
+      await close(token, repo, issue.number, f);
+    } catch (err) {
+      warnings.push(err.message);
+    }
+  }
+  for (const number of prepared.leftOpen) {
+    try {
+      await close(token, repo, number, f);
+    } catch (err) {
+      warnings.push(err.message);
+    }
+  }
+  return warnings;
+}
+
+// src/action/log.ts
+function escapeCommand(text) {
+  return text.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
+}
+var warn = (message) => console.log(`::warning title=ProfileForge::${escapeCommand(message)}`);
+var fail = (message) => console.log(`::error title=ProfileForge::${escapeCommand(message)}`);
 
 // src/action/main.ts
 function input(name) {
@@ -2434,22 +2961,30 @@ async function main() {
   if (!LOGIN_RE.test(user)) throw new Error(`"${user}" is not a valid GitHub login`);
   if (!token) throw new Error("github_token is empty");
   const outputs = parseOutputs(input("outputs"));
-  const { files, state } = await generate({ user, token, outputs, workspace });
+  const repo = process.env.GITHUB_REPOSITORY ?? "";
+  let prepared;
+  if (input("care") === "true") {
+    prepared = await prepareCare({ workspace, file: input("care_file") || "profileforge/care.json", token, repo, now: /* @__PURE__ */ new Date() });
+    prepared.warnings.forEach(warn);
+  }
+  const { files, state } = await generate({ user, token, outputs, workspace, care: prepared?.care });
   const mood = `${state.petName} is ${state.mood} \xB7 Lv.${state.level} ${state.className} (${state.stage})`;
   console.log(`\u{1F980} ${mood}`);
   for (const f of files) console.log(`  wrote ${relative2(workspace, f)}`);
+  const visits = prepared ? ` \xB7 Visits handled: ${prepared.handled.length}` : "";
   appendTo("GITHUB_STEP_SUMMARY", `### \u{1F980} ${mood}
 
-Streak: ${state.streak} days \xB7 XP: ${state.xp}`);
+Streak: ${state.streak} days \xB7 XP: ${state.xp}${visits}`);
   appendTo("GITHUB_OUTPUT", `mood=${state.mood}
 level=${state.level}
 stage=${state.stage}`);
   if (input("commit") !== "false") {
-    commitAndPush(workspace, files, input("commit_message") || "chore: feed the ProfileForge pet");
+    const toCommit = prepared ? [...files, prepared.file] : files;
+    commitAndPush(workspace, toCommit, input("commit_message") || "chore: feed the ProfileForge pet");
   }
+  if (prepared) (await answerIssues(token, repo, prepared, state.petName)).forEach(warn);
 }
 main().catch((err) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.log(`::error title=ProfileForge::${message}`);
+  fail(err instanceof Error ? err.message : String(err));
   process.exitCode = 1;
 });

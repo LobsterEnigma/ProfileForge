@@ -213,6 +213,8 @@
         <option value="turtle">🐢 Turtle (TypeScript)</option>
       </select>
       <label class="check"><input type="checkbox" name="cityPet" checked> Let it walk around the city</label>
+      <label class="check"><input type="checkbox" name="care"> Let visitors feed, bathe and play with it</label>
+      <span class="hint">Visitors open an issue; the Action replies and closes it. Needs your username below.</span>
     </fieldset>
 
     <fieldset>
@@ -250,7 +252,7 @@
 
     <fieldset>
       <legend>Snippets</legend>
-      <label for="login">GitHub username <span class="hint">(for the API links)</span></label>
+      <label for="login">GitHub username <span class="hint">(for care and API links)</span></label>
       <input type="text" id="login" name="login" maxlength="39" placeholder="your-login">
     </fieldset>
 
@@ -286,6 +288,7 @@
             <option value="idle">Active</option>
             <option value="hungry">4+ days away</option>
             <option value="sleeping">2+ weeks away</option>
+            <option value="away">1+ month away</option>
           </select>
         </div>
         <div>
@@ -299,6 +302,36 @@
           </select>
         </div>
       </div>
+      <div class="row">
+        <div>
+          <label for="trick">Trick</label>
+          <select id="trick" name="trick">
+            <option value="">Today's</option>
+            <option value="signature">Signature move</option>
+            <option value="dance">Dance</option>
+            <option value="twirl">Twirl</option>
+            <option value="heart-eyes">Heart eyes</option>
+            <option value="sneeze">Sneeze</option>
+            <option value="tongue">Tongue</option>
+          </select>
+        </div>
+        <div>
+          <label for="visit">Last visitor</label>
+          <select id="visit" name="visit">
+            <option value="">Nobody</option>
+            <option value="feed">Fed it</option>
+            <option value="bath">Bathed it</option>
+            <option value="play">Played</option>
+          </select>
+        </div>
+      </div>
+      <label for="dirt">Last bath</label>
+      <select id="dirt" name="dirt">
+        <option value="0">Recently</option>
+        <option value="1">3+ days ago</option>
+        <option value="2">6+ days ago (smelly)</option>
+        <option value="3">10+ days ago (flies)</option>
+      </select>
     </div>
   </form>
 

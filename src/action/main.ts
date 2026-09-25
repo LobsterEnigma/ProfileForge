@@ -6,7 +6,9 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { relative } from "node:path";
 import { LOGIN_RE } from "../options.js";
+import { answerIssues, prepareCare, type Prepared } from "./care.js";
 import { generate, parseOutputs } from "./generate.js";
+import { fail, warn } from "./log.js";
 
 function input(name: string): string {
   return (process.env[`INPUT_${name.toUpperCase()}`] ?? "").trim();
@@ -53,21 +55,34 @@ async function main(): Promise<void> {
   if (!token) throw new Error("github_token is empty");
 
   const outputs = parseOutputs(input("outputs"));
-  const { files, state } = await generate({ user, token, outputs, workspace });
+  const repo = process.env.GITHUB_REPOSITORY ?? "";
+
+  // Visitors' care, if the owner turned it on: applied before rendering, answered after committing.
+  let prepared: Prepared | undefined;
+  if (input("care") === "true") {
+    prepared = await prepareCare({ workspace, file: input("care_file") || "profileforge/care.json", token, repo, now: new Date() });
+    prepared.warnings.forEach(warn);
+  }
+
+  const { files, state } = await generate({ user, token, outputs, workspace, care: prepared?.care });
 
   const mood = `${state.petName} is ${state.mood} · Lv.${state.level} ${state.className} (${state.stage})`;
   console.log(`🦀 ${mood}`);
   for (const f of files) console.log(`  wrote ${relative(workspace, f)}`);
-  appendTo("GITHUB_STEP_SUMMARY", `### 🦀 ${mood}\n\nStreak: ${state.streak} days · XP: ${state.xp}`);
+  const visits = prepared ? ` · Visits handled: ${prepared.handled.length}` : "";
+  appendTo("GITHUB_STEP_SUMMARY", `### 🦀 ${mood}\n\nStreak: ${state.streak} days · XP: ${state.xp}${visits}`);
   appendTo("GITHUB_OUTPUT", `mood=${state.mood}\nlevel=${state.level}\nstage=${state.stage}`);
 
   if (input("commit") !== "false") {
-    commitAndPush(workspace, files, input("commit_message") || "chore: feed the ProfileForge pet");
+    const toCommit = prepared ? [...files, prepared.file] : files;
+    commitAndPush(workspace, toCommit, input("commit_message") || "chore: feed the ProfileForge pet");
   }
+
+  // Only now, with the visits saved, tell the visitors.
+  if (prepared) (await answerIssues(token, repo, prepared, state.petName)).forEach(warn);
 }
 
 main().catch((err: unknown) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.log(`::error title=ProfileForge::${message}`);
+  fail(err instanceof Error ? err.message : String(err));
   process.exitCode = 1;
 });

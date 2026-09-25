@@ -1,12 +1,14 @@
 import type { Mood, PetState } from "../types.js";
 import { seeded, type Rng } from "../random.js";
 import { escapeXml } from "../svg/escape.js";
+import { RectBatch } from "../svg/batch.js";
 import { renderPixels, type Grid } from "../svg/pixel.js";
 import { themeCss, themeFilter } from "../themes.js";
 import { getSpecies } from "./species/index.js";
 import { renderPetSprite, SPRITE_CSS } from "./sprite.js";
 import { COMMIT, FX_PALETTE, HEART, SPARKLE, ZED } from "./sprites.js";
 import { groundCover, props, SCENERY_CSS, terrainFor } from "./scenery.js";
+import { CARE_CSS, careOverlay, careProps, visitorLine } from "./care-fx.js";
 import { fallingParticles, fireflies, LOOKS, SEASON_CSS, seasonFor, type Area, type Hemisphere, type Season } from "../world/seasons.js";
 import { fog, rain, WEATHER_CSS, weatherFor, type Weather } from "../world/weather.js";
 
@@ -54,6 +56,7 @@ const CSS = `${SPRITE_CSS}
 ${SEASON_CSS}
 ${WEATHER_CSS}
 ${SCENERY_CSS}
+${CARE_CSS}
 @media (prefers-reduced-motion:reduce){.pf *{animation:none!important}}
 `;
 
@@ -173,9 +176,31 @@ function motionClass(mood: Mood): { outer: string; inner: string } {
   }
 }
 
+/** A note on a stick where the pet used to be, and footprints heading off-screen. */
+function goodbye(): { svg: string; box: Box } {
+  const cx = SCENE.x + SCENE.w / 2;
+  const b = new RectBatch()
+    .add("#8a5a33", cx - 2, GROUND_Y - 30, 4, 34) // stake
+    .add("#fbf3e4", cx - 16, GROUND_Y - 52, 32, 24) // paper
+    .add("#5b4636", cx - 16, GROUND_Y - 52, 32, 2)
+    .add("#c9b79a", cx - 12, GROUND_Y - 45, 22, 2) // scribbles
+    .add("#c9b79a", cx - 12, GROUND_Y - 40, 18, 2)
+    .add("#c9b79a", cx - 12, GROUND_Y - 35, 20, 2)
+    .add("#e63946", cx + 8, GROUND_Y - 36, 4, 4); // a little heart-shaped signature
+  const steps = new RectBatch();
+  for (let i = 0; i < 6; i++) {
+    const x = cx + 14 + i * 14;
+    const y = GROUND_Y + 10 + (i % 2) * 5;
+    steps.add("#3b2a1a", x, y, 4, 3).add("#3b2a1a", x + 5, y - 2, 2, 2);
+  }
+  return { svg: `${b}<g opacity=".3">${steps}</g>`, box: { x: cx - 16, y: GROUND_Y - 52, w: 32, h: 56 } };
+}
+
 function pet(state: PetState): { svg: string; box: Box } {
+  if (state.ranAway) return goodbye();
   const scale = state.stage === "baby" ? 3 : 4;
   const sprite = renderPetSprite(state, scale);
+  sprite.svg += careOverlay(state.care, sprite.width, sprite.height, scale);
   const box = positionFor(sprite.width, sprite.height, scale);
   if (state.stage === "egg") {
     const wobble = state.mood === "happy" || state.mood === "idle" ? "pf-wobble" : "";
@@ -198,7 +223,8 @@ function fx(grid: Grid, x: number, y: number, scale: number, cls: string, delay:
 }
 
 function effects(state: PetState, box: Box): string {
-  const out: string[] = [];
+  if (state.ranAway) return "";
+  const out: string[] = [careProps(state.care, SCENE.x + 14, SCENE.x + SCENE.w - 14, GROUND_Y)];
   switch (state.mood) {
     case "happy":
       out.push(
@@ -257,6 +283,9 @@ function bar(label: string, ratio: number, value: string, y: number, color: stri
 }
 
 function moodLine(state: PetState): string {
+  if (state.ranAway) return "Ran away · a commit will bring it home";
+  const visit = visitorLine(state.care);
+  if (visit) return visit;
   if (state.stage === "egg") return "Egg · hatches at Lv.3";
   const d = state.daysSinceLastContribution;
   switch (state.mood) {

@@ -1,5 +1,6 @@
 import type { Mood, PetState } from "../types.js";
 import { renderPixels, type Layer } from "../svg/pixel.js";
+import { BEHAVIOR_CSS, emoteBubble, glance, playful, trickFor, trickLayers, anchors } from "./behavior.js";
 import { getSpecies } from "./species/index.js";
 import type { EyeKind, MouthKind } from "./species/types.js";
 import { CROWN, EGG, EGG_CRACK, EGG_PALETTE, FX_PALETTE } from "./sprites.js";
@@ -21,10 +22,7 @@ export const SPRITE_CSS = `
 .pf-fb{opacity:0;animation:pf-b 1s steps(1) infinite}
 @keyframes pf-a{0%{opacity:1}50%{opacity:0}100%{opacity:0}}
 @keyframes pf-b{0%{opacity:0}50%{opacity:1}100%{opacity:1}}
-.pf-blink-open{animation:pf-blink-open 4.2s steps(1) infinite}
-.pf-blink-shut{opacity:0;animation:pf-blink-shut 4.2s steps(1) infinite}
-@keyframes pf-blink-open{0%{opacity:1}94%{opacity:0}98%{opacity:1}100%{opacity:1}}
-@keyframes pf-blink-shut{0%{opacity:0}94%{opacity:1}98%{opacity:0}100%{opacity:0}}
+${BEHAVIOR_CSS}
 .pf-bob{animation:pf-bob 2s ease-in-out infinite}
 @keyframes pf-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 `;
@@ -42,8 +40,13 @@ function frames(a: string, b: string, seconds: number): string {
   return `<g class="pf-fa" ${style}>${a}</g><g class="pf-fb" ${style}>${b}</g>`;
 }
 
+export interface SpriteOptions {
+  /** Emote bubbles and today's trick (off for tiny logos). */
+  lively?: boolean;
+}
+
 /** The pet itself (no scene, no effects), animated for its mood. */
-export function renderPetSprite(state: PetState, scale: number): Sprite {
+export function renderPetSprite(state: PetState, scale: number, { lively = true }: SpriteOptions = {}): Sprite {
   if (state.stage === "egg") return eggSprite(state, scale);
 
   const species = getSpecies(state.species);
@@ -53,9 +56,11 @@ export function renderPetSprite(state: PetState, scale: number): Sprite {
   const face = FACE[state.mood];
 
   const [limbA, limbB] = species.limbs[state.mood];
+  // Idle pets look around: straight ahead, a sideways glance, then a blink.
+  const side = glance(species.eyes.open);
   const eyes =
     state.mood === "idle"
-      ? `<g class="pf-blink-open">${px(species.eyes.open)}</g><g class="pf-blink-shut">${px(species.eyes.closed)}</g>`
+      ? `<g class="pf-eo">${px(species.eyes.open)}</g>${side ? `<g class="pf-eg">${px(side)}</g>` : ""}<g class="pf-es">${px(species.eyes.closed)}</g>`
       : px(species.eyes[face.eyes]);
 
   let crown = "";
@@ -66,7 +71,7 @@ export function renderPetSprite(state: PetState, scale: number): Sprite {
     crown = `<g class="pf-bob">${renderPixels([{ x: 0, y: 0, grid: CROWN }], FX_PALETTE, { x: cx, y: cy, scale: cs })}</g>`;
   }
 
-  const svg = [
+  let svg = [
     frames(px(limbA), px(limbB), FRAME_SPEED[state.mood]),
     px(species.body),
     px(species.mouths[face.mouth]),
@@ -74,6 +79,12 @@ export function renderPetSprite(state: PetState, scale: number): Sprite {
     eyes,
     crown,
   ].join("");
+
+  if (lively && playful(state.mood)) {
+    const trick = trickLayers(state.trick ?? trickFor(state.date, state.login), species, scale);
+    const emote = emoteBubble(state.mood === "happy" ? "note" : "question", species.width * scale - 4, anchors(species).top * scale - 2, "pf-emote");
+    svg = `<g${trick.bodyClass ? ` class="${trick.bodyClass}"` : ""}>${svg}${trick.overlay}</g>${emote}`;
+  }
 
   return { svg, width: species.width * scale, height: species.height * scale };
 }

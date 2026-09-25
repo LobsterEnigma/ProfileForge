@@ -9,7 +9,8 @@ import { classForLanguage } from "../src/pet/classes.js";
 import { renderPetCard } from "../src/pet/render.js";
 import { speciesForLanguage } from "../src/pet/species/index.js";
 import { renderPetSprite, SPRITE_CSS } from "../src/pet/sprite.js";
-import type { Mood, Stage } from "../src/types.js";
+import { careLink, CARE_ACTIONS, type CareAction } from "../src/care/commands.js";
+import type { Mood, Stage, Trick } from "../src/types.js";
 import type { Hemisphere, Season } from "../src/world/seasons.js";
 
 const REPO = "LobsterEnigma/ProfileForge";
@@ -33,6 +34,7 @@ interface Config {
   name: string;
   species: string;
   cityPet: boolean;
+  care: boolean;
   theme: string;
   season: string;
   hemisphere: string;
@@ -40,8 +42,11 @@ interface Config {
   login: string;
   language: string;
   stage: Stage;
-  activity: Mood;
+  activity: Mood | "away";
   holiday: string;
+  trick: string;
+  visit: string;
+  dirt: string;
 }
 
 function read(): Config {
@@ -53,6 +58,7 @@ function read(): Config {
     name: value("name").trim(),
     species: value("species"),
     cityPet: checked("cityPet"),
+    care: checked("care"),
     theme: value("theme"),
     season: value("season"),
     hemisphere: value("hemisphere"),
@@ -60,8 +66,11 @@ function read(): Config {
     login: value("login").trim(),
     language: value("language"),
     stage: value("stage") as Stage,
-    activity: value("activity") as Mood,
+    activity: value("activity") as Mood | "away",
     holiday: value("holiday"),
+    trick: value("trick"),
+    visit: value("visit"),
+    dirt: value("dirt"),
   };
 }
 
@@ -78,7 +87,8 @@ function show(img: HTMLImageElement, svg: string): void {
   img.src = url;
 }
 
-const ACTIVITY: Record<Mood, Partial<CityState>> = {
+const ACTIVITY: Record<Mood | "away", Partial<CityState>> = {
+  away: { currentStreak: 0, daysSinceLastContribution: 40, activeDays14: 0 },
   happy: {},
   idle: { currentStreak: 1, daysSinceLastContribution: 1 },
   hungry: { currentStreak: 0, daysSinceLastContribution: 6, activeDays14: 3 },
@@ -95,7 +105,14 @@ function renderPreviews(c: Config): void {
   };
   const language = { topLanguage: c.language, className: classForLanguage(c.language) };
 
-  const pet = { ...demoState(c.activity, c.stage, c.name || undefined, species), ...language };
+  const away = c.activity === "away";
+  const extras = {
+    away,
+    trick: (c.trick || undefined) as Trick | undefined,
+    visit: (c.visit || undefined) as CareAction | undefined,
+    dirt: Number(c.dirt) as 0 | 1 | 2 | 3,
+  };
+  const pet = { ...demoState(c.activity === "away" ? "sleeping" : c.activity, c.stage, c.name || undefined, species, extras), ...language };
   if (c.holiday) pet.date = c.holiday;
   document.getElementById("pet-figure")!.hidden = !c.pet;
   if (c.pet) show(document.getElementById("pet-img") as HTMLImageElement, renderPetCard(pet, style));
@@ -144,30 +161,51 @@ function workflow(c: Config): string {
     c.pet && `            ${FOLDER}/pet.svg${petQuery(c)}`,
     c.city && `            ${FOLDER}/city.svg${cityQuery(c, true)}`,
   ].filter(Boolean);
+  const care = c.care && c.pet;
   return `name: ProfileForge
 
 on:
   schedule:
     - cron: "0 */6 * * *" # every 6 hours
-  workflow_dispatch:
+  workflow_dispatch:${care ? `
+  issues:
+    types: [opened]` : ""}
 
 permissions:
-  contents: write
+  contents: write${care ? `
+  issues: write
+
+# One run at a time, so visits never race each other.
+concurrency:
+  group: profileforge
+  cancel-in-progress: false` : ""}
 
 jobs:
-  forge:
+  forge:${care ? `
+    # Skip issues that aren't for the pet. The Action checks the title again itself.
+    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'ProfileForge:')` : ""}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: ${REPO}@v1
-        with:
+        with:${care ? `
+          care: true` : ""}
           outputs: |
 ${outputs.join("\n")}`;
+}
+
+const LOGIN_RE = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
+const EMOJI: Record<CareAction, string> = { feed: "🍖 Feed", bath: "🛁 Bath", play: "🎾 Play" };
+
+function careLinks(c: Config): string {
+  const login = LOGIN_RE.test(c.login) ? c.login : "your-login";
+  return CARE_ACTIONS.map((a) => `[${EMOJI[a]}](${careLink(`${login}/${login}`, a)})`).join(" · ");
 }
 
 function readme(c: Config): string {
   return [
     c.pet && `![My ProfileForge pet](./${FOLDER}/pet.svg)`,
+    c.pet && c.care && careLinks(c),
     c.city && `![My ProfileForge city](./${FOLDER}/city.svg)`,
   ]
     .filter(Boolean)
@@ -254,7 +292,7 @@ form.addEventListener("input", update);
 form.addEventListener("submit", (e) => e.preventDefault());
 
 // A happy little crab for the logo.
-const logo = renderPetSprite(demoState("happy", "adult"), 3);
+const logo = renderPetSprite(demoState("happy", "adult"), 3, { lively: false });
 show(
   document.getElementById("logo") as HTMLImageElement,
   `<svg xmlns="http://www.w3.org/2000/svg" width="${logo.width}" height="${logo.height}" viewBox="0 0 ${logo.width} ${logo.height}"><style>${SPRITE_CSS}</style>${logo.svg}</svg>`,

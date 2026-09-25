@@ -4,6 +4,9 @@ import { getSpecies, speciesForLanguage } from "./species/index.js";
 
 export const MAX_LEVEL = 99;
 
+/** Days of silence before the pet packs its bags. */
+export const RUN_AWAY_DAYS = 30;
+
 /** Total XP needed to *reach* a level. Quadratic, so early levels come fast. */
 export function xpForLevel(level: number): number {
   return 5 * (level - 1) ** 2;
@@ -93,5 +96,6 @@ export function computePetState(profile: GitHubProfile, options: PetOptions = {}
     streak: currentStreak(profile.calendar),
     daysSinceLastContribution: daysSinceLastContribution(profile.calendar),
     stats,
+    ranAway: level >= 3 && daysSinceLastContribution(profile.calendar) >= RUN_AWAY_DAYS,
   };
 }
