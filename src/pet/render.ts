@@ -1,11 +1,9 @@
 import type { Mood, PetState } from "../types.js";
 import { escapeXml } from "../svg/escape.js";
-import { renderPixels, type Grid, type Layer } from "../svg/pixel.js";
-import { themeCss } from "../themes.js";
-import { getSpecies } from "./species/index.js";
-import type { EyeKind, MouthKind } from "./species/types.js";
-import { COMMIT, CROWN, EGG, EGG_CRACK, EGG_PALETTE, FX_PALETTE, HEART, SPARKLE, ZED } from "./sprites.js";
-import { xpForLevel } from "./state.js";
+import { renderPixels, type Grid } from "../svg/pixel.js";
+import { themeCss, themeFilter } from "../themes.js";
+import { renderPetSprite, SPRITE_CSS } from "./sprite.js";
+import { COMMIT, FX_PALETTE, HEART, SPARKLE, ZED } from "./sprites.js";
 
 export interface RenderOptions {
   theme?: string;
@@ -22,25 +20,7 @@ const PANEL_RIGHT = W - 16;
 const SANS = "'Segoe UI',Ubuntu,'Helvetica Neue',sans-serif";
 const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
 
-const FACE: Record<Mood, { eyes: EyeKind; mouth: MouthKind; blush: boolean }> = {
-  happy: { eyes: "happy", mouth: "smile", blush: true },
-  idle: { eyes: "open", mouth: "smile", blush: false },
-  hungry: { eyes: "sad", mouth: "frown", blush: false },
-  sleeping: { eyes: "closed", mouth: "neutral", blush: false },
-};
-
-/** Seconds per limb frame. */
-const FRAME_SPEED: Record<Mood, number> = { happy: 0.3, idle: 0.24, hungry: 1, sleeping: 1 };
-
-const CSS = `
-.pf-fa{animation:pf-a 1s steps(1) infinite}
-.pf-fb{opacity:0;animation:pf-b 1s steps(1) infinite}
-@keyframes pf-a{0%{opacity:1}50%{opacity:0}100%{opacity:0}}
-@keyframes pf-b{0%{opacity:0}50%{opacity:1}100%{opacity:1}}
-.pf-blink-open{animation:pf-blink-open 4.2s steps(1) infinite}
-.pf-blink-shut{opacity:0;animation:pf-blink-shut 4.2s steps(1) infinite}
-@keyframes pf-blink-open{0%{opacity:1}94%{opacity:0}98%{opacity:1}100%{opacity:1}}
-@keyframes pf-blink-shut{0%{opacity:0}94%{opacity:1}98%{opacity:0}100%{opacity:0}}
+const CSS = `${SPRITE_CSS}
 .pf-walk{animation:pf-walk 9s ease-in-out infinite}
 @keyframes pf-walk{0%,100%{transform:translateX(-34px)}40%,50%{transform:translateX(34px)}90%{transform:translateX(-34px)}}
 .pf-jump{animation:pf-jump .9s ease-in-out infinite}
@@ -56,8 +36,6 @@ const CSS = `
 @keyframes pf-wobble{0%,55%,100%{transform:rotate(0)}65%{transform:rotate(-9deg)}75%{transform:rotate(8deg)}85%{transform:rotate(-4deg)}92%{transform:rotate(2deg)}}
 .pf-rise{animation:pf-rise 2.7s ease-out infinite}
 @keyframes pf-rise{0%{transform:translate(0,0);opacity:0}15%{opacity:1}100%{transform:translate(8px,-38px);opacity:0}}
-.pf-bob{animation:pf-bob 2s ease-in-out infinite}
-@keyframes pf-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 .pf-twinkle{transform-box:fill-box;transform-origin:center;animation:pf-twinkle 1.8s ease-in-out infinite}
 @keyframes pf-twinkle{0%,100%{opacity:.15;transform:scale(.5)}50%{opacity:1;transform:scale(1)}}
 .pf-star{opacity:var(--pf-stars)}
@@ -78,12 +56,6 @@ interface Box {
   y: number;
   w: number;
   h: number;
-}
-
-function frames(a: string, b: string, seconds: number): string {
-  if (a === b) return a;
-  const style = `style="animation-duration:${seconds * 2}s"`;
-  return `<g class="pf-fa" ${style}>${a}</g><g class="pf-fb" ${style}>${b}</g>`;
 }
 
 // ── Scene ────────────────────────────────────────────────────────────────────
@@ -156,54 +128,15 @@ function motionClass(mood: Mood): { outer: string; inner: string } {
   }
 }
 
-function creature(state: PetState): { svg: string; box: Box } {
-  const species = getSpecies(state.species);
+function pet(state: PetState): { svg: string; box: Box } {
   const scale = state.stage === "baby" ? 3 : 4;
-  const box = positionFor(species.width * scale, species.height * scale, scale);
-  const legendary = state.stage === "legendary";
-  const palette = legendary ? { ...species.palette, ...species.legendaryPalette } : species.palette;
-  const px = (layers: Layer[]) => renderPixels(layers, palette, { scale });
-  const face = FACE[state.mood];
-
-  const [limbA, limbB] = species.limbs[state.mood];
-  const eyes =
-    state.mood === "idle"
-      ? `<g class="pf-blink-open">${px(species.eyes.open)}</g><g class="pf-blink-shut">${px(species.eyes.closed)}</g>`
-      : px(species.eyes[face.eyes]);
-
-  let crown = "";
-  if (legendary) {
-    const cs = 3;
-    const cx = species.crownAnchor.x * scale - (CROWN[0]!.length * cs) / 2;
-    const cy = species.crownAnchor.y * scale - CROWN.length * cs - 6;
-    crown = `<g class="pf-bob">${renderPixels([{ x: 0, y: 0, grid: CROWN }], FX_PALETTE, { x: cx, y: cy, scale: cs })}</g>`;
+  const sprite = renderPetSprite(state, scale);
+  const box = positionFor(sprite.width, sprite.height, scale);
+  if (state.stage === "egg") {
+    const wobble = state.mood === "happy" || state.mood === "idle" ? "pf-wobble" : "";
+    return { svg: `${shadow(box, "idle")}<g transform="translate(${box.x} ${box.y})"><g class="${wobble}">${sprite.svg}</g></g>`, box };
   }
-
-  const body = [
-    frames(px(limbA), px(limbB), FRAME_SPEED[state.mood]),
-    px(species.body),
-    px(species.mouths[face.mouth]),
-    face.blush ? px(species.blush) : "",
-    eyes,
-    crown,
-  ].join("");
-
-  return { svg: animated(box, state.mood, body), box };
-}
-
-function egg(state: PetState): { svg: string; box: Box } {
-  const scale = 4;
-  const w = EGG[0]!.length * scale;
-  const h = EGG.length * scale;
-  const box = positionFor(w, h, scale);
-  // Cracks appear halfway to hatching.
-  const progress = state.xp / xpForLevel(3);
-  const layers: Layer[] = [{ x: 0, y: 0, grid: EGG }];
-  if (progress >= 0.5) layers.push({ x: 0, y: 0, grid: EGG_CRACK });
-  const pixels = renderPixels(layers, EGG_PALETTE, { scale });
-  const wobble = state.mood === "happy" || state.mood === "idle" ? "pf-wobble" : "";
-  const svg = `${shadow(box, "idle")}<g transform="translate(${box.x} ${box.y})"><g class="${wobble}">${pixels}</g></g>`;
-  return { svg, box };
+  return { svg: animated(box, state.mood, sprite.svg), box };
 }
 
 function animated(box: Box, mood: Mood, body: string): string {
@@ -324,7 +257,8 @@ function panel(state: PetState): string {
 // ── Card ─────────────────────────────────────────────────────────────────────
 
 export function renderPetCard(state: PetState, options: RenderOptions = {}): string {
-  const pet = state.stage === "egg" ? egg(state) : creature(state);
+  const creature = pet(state);
+  const filter = themeFilter(options.theme);
   const title = `${state.petName}, ${state.login}'s ProfileForge pet`;
   const desc = `Level ${state.level} ${state.className} ${state.species}, feeling ${state.mood}. ${state.streak}-day streak.`;
   const border = options.hideBorder
@@ -344,11 +278,14 @@ export function renderPetCard(state: PetState, options: RenderOptions = {}): str
 .pf-stat{font:700 16px ${MONO};fill:var(--pf-text)}
 .pf-mood{font:400 12px ${SANS};fill:var(--pf-muted)}
 ${CSS}</style>
+${filter.defs}
 <rect width="${W}" height="${H}" rx="10" style="fill:var(--pf-bg)"/>
 ${border}
 ${scene()}
-  ${pet.svg}
-  ${effects(state, pet.box)}
+  <g${filter.attr}>
+  ${creature.svg}
+  ${effects(state, creature.box)}
+  </g>
 </g>
 ${panel(state)}
 </svg>`;

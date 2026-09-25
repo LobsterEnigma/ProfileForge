@@ -15,7 +15,8 @@ describe("parseOutputs", () => {
       profileforge/dark.svg?theme=dark&name=Ferris&hide_border=true
     `);
     expect(specs).toHaveLength(2);
-    expect(specs[0]).toMatchObject({ path: "profileforge/pet.svg", params: { petName: "Pinchy", hideBorder: false } });
+    expect(specs[0]).toMatchObject({ path: "profileforge/pet.svg", params: { hideBorder: false } });
+    expect(specs[0]!.params.petName).toBeUndefined(); // the species picks its own name
     expect(specs[1]).toMatchObject({
       path: "profileforge/dark.svg",
       params: { theme: "dark", petName: "Ferris", hideBorder: true },
@@ -51,6 +52,19 @@ describe("generate", () => {
     expect(state.petName).toBe("Ferris");
     for (const f of files) expect(XMLValidator.validate(await readFile(f, "utf8"))).toBe(true);
     expect(await readFile(files[1]!, "utf8")).toContain("#0d1117"); // dark theme
+  });
+
+  it("renders the widget each output asks for", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "pf-"));
+    const { files } = await generate({
+      user: "octocat",
+      token: "t",
+      workspace,
+      fetch: vi.fn().mockResolvedValue(profile()),
+      outputs: parseOutputs("pet.svg\ncity.svg?widget=city"),
+    });
+    expect(await readFile(files[0]!, "utf8")).toContain("ProfileForge pet");
+    expect(await readFile(files[1]!, "utf8")).toContain("ProfileForge city");
   });
 
   it("validates paths before hitting the network", async () => {

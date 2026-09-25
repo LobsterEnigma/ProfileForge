@@ -1,5 +1,5 @@
 name: ProfileForge Pet
-description: A pixel pet for your GitHub profile README that lives on your commits.
+description: Animated pixel widgets for your GitHub profile README, a pet that lives on your commits and a city built from them.
 author: LobsterEnigma
 branding:
   icon: heart
@@ -15,7 +15,8 @@ inputs:
   outputs:
     description: |
       One SVG per line as `path?params`, using the same params as the API
-      (name, theme, hide_border, species). Example: `profileforge/pet.svg?name=Pinchy&theme=dark`
+      (widget, name, theme, hide_border, species, season). Examples:
+      `profileforge/pet.svg?name=Pinchy&theme=dark`, `profileforge/city.svg?widget=city`
     default: profileforge/pet.svg
   commit:
     description: Commit and push the generated SVGs. Set to "false" to handle that yourself.

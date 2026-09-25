@@ -1,4 +1,7 @@
-import type { Mood, PetState, Stage } from "./types.js";
+import type { ContributionDay, GitHubProfile, Mood, PetState, Stage } from "./types.js";
+import { seeded } from "./random.js";
+import { classForLanguage } from "./pet/classes.js";
+import { getSpecies } from "./pet/species/index.js";
 import { xpForLevel } from "./pet/state.js";
 
 export const MOODS: Mood[] = ["happy", "idle", "hungry", "sleeping"];
@@ -13,20 +16,25 @@ const ACTIVITY: Record<Mood, Pick<PetState, "streak" | "daysSinceLastContributio
   sleeping: { streak: 0, daysSinceLastContribution: 23, activeDays14: 0 },
 };
 
+/** The language each species' demo pretends to write. */
+const DEMO_LANGUAGE: Record<string, string> = { crab: "Rust", gopher: "Go", snake: "Python", elephant: "PHP" };
+
 /** A made-up pet for docs, the gallery and `?user=demo`. */
-export function demoState(mood: Mood = "happy", stage: Stage = "adult", petName = "Pinchy"): PetState {
+export function demoState(mood: Mood = "happy", stage: Stage = "adult", petName?: string, speciesId = "crab"): PetState {
+  const species = getSpecies(speciesId);
+  const language = DEMO_LANGUAGE[species.id] ?? "Rust";
   const level = LEVEL[stage];
   const start = xpForLevel(level);
   const next = xpForLevel(level + 1);
   const power = level / 99;
   return {
     login: "demo",
-    petName,
-    species: "crab",
+    petName: petName ?? species.defaultName,
+    species: species.id,
     level,
     stage,
-    className: "Berserker",
-    topLanguage: "Rust",
+    className: classForLanguage(language),
+    topLanguage: language,
     mood,
     xp: Math.round(start + (next - start) * 0.62),
     xpLevelStart: start,
@@ -38,5 +46,41 @@ export function demoState(mood: Mood = "happy", stage: Stage = "adult", petName 
       cha: Math.round(8 + 70 * power),
       dex: Math.round(12 + 50 * power),
     },
+  };
+}
+
+/**
+ * A made-up year of contributions for the city demo: steady weekdays, lazy weekends,
+ * two vacations (parks), one crunch week (the landmark) and a hot streak right now.
+ */
+export function demoProfile(): GitHubProfile {
+  const rng = seeded("demo-city");
+  const end = Date.UTC(2026, 8, 24);
+  const days = 371;
+  const calendar: ContributionDay[] = [];
+  for (let i = 0; i < days; i++) {
+    const t = end - (days - 1 - i) * 86_400_000;
+    const date = new Date(t);
+    const weekend = date.getUTCDay() === 0 || date.getUTCDay() === 6;
+    const trend = 0.5 + i / days;
+    let count = rng() < (weekend ? 0.35 : 0.85) ? Math.round(rng() * 9 * trend) : 0;
+    if ((i >= 70 && i < 84) || (i >= 230 && i < 237)) count = 0; // vacations
+    if (i >= 120 && i < 141) count = Math.max(count, 1 + Math.round(rng() * 4)); // a 3-week streak
+    if (i >= 180 && i < 187) count = 18 + Math.round(rng() * 14); // crunch week
+    if (i >= days - 12) count = Math.max(count, 1 + Math.round(rng() * 6)); // current streak
+    calendar.push({ date: date.toISOString().slice(0, 10), count });
+  }
+  return {
+    login: "demo",
+    name: "Demo",
+    followers: 42,
+    totalStars: 128,
+    lifetimeContributions: 5200,
+    commits: 900,
+    pullRequests: 80,
+    reviews: 40,
+    issues: 30,
+    calendar,
+    languages: [{ name: "Rust", color: "#dea584", bytes: 1 }],
   };
 }

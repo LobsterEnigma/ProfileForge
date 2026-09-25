@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { handlePet } from "../src/handler.js";
+import { handleWidget } from "../src/handler.js";
 
 const call = (query: string, env: { GITHUB_TOKEN?: string } = {}) =>
-  handlePet(new URL(`http://localhost/api/pet?${query}`), env);
+  handleWidget("pet", new URL(`http://localhost/api/pet?${query}`), env);
 
 function graphqlResponse(data: unknown) {
   return new Response(JSON.stringify({ data }), { status: 200, headers: { "content-type": "application/json" } });
@@ -17,6 +17,13 @@ describe("handlePet", () => {
     const svg = await res.text();
     expect(svg).toContain("Crabby");
     expect(svg).toContain("asleep");
+  });
+
+  it("serves the demo city on its own route", async () => {
+    const res = await handleWidget("city", new URL("http://localhost/api/city?user=demo&theme=dark"));
+    const svg = await res.text();
+    expect(svg).toContain("demo's city");
+    expect(svg).toContain("#070f24"); // dark city sky
   });
 
   it("rejects invalid logins", async () => {

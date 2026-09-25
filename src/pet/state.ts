@@ -1,5 +1,6 @@
 import type { ContributionDay, GitHubProfile, Mood, PetState, PetStats, Stage } from "../types.js";
 import { classForLanguage } from "./classes.js";
+import { getSpecies, speciesForLanguage } from "./species/index.js";
 
 export const MAX_LEVEL = 99;
 
@@ -59,15 +60,15 @@ export function statFor(value: number): number {
 
 export interface PetOptions {
   petName?: string;
+  /** Defaults to the species for your top language. */
   species?: string;
 }
-
-export const DEFAULT_SPECIES = "crab";
 
 export function computePetState(profile: GitHubProfile, options: PetOptions = {}): PetState {
   const xp = profile.lifetimeContributions + profile.totalStars * 2 + profile.followers * 3;
   const level = levelForXp(xp);
   const topLanguage = profile.languages[0]?.name ?? null;
+  const species = getSpecies(options.species ?? speciesForLanguage(topLanguage));
   const stats: PetStats = {
     str: statFor(profile.commits),
     int: statFor(profile.pullRequests + profile.reviews),
@@ -77,8 +78,8 @@ export function computePetState(profile: GitHubProfile, options: PetOptions = {}
 
   return {
     login: profile.login,
-    petName: options.petName ?? "Pinchy",
-    species: options.species ?? DEFAULT_SPECIES,
+    petName: options.petName ?? species.defaultName,
+    species: species.id,
     level,
     stage: stageForLevel(level),
     className: classForLanguage(topLanguage),

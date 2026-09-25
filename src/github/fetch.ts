@@ -31,6 +31,7 @@ const PROFILE_QUERY = /* GraphQL */ `
         first: 100
         ownerAffiliations: OWNER
         isFork: false
+        privacy: PUBLIC
         orderBy: { field: STARGAZERS, direction: DESC }
       ) {
         nodes {

@@ -1,10 +1,8 @@
-import { demoState } from "./demo.js";
 import { fetchProfile, GitHubError } from "./github/fetch.js";
-import { LOGIN_RE, parsePetParams } from "./options.js";
-import { renderPetCard } from "./pet/render.js";
-import { computePetState } from "./pet/state.js";
+import { LOGIN_RE, parsePetParams, type Widget } from "./options.js";
 import { renderErrorCard } from "./svg/error.js";
 import type { GitHubProfile } from "./types.js";
+import { renderDemo, renderWidget } from "./widgets.js";
 
 // Warm serverless instances reuse this, which saves GitHub API quota on popular profiles.
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -30,17 +28,21 @@ function svgResponse(body: string, maxAge: number): Response {
   });
 }
 
-/** `GET /api/pet?user=<login>` → the pet card as SVG. Shared by the Vercel function and the dev server. */
-export async function handlePet(url: URL, env: { GITHUB_TOKEN?: string } = {}): Promise<Response> {
-  const { theme, hideBorder, petName, species, mood, stage } = parsePetParams(url.searchParams);
+/**
+ * `GET /api/<widget>?user=<login>` → the widget as SVG.
+ * Shared by the Vercel functions and the dev server; the route decides the widget.
+ */
+export async function handleWidget(widget: Widget, url: URL, env: { GITHUB_TOKEN?: string } = {}): Promise<Response> {
+  const params = { ...parsePetParams(url.searchParams), widget };
+  const { theme } = params;
   const user = url.searchParams.get("user")?.trim() ?? "";
 
   if (user.toLowerCase() === "demo") {
-    return svgResponse(renderPetCard(demoState(mood, stage, petName), { theme, hideBorder }), 86400);
+    return svgResponse(renderDemo(params), 86400);
   }
 
   if (!LOGIN_RE.test(user)) {
-    return svgResponse(renderErrorCard("Missing or invalid user", "Try /api/pet?user=your-github-login", theme), 300);
+    return svgResponse(renderErrorCard("Missing or invalid user", `Try /api/${widget}?user=your-github-login`, theme), 300);
   }
   if (!env.GITHUB_TOKEN) {
     return svgResponse(renderErrorCard("Server has no GITHUB_TOKEN", "See the README's self-hosting section", theme), 60);
@@ -48,8 +50,7 @@ export async function handlePet(url: URL, env: { GITHUB_TOKEN?: string } = {}): 
 
   try {
     const profile = await cachedProfile(user, env.GITHUB_TOKEN);
-    const state = computePetState(profile, { petName, species });
-    return svgResponse(renderPetCard(state, { theme, hideBorder }), 4 * 3600);
+    return svgResponse(renderWidget(profile, params), 4 * 3600);
   } catch (err) {
     if (err instanceof GitHubError) {
       const hint = {

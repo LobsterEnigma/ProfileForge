@@ -3,7 +3,7 @@
  * Serves /api/pet exactly like Vercel does, plus a gallery of every mood × stage.
  */
 import { createServer } from "node:http";
-import { handlePet } from "../src/handler.js";
+import { handleWidget } from "../src/handler.js";
 import { MOODS, STAGES } from "../src/demo.js";
 import { THEME_NAMES } from "../src/themes.js";
 
@@ -13,6 +13,7 @@ function gallery(theme: string): string {
   const tabs = THEME_NAMES.map(
     (t) => `<a href="/?theme=${t}" class="${t === theme ? "on" : ""}">${t}</a>`,
   ).join("");
+  const city = `<h2>city</h2><img src="/api/city?user=demo&theme=${theme}" width="800" height="260">`;
   const rows = STAGES.map(
     (stage) => `<h2>${stage}</h2><div class="row">${MOODS.map(
       (mood) => `<figure><img src="/api/pet?user=demo&stage=${stage}&mood=${mood}&theme=${theme}" width="480" height="190"><figcaption>${mood}</figcaption></figure>`,
@@ -28,28 +29,31 @@ form{margin:16px 0}input{font:inherit;padding:4px 8px}
 </style>
 <h1>ProfileForge 🦀</h1>
 <nav>${tabs}</nav>
-<form onsubmit="event.preventDefault();document.getElementById('real').src='/api/pet?theme=${theme}&user='+encodeURIComponent(this.u.value)">
+<form onsubmit="event.preventDefault();const u=encodeURIComponent(this.u.value);document.getElementById('real').src='/api/pet?theme=${theme}&user='+u;document.getElementById('real-city').src='/api/city?theme=${theme}&user='+u">
   <input name="u" placeholder="github login"> <button>Render real user</button>
   <span style="opacity:.6">(needs GITHUB_TOKEN)</span>
 </form>
-<img id="real" alt="">
+<img id="real" alt=""> <img id="real-city" alt="">
+${city}
 ${rows}`;
 }
 
 createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
-  if (url.pathname === "/api/pet") {
-    const response = await handlePet(url, { GITHUB_TOKEN: process.env.GITHUB_TOKEN });
+  const route = url.pathname.match(/^\/api\/(pet|city)$/);
+  if (route) {
+    const response = await handleWidget(route[1] as "pet" | "city", url, { GITHUB_TOKEN: process.env.GITHUB_TOKEN });
     res.writeHead(response.status, { ...Object.fromEntries(response.headers), "cache-control": "no-store" });
     res.end(await response.text());
     return;
   }
   if (url.pathname === "/zoom") {
-    // /zoom?x=3&user=demo&mood=idle → the card blown up for inspecting pixels.
+    // /zoom?x=3&user=demo&mood=idle (or &widget=city) → the card blown up for inspecting pixels.
     const scale = Number(url.searchParams.get("x") ?? 3);
+    const widget = url.searchParams.get("widget") === "city" ? "city" : "pet";
     url.searchParams.delete("x");
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    res.end(`<body style="margin:0;background:#888"><img src="/api/pet${url.search}" style="width:${480 * scale}px;image-rendering:pixelated">`);
+    res.end(`<body style="margin:0;background:#888"><img src="/api/${widget}${url.search}" style="width:${(widget === "city" ? 800 : 480) * scale}px;image-rendering:pixelated">`);
     return;
   }
   if (url.pathname === "/") {

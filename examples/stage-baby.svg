@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" class="pf" width="480" height="190" viewBox="0 0 480 190" role="img" aria-labelledby="pf-title pf-desc">
 <title id="pf-title">Pinchy, demo&#39;s ProfileForge pet</title>
 <desc id="pf-desc">Level 9 Berserker crab, feeling happy. 12-day streak.</desc>
-<style>.pf{--pf-bg:#ffffff;--pf-border:#d0d7de;--pf-title:#1f2328;--pf-text:#1f2328;--pf-muted:#656d76;--pf-accent:#cf4a1f;--pf-bar-empty:#eaeef2;--pf-hp:#2da44e;--pf-exp:#0969da;--pf-sky-top:#bfe3ff;--pf-sky-bottom:#fdf3dc;--pf-ground:#f0d09a;--pf-ground-dark:#d6ae72;--pf-stars:0}@media (prefers-color-scheme:dark){.pf{--pf-bg:#0d1117;--pf-border:#30363d;--pf-title:#e6edf3;--pf-text:#e6edf3;--pf-muted:#8d96a0;--pf-accent:#ff8a5c;--pf-bar-empty:#21262d;--pf-hp:#3fb950;--pf-exp:#58a6ff;--pf-sky-top:#0a1630;--pf-sky-bottom:#23305a;--pf-ground:#3d3526;--pf-ground-dark:#2b251b;--pf-stars:1}}
+<style>.pf{--pf-bg:#ffffff;--pf-border:#d0d7de;--pf-title:#1f2328;--pf-text:#1f2328;--pf-muted:#656d76;--pf-accent:#cf4a1f;--pf-bar-empty:#eaeef2;--pf-hp:#2da44e;--pf-exp:#0969da;--pf-sky-top:#bfe3ff;--pf-sky-bottom:#fdf3dc;--pf-ground:#f0d09a;--pf-ground-dark:#d6ae72;--pf-stars:0;--pf-city-sky-top:#4b5aa8;--pf-city-sky-bottom:#ffb38a;--pf-city-text:#ffffff;--pf-city-muted:#e8e6ff;--pf-bldg1:#2f3354;--pf-bldg2:#3b4066;--pf-bldg3:#262a45;--pf-window-on:#ffd166;--pf-window-alt:#ffe8a3;--pf-window-off:#4a5078;--pf-road:#23263b;--pf-celestial:#ff8a5c}@media (prefers-color-scheme:dark){.pf{--pf-bg:#0d1117;--pf-border:#30363d;--pf-title:#e6edf3;--pf-text:#e6edf3;--pf-muted:#8d96a0;--pf-accent:#ff8a5c;--pf-bar-empty:#21262d;--pf-hp:#3fb950;--pf-exp:#58a6ff;--pf-sky-top:#0a1630;--pf-sky-bottom:#23305a;--pf-ground:#3d3526;--pf-ground-dark:#2b251b;--pf-stars:1;--pf-city-sky-top:#070f24;--pf-city-sky-bottom:#1f2c55;--pf-city-text:#e6edf3;--pf-city-muted:#9fb0d0;--pf-bldg1:#161d33;--pf-bldg2:#1d2640;--pf-bldg3:#121829;--pf-window-on:#ffd166;--pf-window-alt:#9ad1ff;--pf-window-off:#26304d;--pf-road:#0e1322;--pf-celestial:#f4f1de}}
 .pf-name{font:700 20px 'Segoe UI',Ubuntu,'Helvetica Neue',sans-serif;fill:var(--pf-title)}
 .pf-class{font:700 13px 'Segoe UI',Ubuntu,'Helvetica Neue',sans-serif}
 .pf-accent{fill:var(--pf-accent)}
@@ -19,6 +19,9 @@
 .pf-blink-shut{opacity:0;animation:pf-blink-shut 4.2s steps(1) infinite}
 @keyframes pf-blink-open{0%{opacity:1}94%{opacity:0}98%{opacity:1}100%{opacity:1}}
 @keyframes pf-blink-shut{0%{opacity:0}94%{opacity:1}98%{opacity:0}100%{opacity:0}}
+.pf-bob{animation:pf-bob 2s ease-in-out infinite}
+@keyframes pf-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+
 .pf-walk{animation:pf-walk 9s ease-in-out infinite}
 @keyframes pf-walk{0%,100%{transform:translateX(-34px)}40%,50%{transform:translateX(34px)}90%{transform:translateX(-34px)}}
 .pf-jump{animation:pf-jump .9s ease-in-out infinite}
@@ -34,13 +37,12 @@
 @keyframes pf-wobble{0%,55%,100%{transform:rotate(0)}65%{transform:rotate(-9deg)}75%{transform:rotate(8deg)}85%{transform:rotate(-4deg)}92%{transform:rotate(2deg)}}
 .pf-rise{animation:pf-rise 2.7s ease-out infinite}
 @keyframes pf-rise{0%{transform:translate(0,0);opacity:0}15%{opacity:1}100%{transform:translate(8px,-38px);opacity:0}}
-.pf-bob{animation:pf-bob 2s ease-in-out infinite}
-@keyframes pf-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 .pf-twinkle{transform-box:fill-box;transform-origin:center;animation:pf-twinkle 1.8s ease-in-out infinite}
 @keyframes pf-twinkle{0%,100%{opacity:.15;transform:scale(.5)}50%{opacity:1;transform:scale(1)}}
 .pf-star{opacity:var(--pf-stars)}
 @media (prefers-reduced-motion:reduce){.pf *{animation:none!important}}
 </style>
+
 <rect width="480" height="190" rx="10" style="fill:var(--pf-bg)"/>
 <rect x=".5" y=".5" width="479" height="189" rx="10" fill="none" style="stroke:var(--pf-border)"/>
 
@@ -57,8 +59,10 @@
   <rect x="12" y="144" width="200" height="34" style="fill:var(--pf-ground)"/>
   <path d="M12 144h8v-3h-8zM28 144h8v-3h-8zM44 144h8v-3h-8zM60 144h8v-3h-8zM76 144h8v-3h-8zM92 144h8v-3h-8zM108 144h8v-3h-8zM124 144h8v-3h-8zM140 144h8v-3h-8zM156 144h8v-3h-8zM172 144h8v-3h-8zM188 144h8v-3h-8zM204 144h8v-3h-8z" style="fill:var(--pf-ground)"/>
   <rect x="34" y="158" width="6" height="4" style="fill:var(--pf-ground-dark)"/><rect x="162" y="164" width="6" height="4" style="fill:var(--pf-ground-dark)"/><rect x="108" y="168" width="6" height="4" style="fill:var(--pf-ground-dark)"/><rect x="188" y="154" width="6" height="4" style="fill:var(--pf-ground-dark)"/>
+  <g>
   <g class=""><rect class="pf-shadow pf-jump-shadow" x="88" y="145" width="48" height="6" rx="3" opacity=".35" style="fill:var(--pf-ground-dark)"/><g transform="translate(82 108)"><g class="pf-jump"><g class="pf-fa" style="animation-duration:0.6s"><path fill="#4a1c14" d="M0 3h6v3h-6zM9 3h6v3h-6zM0 6h3v3h-3zM12 6h3v3h-3zM0 9h3v3h-3zM12 9h3v3h-3zM0 12h3v3h-3zM12 12h3v3h-3zM3 15h9v3h-9zM45 3h6v3h-6zM54 3h6v3h-6zM45 6h3v3h-3zM57 6h3v3h-3zM45 9h3v3h-3zM57 9h3v3h-3zM45 12h3v3h-3zM57 12h3v3h-3zM48 15h9v3h-9zM12 18h3v3h-3zM45 18h3v3h-3zM6 33h3v3h-3zM12 33h3v3h-3zM45 33h3v3h-3zM51 33h3v3h-3zM3 36h3v3h-3zM12 36h3v3h-3zM45 36h3v3h-3zM54 36h3v3h-3z"/><path fill="#ff9a76" d="M3 6h3v3h-3zM3 9h3v3h-3zM54 6h3v3h-3zM54 9h3v3h-3z"/><path fill="#e8553a" d="M9 6h3v3h-3zM6 9h6v3h-6zM3 12h9v3h-9zM48 6h3v3h-3zM48 9h6v3h-6zM48 12h9v3h-9z"/></g><g class="pf-fb" style="animation-duration:0.6s"><path fill="#4a1c14" d="M3 3h9v3h-9zM0 6h3v3h-3zM12 6h3v3h-3zM0 9h3v3h-3zM12 9h3v3h-3zM0 12h3v3h-3zM12 12h3v3h-3zM3 15h9v3h-9zM48 3h9v3h-9zM45 6h3v3h-3zM57 6h3v3h-3zM45 9h3v3h-3zM57 9h3v3h-3zM45 12h3v3h-3zM57 12h3v3h-3zM48 15h9v3h-9zM12 18h3v3h-3zM45 18h3v3h-3zM6 33h3v3h-3zM12 33h3v3h-3zM45 33h3v3h-3zM51 33h3v3h-3zM3 36h3v3h-3zM12 36h3v3h-3zM45 36h3v3h-3zM54 36h3v3h-3z"/><path fill="#ff9a76" d="M3 6h3v3h-3zM54 6h3v3h-3z"/><path fill="#e8553a" d="M6 6h6v3h-6zM3 9h9v3h-9zM3 12h9v3h-9zM48 6h6v3h-6zM48 9h9v3h-9zM48 12h9v3h-9z"/></g><path fill="#4a1c14" d="M18 18h24v3h-24zM15 21h3v3h-3zM42 21h3v3h-3zM12 24h3v3h-3zM45 24h3v3h-3zM12 27h3v3h-3zM45 27h3v3h-3zM15 30h3v3h-3zM42 30h3v3h-3zM18 33h24v3h-24z"/><path fill="#e8553a" d="M18 21h3v3h-3zM27 21h15v3h-15zM15 24h3v3h-3zM21 24h24v3h-24zM15 27h30v3h-30zM24 30h12v3h-12z"/><path fill="#ff9a76" d="M21 21h6v3h-6zM18 24h3v3h-3z"/><path fill="#b53a24" d="M18 30h6v3h-6zM36 30h6v3h-6z"/><path fill="#4a1c14" d="M24 24h3v3h-3zM33 24h3v3h-3zM27 27h6v3h-6z"/><path fill="#ff8fa3" d="M15 27h6v3h-6zM39 27h6v3h-6z"/><path fill="#4a1c14" d="M15 0h12v3h-12zM15 3h3v3h-3zM24 3h3v3h-3zM15 6h3v3h-3zM24 6h3v3h-3zM15 9h12v3h-12zM33 0h12v3h-12zM33 3h3v3h-3zM42 3h3v3h-3zM33 6h3v3h-3zM42 6h3v3h-3zM33 9h12v3h-12zM21 12h3v3h-3zM21 15h3v3h-3zM36 12h3v3h-3zM36 15h3v3h-3z"/><path fill="#1a1a1a" d="M18 3h3v3h-3zM18 6h6v3h-6zM36 3h3v3h-3zM36 6h6v3h-6z"/><path fill="#ffffff" d="M21 3h3v3h-3zM39 3h3v3h-3z"/></g></g></g>
   <g class="pf-rise" style="animation-delay:-0.3s"><path fill="#ff5c7a" d="M88 108h4v2h-4zM94 108h4v2h-4zM88 110h10v2h-10zM90 112h6v2h-6zM92 114h2v2h-2z"/></g><g class="pf-rise" style="animation-delay:-1.2s"><path fill="#ff5c7a" d="M112 102h4v2h-4zM118 102h4v2h-4zM112 104h10v2h-10zM114 106h6v2h-6zM116 108h2v2h-2z"/></g><g class="pf-rise" style="animation-delay:-2.1s"><path fill="#ff5c7a" d="M133 112h4v2h-4zM139 112h4v2h-4zM133 114h10v2h-10zM135 116h6v2h-6zM137 118h2v2h-2z"/></g>
+  </g>
 </g>
 
 <g>
