@@ -10,14 +10,16 @@ import { CITY_PET_CSS, strollingPet } from "./pet.js";
 import { clouds, fog, overcast, rain, WEATHER_CSS, weatherFor, type Weather } from "./weather.js";
 import { moonPhase, moonPhaseName, pixelCircle, pixelMoon } from "./celestial.js";
 import { BASE_Y, BUILDING_W, H, MAX_FLOORS, RIGHT_EDGE, ROAD_Y, U, W } from "./layout.js";
-import { fallingParticles, fireflies, LOOKS, SEASON_CSS, seasonFor, type Season } from "./seasons.js";
+import { fallingParticles, fireflies, LOOKS, SEASON_CSS, seasonFor, type Hemisphere, type Season } from "./seasons.js";
 import type { CityState, Week } from "./state.js";
 
 export interface RenderOptions {
   theme?: string;
   hideBorder?: boolean;
-  /** Overrides the date-based (northern hemisphere) season. */
+  /** Pins a season instead of following the date. */
   season?: Season;
+  /** Flips the date-based seasons (and the moon) for the southern hemisphere. */
+  hemisphere?: Hemisphere;
 }
 
 const SANS = "'Segoe UI',Ubuntu,'Helvetica Neue',sans-serif";
@@ -84,7 +86,7 @@ export function floorsFor(week: Week, maxTotal: number): number {
 
 // ── Sky ──────────────────────────────────────────────────────────────────────
 
-function sky(state: CityState, rng: Rng, weather: Weather): string {
+function sky(state: CityState, rng: Rng, weather: Weather, south: boolean): string {
   const stars = new RectBatch();
   const twinkles: string[] = [];
   for (let i = 0; i < 46; i++) {
@@ -115,7 +117,7 @@ function sky(state: CityState, rng: Rng, weather: Weather): string {
   return `
 <rect width="${W}" height="${H}" fill="url(#pf-sky)"/>
 <g class="pf-day"><g opacity=".25">${sunGlow}</g>${sun}</g>
-<g class="pf-night">${stars}${twinkles.join("")}${pixelMoon(712, 78, 13, U, moonPhase(state.date))}${shootingStar}</g>`;
+<g class="pf-night">${stars}${twinkles.join("")}${pixelMoon(712, 78, 13, U, moonPhase(state.date), south)}${shootingStar}</g>`;
 }
 
 /** A plane crossing the sky with its navigation lights, and birds heading home at dusk. */
@@ -244,7 +246,7 @@ function street(state: CityState, season: Season, pet: string): string {
 
 export function renderCityCard(state: CityState, options: RenderOptions = {}): string {
   const rng = seeded(`city:${state.login}`);
-  const season = options.season ?? seasonFor(state.date);
+  const season = options.season ?? seasonFor(state.date, options.hemisphere);
   const look = LOOKS[season];
   const holiday = holidayFor(state.date);
   const weather = weatherFor(state.daysSinceLastContribution);
@@ -288,7 +290,7 @@ export function renderCityCard(state: CityState, options: RenderOptions = {}): s
 </defs>
 ${filter.defs}
 <g clip-path="url(#pf-clip)"><g${filter.attr}>
-${sky(state, rng, weather)}
+${sky(state, rng, weather, options.hemisphere === "south")}
 ${weather === "clear" ? clouds(rng) : overcast(rng)}
 ${flyers()}
 ${bats(holiday)}

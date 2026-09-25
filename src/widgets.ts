@@ -11,7 +11,7 @@ const cityPet = (p: PetParams) => (p.showPet ? { petName: p.petName, species: p.
 /** Renders the widget `params.widget` asks for. Used by both the API and the Action. */
 export function renderWidget(profile: GitHubProfile, params: PetParams): string {
   const style = { theme: params.theme, hideBorder: params.hideBorder };
-  if (params.widget === "city") return renderCityCard(computeCityState(profile, cityPet(params)), { ...style, season: params.season });
+  if (params.widget === "city") return renderCityCard(computeCityState(profile, cityPet(params)), { ...style, season: params.season, hemisphere: params.hemisphere });
   return renderPetCard(computePetState(profile, { petName: params.petName, species: params.species }), style);
 }
 
@@ -19,7 +19,7 @@ export function renderWidget(profile: GitHubProfile, params: PetParams): string 
 export function renderDemo(params: PetParams): string {
   const style = { theme: params.theme, hideBorder: params.hideBorder };
   if (params.widget === "city") {
-    return renderCityCard(computeCityState(demoProfile(), cityPet(params)), { ...style, season: params.season });
+    return renderCityCard(computeCityState(demoProfile(), cityPet(params)), { ...style, season: params.season, hemisphere: params.hemisphere });
   }
   return renderPetCard(demoState(params.mood, params.stage, params.petName, params.species), style);
 }

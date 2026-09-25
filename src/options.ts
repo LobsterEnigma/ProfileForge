@@ -1,4 +1,4 @@
-import { SEASONS, type Season } from "./city/seasons.js";
+import { HEMISPHERES, SEASONS, type Hemisphere, type Season } from "./city/seasons.js";
 import { MOODS, STAGES } from "./demo.js";
 import { isSpecies } from "./pet/species/index.js";
 import type { Mood, Stage } from "./types.js";
@@ -19,8 +19,10 @@ export interface PetParams {
   species?: string;
   /** City only: `?pet=false` keeps your pet off the streets. */
   showPet: boolean;
-  /** City only: overrides the date-based season (e.g. for the southern hemisphere). */
+  /** City only: pins a season instead of following the date. */
   season?: Season;
+  /** City only: `south` flips the date-based seasons and the moon. */
+  hemisphere?: Hemisphere;
   /** Only honoured for the demo user. */
   mood?: Mood;
   stage?: Stage;
@@ -41,6 +43,7 @@ export function parsePetParams(q: URLSearchParams): PetParams {
     species: isSpecies(species) ? species : undefined,
     showPet: q.get("pet") !== "false",
     season: oneOf<Season>(q.get("season"), SEASONS),
+    hemisphere: oneOf<Hemisphere>(q.get("hemisphere"), HEMISPHERES),
     mood: oneOf<Mood>(q.get("mood"), MOODS),
     stage: oneOf<Stage>(q.get("stage"), STAGES),
   };

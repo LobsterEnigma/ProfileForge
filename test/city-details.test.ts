@@ -31,6 +31,16 @@ describe("moon phase", () => {
     expect(moonPhaseName(0.99)).toBe("new moon");
   });
 
+  it("mirrors the moon in the southern hemisphere", () => {
+    // Lit pixels at first quarter: right half up north, left half down south.
+    const litRects = (svg: string) => [...svg.split("</g>")[1]!.matchAll(/M(-?\d+) (-?\d+)h(\d+)/g)].map((m) => [+m[1]!, +m[2]!, +m[3]!]);
+    const north = litRects(pixelMoon(0, 0, 13, 2, 0.25));
+    const south = litRects(pixelMoon(0, 0, 13, 2, 0.25, true));
+    expect(north.every(([x]) => x! >= 0)).toBe(true);
+    expect(south.every(([x, , w]) => x! + w! <= 0)).toBe(true);
+    expect(south.length).toBe(north.length);
+  });
+
   it("lights the whole disc at full moon and none at new moon", () => {
     expect(pixelMoon(0, 0, 13, 2, 0.5)).toMatch(/^<g opacity="\.13"><\/g><path/);
     expect(pixelMoon(0, 0, 13, 2, 0)).toMatch(/<\/g>$/);
@@ -62,8 +72,25 @@ describe("seasons", () => {
     expect(renderCityCard(demo, { season: "summer" })).not.toContain(SNOW);
   });
 
+  it.each([
+    ["2026-12-15", "summer"],
+    ["2026-07-15", "winter"],
+    ["2026-04-10", "autumn"],
+    ["2026-10-10", "spring"],
+  ])("flips %s to %s south of the equator", (date, season) => expect(seasonFor(date, "south")).toBe(season));
+
   it("follows the calendar date by default", () => {
     expect(renderCityCard(demo)).toContain("in autumn"); // demo ends 2026-09-24
+  });
+
+  it("turns autumn into spring with ?hemisphere=south", async () => {
+    const res = await handleWidget("city", new URL("http://localhost/api/city?user=demo&hemisphere=south"));
+    expect(await res.text()).toContain("in spring"); // demo ends 2026-09-24
+  });
+
+  it("lets a pinned season win over the hemisphere", async () => {
+    const res = await handleWidget("city", new URL("http://localhost/api/city?user=demo&hemisphere=south&season=winter"));
+    expect(await res.text()).toContain("in winter");
   });
 
   it("can be overridden with ?season=", async () => {

@@ -34,10 +34,10 @@ export function pixelCircle(batch: RectBatch, fill: string, cx: number, cy: numb
 }
 
 /**
- * The moon as it looks on `phase`, seen from the northern hemisphere: waxing lights up
- * from the right, waning shrinks to the left. The unlit part stays faintly visible.
+ * The moon as it looks on `phase`. From the north, waxing lights up from the right and
+ * waning shrinks to the left; the south sees it mirrored. The unlit part stays faintly visible.
  */
-export function pixelMoon(cx: number, cy: number, radius: number, px: number, phase: number): string {
+export function pixelMoon(cx: number, cy: number, radius: number, px: number, phase: number, south = false): string {
   const lit = new RectBatch();
   const dark = new RectBatch();
   const r = Math.round(radius / px);
@@ -54,7 +54,7 @@ export function pixelMoon(cx: number, cy: number, radius: number, px: number, ph
       (runLit ? lit : dark).add("var(--pf-celestial)", cx + runStart * px, cy + dy * px, (end - runStart) * px, px);
     };
     for (let dx = -cols; dx < cols; dx++) {
-      const xc = (dx + 0.5) / r;
+      const xc = ((dx + 0.5) / r) * (south ? -1 : 1);
       const isLit = phase < 0.5 ? xc > half * terminator : xc < -half * terminator;
       if (isLit !== runLit) {
         flush(dx);

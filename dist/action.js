@@ -16,12 +16,12 @@ var RIGHT_EDGE = W - 28;
 
 // src/city/seasons.ts
 var SEASONS = ["spring", "summer", "autumn", "winter"];
-function seasonFor(date) {
+var HEMISPHERES = ["north", "south"];
+var OPPOSITE = { spring: "autumn", summer: "winter", autumn: "spring", winter: "summer" };
+function seasonFor(date, hemisphere = "north") {
   const month = Number(date.slice(5, 7));
-  if (month >= 3 && month <= 5) return "spring";
-  if (month >= 6 && month <= 8) return "summer";
-  if (month >= 9 && month <= 11) return "autumn";
-  return "winter";
+  const north = month >= 3 && month <= 5 ? "spring" : month >= 6 && month <= 8 ? "summer" : month >= 9 && month <= 11 ? "autumn" : "winter";
+  return hemisphere === "south" ? OPPOSITE[north] : north;
 }
 var SNOW = "#f2f6ff";
 var LOOKS = {
@@ -650,6 +650,7 @@ function parsePetParams(q) {
     species: isSpecies(species) ? species : void 0,
     showPet: q.get("pet") !== "false",
     season: oneOf(q.get("season"), SEASONS),
+    hemisphere: oneOf(q.get("hemisphere"), HEMISPHERES),
     mood: oneOf(q.get("mood"), MOODS),
     stage: oneOf(q.get("stage"), STAGES)
   };
@@ -1558,7 +1559,7 @@ function pixelCircle(batch, fill, cx, cy, radius, px) {
     batch.add(fill, cx - half * px, cy + dy * px, half * 2 * px, px);
   }
 }
-function pixelMoon(cx, cy, radius, px, phase) {
+function pixelMoon(cx, cy, radius, px, phase, south = false) {
   const lit = new RectBatch();
   const dark2 = new RectBatch();
   const r = Math.round(radius / px);
@@ -1574,7 +1575,7 @@ function pixelMoon(cx, cy, radius, px, phase) {
       (runLit ? lit : dark2).add("var(--pf-celestial)", cx + runStart * px, cy + dy * px, (end - runStart) * px, px);
     };
     for (let dx = -cols; dx < cols; dx++) {
-      const xc = (dx + 0.5) / r;
+      const xc = (dx + 0.5) / r * (south ? -1 : 1);
       const isLit = phase < 0.5 ? xc > half * terminator : xc < -half * terminator;
       if (isLit !== runLit) {
         flush(dx);
@@ -1645,7 +1646,7 @@ function floorsFor(week, maxTotal) {
   const ratio = (week.total / maxTotal) ** 0.6;
   return Math.max(1, Math.round(1 + (MAX_FLOORS - 1) * ratio));
 }
-function sky(state, rng, weather) {
+function sky(state, rng, weather, south) {
   const stars = new RectBatch();
   const twinkles = [];
   for (let i = 0; i < 46; i++) {
@@ -1668,7 +1669,7 @@ function sky(state, rng, weather) {
   return `
 <rect width="${W}" height="${H}" fill="url(#pf-sky)"/>
 <g class="pf-day"><g opacity=".25">${sunGlow}</g>${sun}</g>
-<g class="pf-night">${stars}${twinkles.join("")}${pixelMoon(712, 78, 13, U, moonPhase(state.date))}${shootingStar}</g>`;
+<g class="pf-night">${stars}${twinkles.join("")}${pixelMoon(712, 78, 13, U, moonPhase(state.date), south)}${shootingStar}</g>`;
 }
 function flyers() {
   const plane = new RectBatch().add("var(--pf-bldg1)", 0, 2, 18, 3).add("var(--pf-bldg1)", 14, -1, 3, 3).add("var(--pf-bldg1)", 6, 5, 6, 2);
@@ -1761,7 +1762,7 @@ function street(state, season, pet2) {
 }
 function renderCityCard(state, options = {}) {
   const rng = seeded(`city:${state.login}`);
-  const season = options.season ?? seasonFor(state.date);
+  const season = options.season ?? seasonFor(state.date, options.hemisphere);
   const look = LOOKS[season];
   const holiday = holidayFor(state.date);
   const weather = weatherFor(state.daysSinceLastContribution);
@@ -1799,7 +1800,7 @@ function renderCityCard(state, options = {}) {
 </defs>
 ${filter.defs}
 <g clip-path="url(#pf-clip)"><g${filter.attr}>
-${sky(state, rng, weather)}
+${sky(state, rng, weather, options.hemisphere === "south")}
 ${weather === "clear" ? clouds(rng) : overcast(rng)}
 ${flyers()}
 ${bats(holiday)}
@@ -2064,7 +2065,7 @@ ${panel(state)}
 var cityPet = (p) => p.showPet ? { petName: p.petName, species: p.species } : false;
 function renderWidget(profile, params) {
   const style = { theme: params.theme, hideBorder: params.hideBorder };
-  if (params.widget === "city") return renderCityCard(computeCityState(profile, cityPet(params)), { ...style, season: params.season });
+  if (params.widget === "city") return renderCityCard(computeCityState(profile, cityPet(params)), { ...style, season: params.season, hemisphere: params.hemisphere });
   return renderPetCard(computePetState(profile, { petName: params.petName, species: params.species }), style);
 }
 

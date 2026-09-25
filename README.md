@@ -147,7 +147,7 @@ Your last year of contributions as a skyline. Every piece of it means something:
 
 Six building styles (houses, classic, brick, glass, art-deco setbacks and spires), drifting clouds, a plane crossing the sky and birds heading home at dusk keep every skyline different, and all the randomness is seeded from your login, so no two cities look alike.
 
-Light themes paint it at sunset, dark themes at night. Seasons follow the date (northern hemisphere); pass `season=` to pick one yourself:
+Light themes paint it at sunset, dark themes at night. Seasons follow the date, flipped with `hemisphere=south`; pass `season=` to pin one yourself:
 
 | | |
 |---|---|
@@ -166,7 +166,8 @@ Light themes paint it at sunset, dark themes at night. Seasons follow the date (
 | `pet` | `true` | City only: `false` keeps your pet off the streets. |
 | `theme` | `auto` | `auto` · `light` · `dark` · `dracula` · `gameboy` · `sakura` |
 | `hide_border` | `false` | `true` to drop the card border. |
-| `season` | from the date | City only: `spring` · `summer` · `autumn` · `winter`. Handy south of the equator. |
+| `season` | from the date | City only: pin `spring` · `summer` · `autumn` · `winter` instead of following the date. |
+| `hemisphere` | `north` | City only: `south` flips the automatic seasons (a December city is summer) and mirrors the moon. |
 | `mood`, `stage` | | Pet only, with `user=demo`, to preview any state. |
 
 `auto` follows the viewer's light/dark setting: the beach gets stars and the city switches from sunset to night.

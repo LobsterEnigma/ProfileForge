@@ -4,13 +4,20 @@ import { BASE_Y, H, W } from "./layout.js";
 export const SEASONS = ["spring", "summer", "autumn", "winter"] as const;
 export type Season = (typeof SEASONS)[number];
 
-/** Northern-hemisphere meteorological seasons. Use the `season` param to override. */
-export function seasonFor(date: string): Season {
+export const HEMISPHERES = ["north", "south"] as const;
+export type Hemisphere = (typeof HEMISPHERES)[number];
+
+const OPPOSITE: Record<Season, Season> = { spring: "autumn", summer: "winter", autumn: "spring", winter: "summer" };
+
+/**
+ * Meteorological seasons for the date. The south gets them flipped, so a December
+ * city there is summer. The `season` param pins one instead.
+ */
+export function seasonFor(date: string, hemisphere: Hemisphere = "north"): Season {
   const month = Number(date.slice(5, 7));
-  if (month >= 3 && month <= 5) return "spring";
-  if (month >= 6 && month <= 8) return "summer";
-  if (month >= 9 && month <= 11) return "autumn";
-  return "winter";
+  const north: Season =
+    month >= 3 && month <= 5 ? "spring" : month >= 6 && month <= 8 ? "summer" : month >= 9 && month <= 11 ? "autumn" : "winter";
+  return hemisphere === "south" ? OPPOSITE[north] : north;
 }
 
 export interface SeasonLook {
