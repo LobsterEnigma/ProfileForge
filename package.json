@@ -1,0 +1,32 @@
+{
+  "name": "profileforge",
+  "version": "0.1.0",
+  "description": "Forge your GitHub profile with animated SVG widgets — starting with a pixel pet that lives on your commits.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch scripts/dev.ts",
+    "examples": "tsx scripts/examples.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "github",
+    "profile",
+    "readme",
+    "svg",
+    "pixel-art",
+    "pet",
+    "widget"
+  ],
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "fast-xml-parser": "^5.11.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}
