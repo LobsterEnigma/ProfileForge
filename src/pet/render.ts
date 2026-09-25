@@ -1,19 +1,29 @@
 import type { Mood, PetState } from "../types.js";
+import { seeded, type Rng } from "../random.js";
 import { escapeXml } from "../svg/escape.js";
 import { renderPixels, type Grid } from "../svg/pixel.js";
 import { themeCss, themeFilter } from "../themes.js";
+import { getSpecies } from "./species/index.js";
 import { renderPetSprite, SPRITE_CSS } from "./sprite.js";
 import { COMMIT, FX_PALETTE, HEART, SPARKLE, ZED } from "./sprites.js";
+import { groundCover, props, SCENERY_CSS, terrainFor } from "./scenery.js";
+import { fallingParticles, fireflies, LOOKS, SEASON_CSS, seasonFor, type Area, type Hemisphere, type Season } from "../world/seasons.js";
+import { fog, rain, WEATHER_CSS, weatherFor, type Weather } from "../world/weather.js";
 
 export interface RenderOptions {
   theme?: string;
   hideBorder?: boolean;
+  /** Pins a season instead of following the date. */
+  season?: Season;
+  /** Flips the date-based seasons for the southern hemisphere. */
+  hemisphere?: Hemisphere;
 }
 
 const W = 480;
 const H = 190;
 const SCENE = { x: 12, y: 12, w: 200, h: 166 };
 const GROUND_Y = SCENE.y + SCENE.h - 34;
+const AREA: Area = { x: SCENE.x, y: SCENE.y, w: SCENE.w, ground: GROUND_Y };
 const PANEL_X = 230;
 const PANEL_RIGHT = W - 16;
 
@@ -22,6 +32,8 @@ const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
 
 const CSS = `${SPRITE_CSS}
 .pf-walk{animation:pf-walk 9s ease-in-out infinite}
+.pf-turn{transform-box:fill-box;transform-origin:center;animation:pf-turn 9s steps(1) infinite}
+@keyframes pf-turn{0%{transform:scaleX(1)}45%{transform:scaleX(-1)}95%{transform:scaleX(1)}}
 @keyframes pf-walk{0%,100%{transform:translateX(-34px)}40%,50%{transform:translateX(34px)}90%{transform:translateX(-34px)}}
 .pf-jump{animation:pf-jump .9s ease-in-out infinite}
 @keyframes pf-jump{0%,70%,100%{transform:translateY(0)}10%{transform:translateY(2px)}40%{transform:translateY(-16px)}}
@@ -39,6 +51,9 @@ const CSS = `${SPRITE_CSS}
 .pf-twinkle{transform-box:fill-box;transform-origin:center;animation:pf-twinkle 1.8s ease-in-out infinite}
 @keyframes pf-twinkle{0%,100%{opacity:.15;transform:scale(.5)}50%{opacity:1;transform:scale(1)}}
 .pf-star{opacity:var(--pf-stars)}
+${SEASON_CSS}
+${WEATHER_CSS}
+${SCENERY_CSS}
 @media (prefers-reduced-motion:reduce){.pf *{animation:none!important}}
 `;
 
@@ -60,12 +75,19 @@ interface Box {
 
 // ── Scene ────────────────────────────────────────────────────────────────────
 
+/** The same world the city lives in: season from the date, weather from your activity. */
+interface World {
+  season: Season;
+  weather: Weather;
+}
+
 const STARS: [number, number, number][] = [
   [28, 26, 0], [62, 44, 0.7], [96, 22, 1.3], [138, 38, 0.4], [178, 24, 1.1], [196, 56, 0.2], [44, 70, 1.5],
 ];
 
-function scene(): string {
+function scene(state: PetState, world: World): string {
   const { x, y, w, h } = SCENE;
+  const beach = terrainFor(state.species) === "beach";
   const stars = STARS.map(
     ([sx, sy, delay]) =>
       `<rect class="pf-twinkle" style="animation-delay:-${delay}s" x="${sx}" y="${sy}" width="3" height="3" fill="#fff"/>`,
@@ -81,6 +103,13 @@ function scene(): string {
   ]
     .map(([px, py]) => `<rect x="${px}" y="${py}" width="6" height="4" style="fill:var(--pf-ground-dark)"/>`)
     .join("");
+  // Bad weather: a darker sky and a couple of heavy clouds instead of stars.
+  const overcast =
+    world.weather === "clear"
+      ? ""
+      : `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#1b2033" opacity=".28"/>` +
+        `<g opacity=".85" fill="#6f7689"><rect x="${x + 6}" y="${y + 22}" width="66" height="12"/><rect x="${x + 20}" y="${y + 14}" width="30" height="10"/>` +
+        `<rect x="${x + 110}" y="${y + 34}" width="80" height="12"/><rect x="${x + 128}" y="${y + 26}" width="36" height="10"/></g>`;
 
   return `
 <defs>
@@ -89,13 +118,29 @@ function scene(): string {
     <stop offset="0" style="stop-color:var(--pf-sky-top)"/>
     <stop offset="1" style="stop-color:var(--pf-sky-bottom)"/>
   </linearGradient>
+  <linearGradient id="pf-fog" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#d7deea" stop-opacity="0"/><stop offset=".5" stop-color="#d7deea"/><stop offset="1" stop-color="#d7deea" stop-opacity="0"/>
+  </linearGradient>
 </defs>
 <g clip-path="url(#pf-clip)">
   <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#pf-sky)"/>
-  <g class="pf-star">${stars}</g>
+  ${world.weather === "clear" ? `<g class="pf-star">${stars}</g>` : overcast}
   <rect x="${x}" y="${GROUND_Y}" width="${w}" height="${y + h - GROUND_Y}" style="fill:var(--pf-ground)"/>
   <path d="${bumps}" style="fill:var(--pf-ground)"/>
-  ${pebbles}`;
+  ${groundCover(state.species, AREA, y + h, LOOKS[world.season].snow)}
+  ${beach ? pebbles : ""}
+  ${props(state.species, AREA)}`;
+}
+
+/** Weather and seasons drift in front of the pet. */
+function foreground(world: World, rng: Rng): string {
+  const look = LOOKS[world.season];
+  const particles = world.weather === "rain" && world.season !== "winter" ? rain(rng, AREA) : fallingParticles(look, rng, AREA);
+  return [
+    world.weather === "clear" ? fireflies(look, rng, AREA) : "",
+    particles,
+    world.weather === "fog" ? fog(AREA) : "",
+  ].join("");
 }
 
 // ── Pet ──────────────────────────────────────────────────────────────────────
@@ -136,7 +181,9 @@ function pet(state: PetState): { svg: string; box: Box } {
     const wobble = state.mood === "happy" || state.mood === "idle" ? "pf-wobble" : "";
     return { svg: `${shadow(box, "idle")}<g transform="translate(${box.x} ${box.y})"><g class="${wobble}">${sprite.svg}</g></g>`, box };
   }
-  return { svg: animated(box, state.mood, sprite.svg), box };
+  // Side-view pets turn around instead of moonwalking back.
+  const turns = state.mood === "idle" && getSpecies(state.species).facing === "right";
+  return { svg: animated(box, state.mood, turns ? `<g class="pf-turn">${sprite.svg}</g>` : sprite.svg), box };
 }
 
 function animated(box: Box, mood: Mood, body: string): string {
@@ -258,6 +305,10 @@ function panel(state: PetState): string {
 
 export function renderPetCard(state: PetState, options: RenderOptions = {}): string {
   const creature = pet(state);
+  const world: World = {
+    season: options.season ?? seasonFor(state.date, options.hemisphere),
+    weather: weatherFor(state.daysSinceLastContribution),
+  };
   const filter = themeFilter(options.theme);
   const title = `${state.petName}, ${state.login}'s ProfileForge pet`;
   const desc = `Level ${state.level} ${state.className} ${state.species}, feeling ${state.mood}. ${state.streak}-day streak.`;
@@ -281,11 +332,12 @@ ${CSS}</style>
 ${filter.defs}
 <rect width="${W}" height="${H}" rx="10" style="fill:var(--pf-bg)"/>
 ${border}
-${scene()}
+${scene(state, world)}
   <g${filter.attr}>
   ${creature.svg}
   ${effects(state, creature.box)}
   </g>
+  ${foreground(world, seeded(`pet:${state.login}`))}
 </g>
 ${panel(state)}
 </svg>`;

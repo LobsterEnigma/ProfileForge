@@ -7,10 +7,10 @@ import { themeCss, themeFilter } from "../themes.js";
 import { drawBuilding, drawCrane, drawLandmark, drawPark, newCanvas, pickStyle, renderCanvas } from "./buildings.js";
 import { bats, EVENTS_CSS, fireworks, holidayFor, parkDecor, roofDecor, type Holiday } from "./events.js";
 import { CITY_PET_CSS, strollingPet } from "./pet.js";
-import { clouds, fog, overcast, rain, WEATHER_CSS, weatherFor, type Weather } from "./weather.js";
+import { clouds, fog, overcast, rain, WEATHER_CSS, weatherFor, type Weather } from "../world/weather.js";
 import { moonPhase, moonPhaseName, pixelCircle, pixelMoon } from "./celestial.js";
 import { BASE_Y, BUILDING_W, H, MAX_FLOORS, RIGHT_EDGE, ROAD_Y, U, W } from "./layout.js";
-import { fallingParticles, fireflies, LOOKS, SEASON_CSS, seasonFor, type Hemisphere, type Season } from "./seasons.js";
+import { fallingParticles, fireflies, litter, LOOKS, SEASON_CSS, seasonFor, type Hemisphere, type Season } from "../world/seasons.js";
 import type { CityState, Week } from "./state.js";
 
 export interface RenderOptions {
@@ -212,7 +212,9 @@ function street(state: CityState, season: Season, pet: string): string {
   const road = new RectBatch()
     .add(snowy ? "#e3ebf5" : "var(--pf-window-off)", 0, BASE_Y, W, ROAD_Y - BASE_Y)
     .add("var(--pf-road)", 0, ROAD_Y, W, H - ROAD_Y);
-  for (let x = 8; x < W; x += 28) road.add("var(--pf-window-off)", x, 244, 12, 2);
+  // A dashed center line splits the two lanes.
+  const lane = new RectBatch();
+  for (let x = 6; x < W; x += 26) lane.add("#f2e3a8", x, 244, 14, 2);
 
   const lamps = new RectBatch();
   const glows: string[] = [];
@@ -239,7 +241,7 @@ function street(state: CityState, season: Season, pet: string): string {
     return `<g class="pf-drive-${dir}" style="animation-delay:-${delay}s"><g transform="translate(0 ${y})">${beam}${renderPixels([{ x: 0, y: 0, grid }], palette, { scale: U })}</g></g>`;
   });
 
-  return `${road}<g class="pf-glow">${glows.join("")}</g>${lamps}${pet}${traffic.join("")}`;
+  return `${road}<g opacity=".55">${lane}</g>${litter(LOOKS[season], seeded(`litter:${state.login}`))}<g class="pf-glow">${glows.join("")}</g>${lamps}${pet}${traffic.join("")}`;
 }
 
 // ── Card ─────────────────────────────────────────────────────────────────────

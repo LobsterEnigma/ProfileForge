@@ -78,6 +78,7 @@ export function computePetState(profile: GitHubProfile, options: PetOptions = {}
 
   return {
     login: profile.login,
+    date: profile.calendar.at(-1)?.date ?? new Date().toISOString().slice(0, 10),
     petName: options.petName ?? species.defaultName,
     species: species.id,
     level,

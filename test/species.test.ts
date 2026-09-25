@@ -13,6 +13,8 @@ describe("species", () => {
     expect(speciesForLanguage("Python")).toBe("snake");
     expect(speciesForLanguage("PHP")).toBe("elephant");
     expect(speciesForLanguage("Rust")).toBe("crab");
+    expect(speciesForLanguage("JavaScript")).toBe("chick");
+    expect(speciesForLanguage("TypeScript")).toBe("turtle");
     expect(speciesForLanguage("COBOL")).toBe("crab");
     expect(speciesForLanguage(null)).toBe("crab");
   });

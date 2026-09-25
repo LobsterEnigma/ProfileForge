@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { holidayFor } from "../src/city/events.js";
 import { renderCityCard } from "../src/city/render.js";
 import { computeCityState, type CityState } from "../src/city/state.js";
-import { weatherFor } from "../src/city/weather.js";
+import { weatherFor } from "../src/world/weather.js";
 import { demoProfile } from "../src/demo.js";
 import { handleWidget } from "../src/handler.js";
 import { calendar, profile } from "./helpers.js";
@@ -81,6 +81,24 @@ describe("fireworks", () => {
 
   it("celebrate New Year's Day", () => {
     expect(valid({ ...demo, date: "2027-01-01" })).toContain('class="pf-spark"');
+  });
+});
+
+describe("street", () => {
+  it("paints a dashed center line between the lanes", () => {
+    expect(valid(demo)).toContain('fill="#f2e3a8"');
+  });
+
+  it("drops leaf-shaped leaves in autumn and litters the sidewalk", () => {
+    const svg = valid(demo); // demo ends in September
+    expect(svg).toMatch(/<path class="pf-fall pf-spin"/);
+    expect(svg).toContain('<g opacity=".85"><rect');
+  });
+
+  it("keeps snow square and the sidewalk clean in winter", () => {
+    const svg = renderCityCard(demo, { season: "winter" });
+    expect(svg).not.toMatch(/<path class="pf-fall/);
+    expect(svg).toMatch(/<rect class="pf-fall"/);
   });
 });
 

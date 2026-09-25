@@ -1,4 +1,4 @@
-import { HEMISPHERES, SEASONS, type Hemisphere, type Season } from "./city/seasons.js";
+import { HEMISPHERES, SEASONS, type Hemisphere, type Season } from "./world/seasons.js";
 import { MOODS, STAGES } from "./demo.js";
 import { isSpecies } from "./pet/species/index.js";
 import type { Mood, Stage } from "./types.js";

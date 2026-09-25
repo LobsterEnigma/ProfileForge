@@ -4,7 +4,7 @@ import { RectBatch } from "../svg/batch.js";
 import { escapeXml } from "../svg/escape.js";
 import type { LanguageShare } from "../types.js";
 import { BASE_Y, BUILDING_W, FLOOR_H, U } from "./layout.js";
-import { SNOW, type SeasonLook } from "./seasons.js";
+import { SNOW, type SeasonLook } from "../world/seasons.js";
 
 export type BuildingStyle = "house" | "classic" | "brick" | "glass" | "setback" | "spire";
 

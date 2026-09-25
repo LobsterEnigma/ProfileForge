@@ -12,7 +12,9 @@
     "examples": "tsx scripts/examples.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "build:action": "esbuild src/action/main.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist/action.js --legal-comments=none"
+    "build:action": "esbuild src/action/main.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist/action.js --legal-comments=none",
+    "site": "esbuild site/app.ts --bundle --format=esm --target=es2022 --outfile=site/app.js --servedir=site --serve=3002",
+    "build:site": "esbuild site/app.ts --bundle --minify --format=esm --target=es2022 --outfile=_site/app.js && cp site/index.html _site/index.html"
   },
   "keywords": [
     "github",

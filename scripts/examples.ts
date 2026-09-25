@@ -2,7 +2,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { computeCityState } from "../src/city/state.js";
 import { renderCityCard } from "../src/city/render.js";
-import { SEASONS } from "../src/city/seasons.js";
+import { SEASONS } from "../src/world/seasons.js";
 import { demoProfile, demoState, MOODS, STAGES } from "../src/demo.js";
 import { renderPetCard } from "../src/pet/render.js";
 import { SPECIES } from "../src/pet/species/index.js";

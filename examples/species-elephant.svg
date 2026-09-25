@@ -23,6 +23,8 @@
 @keyframes pf-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 
 .pf-walk{animation:pf-walk 9s ease-in-out infinite}
+.pf-turn{transform-box:fill-box;transform-origin:center;animation:pf-turn 9s steps(1) infinite}
+@keyframes pf-turn{0%{transform:scaleX(1)}45%{transform:scaleX(-1)}95%{transform:scaleX(1)}}
 @keyframes pf-walk{0%,100%{transform:translateX(-34px)}40%,50%{transform:translateX(34px)}90%{transform:translateX(-34px)}}
 .pf-jump{animation:pf-jump .9s ease-in-out infinite}
 @keyframes pf-jump{0%,70%,100%{transform:translateY(0)}10%{transform:translateY(2px)}40%{transform:translateY(-16px)}}
@@ -40,6 +42,22 @@
 .pf-twinkle{transform-box:fill-box;transform-origin:center;animation:pf-twinkle 1.8s ease-in-out infinite}
 @keyframes pf-twinkle{0%,100%{opacity:.15;transform:scale(.5)}50%{opacity:1;transform:scale(1)}}
 .pf-star{opacity:var(--pf-stars)}
+
+.pf-fall{animation:pf-fall 10s linear infinite}
+.pf-spin{transform-box:fill-box;transform-origin:center}
+@keyframes pf-fall{0%{transform:translate(0,-12px) rotate(0)}100%{transform:translate(var(--dx),272px) rotate(var(--spin,0deg))}}
+.pf-firefly{animation:pf-firefly 3s ease-in-out infinite}
+@keyframes pf-firefly{0%,100%{opacity:0;transform:translate(0,0)}50%{opacity:1;transform:translate(var(--dx),-6px)}}
+
+
+.pf-drift{animation:pf-drift 160s linear infinite}
+@keyframes pf-drift{0%{transform:translateX(-160px)}100%{transform:translateX(860px)}}
+.pf-rain{animation:pf-rain .8s linear infinite}
+@keyframes pf-rain{0%{transform:translate(0,-12px)}100%{transform:translate(-26px,272px)}}
+.pf-fog{animation:pf-fog 24s ease-in-out infinite alternate}
+@keyframes pf-fog{0%{transform:translateX(-50px)}100%{transform:translateX(50px)}}
+
+.pf-tint{opacity:calc(.75 - var(--pf-stars) * .4)}
 @media (prefers-reduced-motion:reduce){.pf *{animation:none!important}}
 </style>
 
@@ -52,17 +70,23 @@
     <stop offset="0" style="stop-color:var(--pf-sky-top)"/>
     <stop offset="1" style="stop-color:var(--pf-sky-bottom)"/>
   </linearGradient>
+  <linearGradient id="pf-fog" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#d7deea" stop-opacity="0"/><stop offset=".5" stop-color="#d7deea"/><stop offset="1" stop-color="#d7deea" stop-opacity="0"/>
+  </linearGradient>
 </defs>
 <g clip-path="url(#pf-clip)">
   <rect x="12" y="12" width="200" height="166" fill="url(#pf-sky)"/>
   <g class="pf-star"><rect class="pf-twinkle" style="animation-delay:-0s" x="28" y="26" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-0.7s" x="62" y="44" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-1.3s" x="96" y="22" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-0.4s" x="138" y="38" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-1.1s" x="178" y="24" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-0.2s" x="196" y="56" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-1.5s" x="44" y="70" width="3" height="3" fill="#fff"/></g>
   <rect x="12" y="144" width="200" height="34" style="fill:var(--pf-ground)"/>
   <path d="M12 144h8v-3h-8zM28 144h8v-3h-8zM44 144h8v-3h-8zM60 144h8v-3h-8zM76 144h8v-3h-8zM92 144h8v-3h-8zM108 144h8v-3h-8zM124 144h8v-3h-8zM140 144h8v-3h-8zM156 144h8v-3h-8zM172 144h8v-3h-8zM188 144h8v-3h-8zM204 144h8v-3h-8z" style="fill:var(--pf-ground)"/>
-  <rect x="34" y="158" width="6" height="4" style="fill:var(--pf-ground-dark)"/><rect x="162" y="164" width="6" height="4" style="fill:var(--pf-ground-dark)"/><rect x="108" y="168" width="6" height="4" style="fill:var(--pf-ground-dark)"/><rect x="188" y="154" width="6" height="4" style="fill:var(--pf-ground-dark)"/>
+  <rect class="pf-tint" x="12" y="141" width="200" height="37" fill="#cfb25e"/>
+  
+  <path fill="#8a5a33" d="M182 104h4v40h-4zM176 100h4v8h-4zM188 98h4v8h-4z"/><path fill="#2c6b3a" d="M160 92h50v6h-50zM166 88h38v4h-38z"/><path fill="#b8953f" d="M24 139h2v5h-2zM21 141h2v3h-2zM27 140h2v4h-2zM48 139h2v5h-2zM45 141h2v3h-2zM51 140h2v4h-2zM148 139h2v5h-2zM145 141h2v3h-2zM151 140h2v4h-2z"/>
   <g>
   <g class=""><rect class="pf-shadow pf-jump-shadow" x="80" y="146" width="64" height="6" rx="3" opacity=".35" style="fill:var(--pf-ground-dark)"/><g transform="translate(72 92)"><g class="pf-jump"><g class="pf-fa" style="animation-duration:0.6s"><path fill="#2d2a4a" d="M4 4h12v4h-12zM0 8h4v4h-4zM16 8h4v4h-4zM0 12h4v4h-4zM0 16h4v4h-4zM0 20h4v4h-4zM0 24h4v4h-4zM4 28h4v4h-4zM8 32h12v4h-12zM64 4h12v4h-12zM60 8h4v4h-4zM76 8h4v4h-4zM76 12h4v4h-4zM76 16h4v4h-4zM76 20h4v4h-4zM76 24h4v4h-4zM72 28h4v4h-4zM60 32h12v4h-12zM16 44h4v4h-4zM24 44h4v4h-4zM16 48h4v4h-4zM24 48h4v4h-4zM16 52h12v4h-12zM52 44h4v4h-4zM60 44h4v4h-4zM52 48h4v4h-4zM60 48h4v4h-4zM52 52h12v4h-12z"/><path fill="#8892bf" d="M4 8h12v4h-12zM4 12h4v4h-4zM16 12h4v4h-4zM4 16h4v4h-4zM16 16h4v4h-4zM4 20h4v4h-4zM16 20h4v4h-4zM4 24h8v4h-8zM16 24h4v4h-4zM8 28h12v4h-12zM64 8h12v4h-12zM60 12h4v4h-4zM72 12h4v4h-4zM60 16h4v4h-4zM72 16h4v4h-4zM60 20h4v4h-4zM72 20h4v4h-4zM60 24h4v4h-4zM68 24h8v4h-8zM60 28h12v4h-12zM20 44h4v4h-4zM20 48h4v4h-4zM56 44h4v4h-4zM56 48h4v4h-4z"/><path fill="#d8a7c4" d="M8 12h8v4h-8zM8 16h8v4h-8zM8 20h8v4h-8zM12 24h4v4h-4zM64 12h8v4h-8zM64 16h8v4h-8zM64 20h8v4h-8zM64 24h4v4h-4z"/></g><g class="pf-fb" style="animation-duration:0.6s"><path fill="#2d2a4a" d="M8 4h8v4h-8zM4 8h4v4h-4zM16 8h4v4h-4zM4 12h4v4h-4zM4 16h4v4h-4zM4 20h4v4h-4zM4 24h4v4h-4zM8 28h4v4h-4zM12 32h8v4h-8zM64 4h8v4h-8zM60 8h4v4h-4zM72 8h4v4h-4zM72 12h4v4h-4zM72 16h4v4h-4zM72 20h4v4h-4zM72 24h4v4h-4zM68 28h4v4h-4zM60 32h8v4h-8zM16 44h4v4h-4zM24 44h4v4h-4zM16 48h4v4h-4zM24 48h4v4h-4zM16 52h12v4h-12zM52 44h4v4h-4zM60 44h4v4h-4zM52 48h4v4h-4zM60 48h4v4h-4zM52 52h12v4h-12z"/><path fill="#8892bf" d="M8 8h8v4h-8zM8 12h4v4h-4zM16 12h4v4h-4zM8 16h4v4h-4zM16 16h4v4h-4zM8 20h4v4h-4zM16 20h4v4h-4zM8 24h12v4h-12zM12 28h8v4h-8zM64 8h8v4h-8zM60 12h4v4h-4zM68 12h4v4h-4zM60 16h4v4h-4zM68 16h4v4h-4zM60 20h4v4h-4zM68 20h4v4h-4zM60 24h12v4h-12zM60 28h8v4h-8zM20 44h4v4h-4zM20 48h4v4h-4zM56 44h4v4h-4zM56 48h4v4h-4z"/><path fill="#d8a7c4" d="M12 12h4v4h-4zM12 16h4v4h-4zM12 20h4v4h-4zM64 12h4v4h-4zM64 16h4v4h-4zM64 20h4v4h-4z"/></g><path fill="#2d2a4a" d="M16 28h48v4h-48zM12 32h4v4h-4zM64 32h4v4h-4zM12 36h4v4h-4zM64 36h4v4h-4zM12 40h4v4h-4zM64 40h4v4h-4zM24 0h32v4h-32zM20 4h4v4h-4zM56 4h4v4h-4zM16 8h4v4h-4zM60 8h4v4h-4zM16 12h4v4h-4zM60 12h4v4h-4zM16 16h4v4h-4zM60 16h4v4h-4zM16 20h4v4h-4zM60 20h4v4h-4zM16 24h4v4h-4zM60 24h4v4h-4zM20 28h4v4h-4zM56 28h4v4h-4zM24 32h4v4h-4zM52 32h4v4h-4zM28 36h8v4h-8zM44 36h8v4h-8zM32 40h4v4h-4zM44 40h4v4h-4zM32 44h4v4h-4zM44 44h4v4h-4zM32 48h4v4h-4zM44 48h4v4h-4zM36 52h8v4h-8z"/><path fill="#8892bf" d="M16 32h48v4h-48zM16 36h48v4h-48zM16 40h48v4h-48zM24 4h32v4h-32zM20 8h4v4h-4zM32 8h28v4h-28zM20 12h4v4h-4zM28 12h32v4h-32zM20 16h40v4h-40zM20 20h40v4h-40zM20 24h40v4h-40zM24 28h32v4h-32zM32 32h16v4h-16zM36 36h8v4h-8zM36 40h8v4h-8zM36 44h8v4h-8zM36 48h8v4h-8z"/><path fill="#b7bfe8" d="M24 8h8v4h-8zM24 12h4v4h-4z"/><path fill="#6c74a8" d="M28 32h4v4h-4zM48 32h4v4h-4z"/><path fill="#fffaf0" d="M28 40h4v4h-4zM48 40h4v4h-4z"/><path fill="#151515" d="M28 32h4v4h-4zM48 32h4v4h-4z"/><path fill="#ff8fa3" d="M20 24h8v4h-8zM52 24h8v4h-8z"/><path fill="#151515" d="M24 16h8v4h-8zM20 20h4v4h-4zM32 20h4v4h-4zM48 16h8v4h-8zM44 20h4v4h-4zM56 20h4v4h-4z"/></g></g></g>
   <g class="pf-rise" style="animation-delay:-0.3s"><path fill="#ff5c7a" d="M80 92h4v2h-4zM86 92h4v2h-4zM80 94h10v2h-10zM82 96h6v2h-6zM84 98h2v2h-2z"/></g><g class="pf-rise" style="animation-delay:-1.2s"><path fill="#ff5c7a" d="M112 86h4v2h-4zM118 86h4v2h-4zM112 88h10v2h-10zM114 90h6v2h-6zM116 92h2v2h-2z"/></g><g class="pf-rise" style="animation-delay:-2.1s"><path fill="#ff5c7a" d="M140 96h4v2h-4zM146 96h4v2h-4zM140 98h10v2h-10zM142 100h6v2h-6zM144 102h2v2h-2z"/></g>
   </g>
+  <g><path class="pf-fall pf-spin" style="--dx:-6px;--spin:540deg;animation-duration:13.4s;animation-delay:-1.5s" fill="#f4a261" d="M39 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:-36px;--spin:540deg;animation-duration:11.0s;animation-delay:-5.2s" fill="#f4a261" d="M66 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:-10px;--spin:540deg;animation-duration:11.9s;animation-delay:-0.4s" fill="#e76f51" d="M177 12h2v1h2v2h-2v-1h-1v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:31px;--spin:-540deg;animation-duration:14.0s;animation-delay:-13.3s" fill="#e76f51" d="M124 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:28px;--spin:-540deg;animation-duration:11.9s;animation-delay:-9.7s" fill="#e76f51" d="M50 12h2v1h2v2h-2v-1h-1v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:31px;--spin:-540deg;animation-duration:12.3s;animation-delay:-10.3s" fill="#f4a261" d="M176 12h2v1h2v2h-2v-1h-1v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:4px;--spin:540deg;animation-duration:10.9s;animation-delay:-0.4s" fill="#f4a261" d="M128 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:-14px;--spin:540deg;animation-duration:9.2s;animation-delay:-5.4s" fill="#e9c46a" d="M147 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:38px;--spin:-540deg;animation-duration:9.4s;animation-delay:-7.6s" fill="#e76f51" d="M173 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:35px;--spin:-540deg;animation-duration:8.9s;animation-delay:-5.9s" fill="#f4a261" d="M115 12h2v1h1v1h-2v-1h-1z"/></g>
 </g>
 
 <g>

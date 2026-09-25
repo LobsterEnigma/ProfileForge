@@ -42,6 +42,8 @@ export interface PetStats {
 /** Everything the renderer needs. Pure data — no GitHub knowledge past this point. */
 export interface PetState {
   login: string;
+  /** "Today": the last day of the calendar. Drives the season around the pet. */
+  date: string;
   petName: string;
   species: string;
   level: number;

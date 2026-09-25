@@ -1,10 +1,12 @@
+import { chick } from "./chick.js";
 import { crab } from "./crab.js";
 import { elephant } from "./elephant.js";
 import { gopher } from "./gopher.js";
 import { snake } from "./snake.js";
+import { turtle } from "./turtle.js";
 import type { Species } from "./types.js";
 
-export const SPECIES: Record<string, Species> = { crab, gopher, snake, elephant };
+export const SPECIES: Record<string, Species> = { crab, gopher, snake, elephant, chick, turtle };
 
 /** Your top language picks your pet, unless you ask for one with `?species=`. */
 const BY_LANGUAGE: Record<string, string> = {
@@ -13,6 +15,8 @@ const BY_LANGUAGE: Record<string, string> = {
   Python: "snake",
   "Jupyter Notebook": "snake",
   PHP: "elephant",
+  JavaScript: "chick",
+  TypeScript: "turtle",
 };
 
 export function speciesForLanguage(language: string | null): string {

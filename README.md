@@ -16,7 +16,9 @@ A pixel pet that lives on your commits, and a pixel city built from them.
 
 ## Quick start
 
-Your profile README lives in a repo named after you: `<username>/<username>`.
+**The easy way: [open the configurator](https://lobsterenigma.github.io/ProfileForge/).** Pick a species, theme and season, watch the live preview, and copy the two snippets it writes for you.
+
+Or set it up by hand. Your profile README lives in a repo named after you: `<username>/<username>`.
 Pick one of two ways to set it up:
 
 ### Option A: GitHub Action (recommended, no token needed)
@@ -91,9 +93,12 @@ Handy if you want to embed widgets anywhere or serve several users. See [Self-ho
 
 Your top language picks the species (pin one with `species=`):
 
-| | | | |
-|---|---|---|---|
-| <img src="examples/species-crab.svg" width="220"><br>🦀 **crab** · Rust & everyone else | <img src="examples/species-gopher.svg" width="220"><br>🐹 **gopher** · Go | <img src="examples/species-snake.svg" width="220"><br>🐍 **snake** · Python | <img src="examples/species-elephant.svg" width="220"><br>🐘 **elephant** · PHP |
+| | | |
+|---|---|---|
+| <img src="examples/species-crab.svg" width="260"><br>🦀 **crab** · Rust & everyone else | <img src="examples/species-gopher.svg" width="260"><br>🐹 **gopher** · Go | <img src="examples/species-snake.svg" width="260"><br>🐍 **snake** · Python |
+| <img src="examples/species-elephant.svg" width="260"><br>🐘 **elephant** · PHP | <img src="examples/species-chick.svg" width="260"><br>🐥 **chick** · JavaScript | <img src="examples/species-turtle.svg" width="260"><br>🐢 **turtle** · TypeScript |
+
+Each one lives somewhere that suits it (a beach, a meadow with a burrow, a jungle, the savanna, a farm, a pond) and shares the city's world: the same season, and the same weather, so a hungry pet sits in the rain and a sleeping one in the fog.
 
 ### It has moods
 
@@ -162,12 +167,12 @@ Light themes paint it at sunset, dark themes at night. Seasons follow the date, 
 | `user` | *required* | GitHub login. `demo` renders sample data. |
 | `widget` | `pet` | `pet` or `city`. Only needed in the Action; the API uses `/api/pet` and `/api/city`. |
 | `name` | the species' | Your pet's name (max 16 chars). Defaults to Pinchy, Gogo, Monty or Ellie. |
-| `species` | from your language | `crab` · `gopher` · `snake` · `elephant` |
+| `species` | from your language | `crab` · `gopher` · `snake` · `elephant` · `chick` · `turtle` |
 | `pet` | `true` | City only: `false` keeps your pet off the streets. |
 | `theme` | `auto` | `auto` · `light` · `dark` · `dracula` · `gameboy` · `sakura` |
 | `hide_border` | `false` | `true` to drop the card border. |
-| `season` | from the date | City only: pin `spring` · `summer` · `autumn` · `winter` instead of following the date. |
-| `hemisphere` | `north` | City only: `south` flips the automatic seasons (a December city is summer) and mirrors the moon. |
+| `season` | from the date | Pin `spring` · `summer` · `autumn` · `winter` instead of following the date. |
+| `hemisphere` | `north` | `south` flips the automatic seasons (December is summer) and mirrors the city's moon. |
 | `mood`, `stage` | | Pet only, with `user=demo`, to preview any state. |
 
 `auto` follows the viewer's light/dark setting: the beach gets stars and the city switches from sunset to night.
@@ -196,6 +201,7 @@ npm test
 ```
 
 `GITHUB_TOKEN=... npm run dev` also lets the gallery render real users.
+`npm run site` serves the configurator on http://localhost:3002; it bundles the same renderer for the browser, so its previews are the real thing.
 The Action is bundled into `dist/action.js`: after changing `src/`, run `npm run build:action` and commit `dist/` (CI checks it).
 `/zoom?x=4&user=demo&mood=idle` (add `&widget=city` for the city) blows a card up for pixel-level inspection.
 
@@ -209,19 +215,19 @@ GitHub strips JavaScript from README images, so everything is plain SVG + CSS:
 - Randomness (window lights, rooftops, trees) is seeded from your login and the week's date, so the same data always renders byte-identical SVG and the Action never commits noise.
 - `prefers-reduced-motion` freezes everything.
 
-### Add a species 🦀🐹🐍🐘
+### Add a species 🦀🐹🐍🐘🐥🐢
 
 Every pet is one file of ASCII art. Copy [`src/pet/species/crab.ts`](src/pet/species/crab.ts), redraw the grids
 (body, four eye styles, three mouths, two limb frames per mood), register it in `index.ts`, and check it at `/zoom`.
-Then map your language to it in `BY_LANGUAGE`. A JavaScript something, a Java cup, a Ruby gem: all very welcome.
+Then map your language to it in `BY_LANGUAGE` and give it a home in `pet/scenery.ts`. A Java cup, a Ruby gem, a Kotlin something: all very welcome.
 
 ## Roadmap
 
-- [x] Species picked from your top language (crab, gopher, snake, elephant)
-- [ ] More species: JavaScript, TypeScript, Java, Ruby, …
+- [x] Species picked from your top language (crab, gopher, snake, elephant, chick, turtle)
+- [ ] More species: Java, Ruby, C#, Kotlin, …
 - [x] GitHub Action mode (generate the SVG in your own repo, no shared rate limits)
 - [x] 🌃 Pixel city: your contribution graph as a skyline
-- [ ] Web configurator: build your card and copy the Markdown
+- [x] Web configurator: build your card and copy the Markdown
 
 ## License
 

@@ -17,7 +17,14 @@ const ACTIVITY: Record<Mood, Pick<PetState, "streak" | "daysSinceLastContributio
 };
 
 /** The language each species' demo pretends to write. */
-const DEMO_LANGUAGE: Record<string, string> = { crab: "Rust", gopher: "Go", snake: "Python", elephant: "PHP" };
+const DEMO_LANGUAGE: Record<string, string> = {
+  crab: "Rust",
+  gopher: "Go",
+  snake: "Python",
+  elephant: "PHP",
+  chick: "JavaScript",
+  turtle: "TypeScript",
+};
 
 /** A made-up pet for docs, the gallery and `?user=demo`. */
 export function demoState(mood: Mood = "happy", stage: Stage = "adult", petName?: string, speciesId = "crab"): PetState {
@@ -29,6 +36,7 @@ export function demoState(mood: Mood = "happy", stage: Stage = "adult", petName?
   const power = level / 99;
   return {
     login: "demo",
+    date: "2026-09-24",
     petName: petName ?? species.defaultName,
     species: species.id,
     level,

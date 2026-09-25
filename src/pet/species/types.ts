@@ -15,6 +15,8 @@ export interface Species {
   defaultName: string;
   width: number;
   height: number;
+  /** Side-view species face right and turn around when walking left. Defaults to "front". */
+  facing?: "front" | "right";
   palette: Palette;
   /** Overrides applied to `palette` once the pet turns legendary. */
   legendaryPalette: Palette;

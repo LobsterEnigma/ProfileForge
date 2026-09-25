@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { signLabel } from "../src/city/buildings.js";
 import { moonPhase, moonPhaseName, pixelMoon } from "../src/city/celestial.js";
 import { renderCityCard } from "../src/city/render.js";
-import { SEASONS, seasonFor, SNOW } from "../src/city/seasons.js";
+import { SEASONS, seasonFor, SNOW } from "../src/world/seasons.js";
 import { computeCityState } from "../src/city/state.js";
 import { lightness, neonize } from "../src/color.js";
 import { demoProfile } from "../src/demo.js";

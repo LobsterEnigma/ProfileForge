@@ -1,6 +1,7 @@
 import type { Rng } from "../random.js";
 import { RectBatch } from "../svg/batch.js";
-import { BASE_Y, H, W } from "./layout.js";
+import { H, W } from "../city/layout.js";
+import { CITY_AREA, type Area } from "./seasons.js";
 
 /** The sky follows your activity, with the same thresholds as the pet's mood. */
 export type Weather = "clear" | "rain" | "fog";
@@ -52,30 +53,31 @@ export function overcast(rng: Rng): string {
   return `<rect width="${W}" height="${H}" fill="#1b2033" opacity=".28"/><g opacity=".85">${batch}</g>`;
 }
 
-export function rain(rng: Rng): string {
+export function rain(rng: Rng, area: Area = CITY_AREA): string {
   const drops: string[] = [];
-  for (let i = 0; i < 70; i++) {
-    const x = Math.round(rng() * (W + 40));
+  const count = Math.round((70 * area.w) / W) + 6;
+  for (let i = 0; i < count; i++) {
+    const x = area.x + Math.round(rng() * (area.w + 40));
     const seconds = (0.55 + rng() * 0.4).toFixed(2);
     const delay = (rng() * 1).toFixed(2);
     drops.push(
-      `<rect class="pf-rain" style="animation-duration:${seconds}s;animation-delay:-${delay}s" x="${x}" y="0" width="1" height="7" fill="#b9d3ff" opacity=".55"/>`,
+      `<rect class="pf-rain" style="animation-duration:${seconds}s;animation-delay:-${delay}s" x="${x}" y="${area.y}" width="1" height="7" fill="#b9d3ff" opacity=".55"/>`,
     );
   }
   return `<g>${drops.join("")}</g>`;
 }
 
 /** Low fog rolling through the streets. */
-export function fog(): string {
+export function fog(area: Area = CITY_AREA): string {
   const bands = [
-    { y: BASE_Y - 84, h: 40, o: 0.35, d: 0 },
-    { y: BASE_Y - 52, h: 44, o: 0.45, d: 8 },
-    { y: BASE_Y - 24, h: 40, o: 0.55, d: 15 },
+    { y: area.ground - 84, h: 40, o: 0.35, d: 0 },
+    { y: area.ground - 52, h: 44, o: 0.45, d: 8 },
+    { y: area.ground - 24, h: 40, o: 0.55, d: 15 },
   ];
   return bands
     .map(
       (b) =>
-        `<rect class="pf-fog" style="animation-delay:-${b.d}s" x="-60" y="${b.y}" width="${W + 120}" height="${b.h}" fill="url(#pf-fog)" opacity="${b.o}"/>`,
+        `<rect class="pf-fog" style="animation-delay:-${b.d}s" x="${area.x - 60}" y="${b.y}" width="${area.w + 120}" height="${b.h}" fill="url(#pf-fog)" opacity="${b.o}"/>`,
     )
     .join("");
 }
