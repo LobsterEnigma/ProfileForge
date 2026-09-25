@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build:action
+      - name: Check dist/ is up to date
+        run: |
+          if ! git diff --exit-code dist/; then
+            echo "::error::dist/action.js is stale. Run 'npm run build:action' and commit it."
+            exit 1
+          fi
+
+  action:
+    # Runs the action exactly as users would, against the repo owner's real profile.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - id: pet
+        uses: ./
+        with:
+          outputs: |
+            out/pet.svg
+            out/pet-dark.svg?theme=dark&name=CI
+          commit: "false"
+      - run: |
+          test -s out/pet.svg && test -s out/pet-dark.svg
+          echo "Pet is ${{ steps.pet.outputs.mood }} at level ${{ steps.pet.outputs.level }}"

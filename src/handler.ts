@@ -1,13 +1,10 @@
-import { demoState, MOODS, STAGES } from "./demo.js";
+import { demoState } from "./demo.js";
 import { fetchProfile, GitHubError } from "./github/fetch.js";
+import { LOGIN_RE, parsePetParams } from "./options.js";
 import { renderPetCard } from "./pet/render.js";
-import { getSpecies } from "./pet/species/index.js";
 import { computePetState } from "./pet/state.js";
 import { renderErrorCard } from "./svg/error.js";
-import type { GitHubProfile, Mood, Stage } from "./types.js";
-
-const LOGIN_RE = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
-const MAX_NAME = 16;
+import type { GitHubProfile } from "./types.js";
 
 // Warm serverless instances reuse this, which saves GitHub API quota on popular profiles.
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -33,23 +30,12 @@ function svgResponse(body: string, maxAge: number): Response {
   });
 }
 
-function oneOf<T extends string>(value: string | null, allowed: readonly T[]): T | undefined {
-  return allowed.includes(value as T) ? (value as T) : undefined;
-}
-
 /** `GET /api/pet?user=<login>` → the pet card as SVG. Shared by the Vercel function and the dev server. */
 export async function handlePet(url: URL, env: { GITHUB_TOKEN?: string } = {}): Promise<Response> {
-  const q = url.searchParams;
-  const theme = q.get("theme") ?? undefined;
-  const hideBorder = q.get("hide_border") === "true";
-  const nameParam = q.get("name")?.trim().slice(0, MAX_NAME) || undefined;
-  const species = getSpecies(q.get("species") ?? undefined);
-  const petName = nameParam ?? species.defaultName;
-  const user = q.get("user")?.trim() ?? "";
+  const { theme, hideBorder, petName, species, mood, stage } = parsePetParams(url.searchParams);
+  const user = url.searchParams.get("user")?.trim() ?? "";
 
   if (user.toLowerCase() === "demo") {
-    const mood = oneOf<Mood>(q.get("mood"), MOODS);
-    const stage = oneOf<Stage>(q.get("stage"), STAGES);
     return svgResponse(renderPetCard(demoState(mood, stage, petName), { theme, hideBorder }), 86400);
   }
 
@@ -62,7 +48,7 @@ export async function handlePet(url: URL, env: { GITHUB_TOKEN?: string } = {}): 
 
   try {
     const profile = await cachedProfile(user, env.GITHUB_TOKEN);
-    const state = computePetState(profile, { petName, species: species.id });
+    const state = computePetState(profile, { petName, species });
     return svgResponse(renderPetCard(state, { theme, hideBorder }), 4 * 3600);
   } catch (err) {
     if (err instanceof GitHubError) {

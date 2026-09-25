@@ -15,13 +15,71 @@ and evolves as your lifetime contributions grow.
 
 ## Quick start
 
-Drop one line into your profile README (`<username>/<username>/README.md`):
+Your profile README lives in a repo named after you: `<username>/<username>`.
+Pick one of two ways to feed your pet:
 
-```md
-![My ProfileForge pet](https://YOUR-DEPLOYMENT/api/pet?user=YOUR_GITHUB_LOGIN)
+### Option A: GitHub Action (recommended, no token needed)
+
+The Action renders your pet inside your own repo using the built-in `GITHUB_TOKEN`, so there's no server, no rate limits and nothing to deploy.
+
+**1.** Add `.github/workflows/profileforge.yml` to your profile repo:
+
+```yaml
+name: ProfileForge
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # every 6 hours
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: LobsterEnigma/ProfileForge@v1
+        with:
+          outputs: |
+            profileforge/pet.svg?name=Pinchy
 ```
 
-> A public instance is on the way. Until then, [self-host it on Vercel](#self-hosting) in about two minutes.
+**2.** Run it once: **Actions** tab → **ProfileForge** → **Run workflow**.
+
+**3.** Add your pet to `README.md`:
+
+```md
+![My ProfileForge pet](./profileforge/pet.svg)
+```
+
+<details>
+<summary>Action inputs</summary>
+
+| Input | Default | Description |
+|---|---|---|
+| `outputs` | `profileforge/pet.svg` | One SVG per line, as `path?params` with the [same params](#options) as the API. |
+| `github_user_name` | repo owner | Whose pet to render. |
+| `github_token` | `${{ github.token }}` | The built-in token can read public contributions. |
+| `commit` | `true` | Commit and push the SVGs (only when they changed). |
+| `commit_message` | `chore: feed the ProfileForge pet` | |
+
+Step outputs: `mood`, `level`, `stage`.
+</details>
+
+### Option B: Deploy your own API to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FLobsterEnigma%2FProfileForge&env=GITHUB_TOKEN&envDescription=A%20GitHub%20token%20to%20read%20public%20contribution%20data%20(no%20extra%20permissions%20needed)&envLink=https%3A%2F%2Fgithub.com%2Fsettings%2Fpersonal-access-tokens%2Fnew&project-name=profileforge&repository-name=profileforge)
+
+The button forks this repo into your account and asks for a `GITHUB_TOKEN`. Create one [here](https://github.com/settings/personal-access-tokens/new); the default public read-only access is enough.
+Then add one line to your README:
+
+```md
+![My ProfileForge pet](https://<your-app>.vercel.app/api/pet?user=<your-login>&name=Pinchy)
+```
+
+Handy if you want to embed pets anywhere or serve several users. See [Self-hosting](#self-hosting) for details.
 
 ## It has moods
 
@@ -71,10 +129,11 @@ XP = lifetime contributions + 2 × stars + 3 × followers, so **levels never go 
 
 ## Self-hosting
 
-1. Fork this repo and import it in [Vercel](https://vercel.com/new).
-2. Create a [GitHub token](https://github.com/settings/personal-access-tokens/new). A fine-grained token with **no extra permissions** is enough for public data.
-3. Add it as the `GITHUB_TOKEN` environment variable and deploy.
-4. Your pet lives at `https://<your-app>.vercel.app/api/pet?user=<login>`.
+Use the [Deploy with Vercel](#option-b-deploy-your-own-api-to-vercel) button, or manually:
+
+1. Fork this repo and import it in [Vercel](https://vercel.com/new) (framework preset: *Other*, no build command).
+2. Add a `GITHUB_TOKEN` environment variable ([create one](https://github.com/settings/personal-access-tokens/new), no extra permissions needed).
+3. Deploy. Your pet lives at `https://<your-app>.vercel.app/api/pet?user=<login>`, and `?user=demo` works without a token.
 
 Responses are cached for 4 hours, so your pet updates a few times a day.
 
@@ -87,6 +146,7 @@ npm test
 ```
 
 `GITHUB_TOKEN=... npm run dev` also lets the gallery render real users.
+The Action is bundled into `dist/action.js`: after changing `src/`, run `npm run build:action` and commit `dist/` (CI checks it).
 `/zoom?x=4&user=demo&mood=idle` blows a card up for pixel-level inspection.
 
 ### How it works
@@ -107,7 +167,7 @@ A Go gopher, a Python snake, a PHP elephant: all very welcome.
 ## Roadmap
 
 - [ ] More species, picked from your top language
-- [ ] GitHub Action mode (generate the SVG in your own repo, no shared rate limits)
+- [x] GitHub Action mode (generate the SVG in your own repo, no shared rate limits)
 - [ ] 🌃 Pixel city: your contribution graph as a skyline at night
 - [ ] Web configurator: build your card and copy the Markdown
 

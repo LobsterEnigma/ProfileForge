@@ -1,0 +1,37 @@
+name: ProfileForge Pet
+description: A pixel pet for your GitHub profile README that lives on your commits.
+author: LobsterEnigma
+branding:
+  icon: heart
+  color: orange
+
+inputs:
+  github_user_name:
+    description: Whose pet to render. Defaults to the repository owner.
+    default: ${{ github.repository_owner }}
+  github_token:
+    description: Token used to read public contribution data. The built-in token is enough.
+    default: ${{ github.token }}
+  outputs:
+    description: |
+      One SVG per line as `path?params`, using the same params as the API
+      (name, theme, hide_border, species). Example: `profileforge/pet.svg?name=Pinchy&theme=dark`
+    default: profileforge/pet.svg
+  commit:
+    description: Commit and push the generated SVGs. Set to "false" to handle that yourself.
+    default: "true"
+  commit_message:
+    description: Message for the commit.
+    default: "chore: feed the ProfileForge pet"
+
+outputs:
+  mood:
+    description: happy, idle, hungry or sleeping
+  level:
+    description: Pet level (1–99)
+  stage:
+    description: egg, baby, adult or legendary
+
+runs:
+  using: node24
+  main: dist/action.js
