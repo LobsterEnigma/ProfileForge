@@ -1,4 +1,5 @@
 import { RectBatch } from "../svg/batch.js";
+import { renderPixels, type Grid, type Palette } from "../svg/pixel.js";
 import { SNOW, type Area } from "../world/seasons.js";
 
 /**
@@ -113,4 +114,72 @@ function fern(b: RectBatch, x: number, ground: number): void {
     }
   }
   b.add(DARK_GREEN, x - 1, ground - 4, 3, 4);
+}
+
+// ── Ambient life ─────────────────────────────────────────────────────────────
+
+const px = (grid: Grid, palette: Palette, x: number, y: number, scale: number) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
+
+const BEE: Grid = [".ww.", "ykyk", ".yk."];
+const PARROT: Grid = [".rr.", "rrwk", "rrry", ".gr.", ".gg.", ".bb."];
+const BIRD: Grid = [".kk.", "kkkw", "kkk.", ".y.."];
+const WORM: Grid = [".p", "pp", "p.", "pp", ".p"];
+const FISH: Grid = ["..oo..", "oooooo", ".oo.oo"];
+
+/**
+ * Something alive in each home, drawn behind the pet: waves and a gull at the beach, a bee in
+ * the meadow, a parrot in the jungle, a bird on the acacia, a worm on the farm, ripples and a
+ * jumping fish in the pond. Returns the drawing and the styles it needs.
+ */
+export function ambient(species: string, area: Area): { svg: string; css: string } {
+  const g = area.ground;
+  const left = area.x;
+  const right = area.x + area.w;
+  switch (terrainFor(species)) {
+    case "beach": {
+      // The sea on the horizon, foam rolling in and out, and a gull gliding by.
+      const foam = [0, 1, 2].map((i) => `<rect class="pf-amb-foam" style="animation-delay:-${i * 1.3}s" x="${left + 20 + i * 62}" y="${g - 3}" width="${22 - i * 3}" height="2" fill="#ffffff"/>`).join("");
+      const gull = `<g class="pf-amb-gull"><path class="pf-fa" style="animation-duration:.8s" d="M0 2L3 0L5 2L7 0L10 2" fill="none" stroke="#5b6472" stroke-width="1.4"/><path class="pf-fb" style="animation-duration:.8s" d="M0 0L3 2L5 1L7 2L10 0" fill="none" stroke="#5b6472" stroke-width="1.4"/></g>`;
+      return {
+        svg: `<g class="pf-amb-sea"><rect x="${left}" y="${g - 9}" width="${area.w}" height="7" fill="#4ea8de"/><rect x="${left}" y="${g - 9}" width="${area.w}" height="1" fill="#9fd4ff"/></g>${foam}<g transform="translate(0 ${area.y + 30})">${gull}</g>`,
+        css: `.pf-amb-sea{opacity:calc(.9 - var(--pf-stars) * .35)}
+.pf-amb-foam{animation:pf-amb-foam 3.9s ease-in-out infinite}@keyframes pf-amb-foam{0%,100%{transform:translateX(0);opacity:.9}50%{transform:translateX(6px);opacity:.3}}
+.pf-amb-gull{animation:pf-amb-gull 26s linear infinite}@keyframes pf-amb-gull{0%{transform:translate(${left - 20}px,6px)}50%{transform:translate(${left + area.w / 2}px,0)}100%{transform:translate(${right + 20}px,8px)}}`,
+      };
+    }
+    case "meadow": {
+      const bee = `<g class="pf-amb-bee"><g class="pf-fa" style="animation-duration:.2s">${px(BEE, { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.2s">${px(BEE.slice(1), { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 2, 2)}</g></g>`;
+      return {
+        svg: `<g transform="translate(${right - 40} ${g - 26})">${bee}</g>`,
+        css: `.pf-amb-bee{animation:pf-amb-bee 7s ease-in-out infinite}@keyframes pf-amb-bee{0%,100%{transform:translate(0,0)}20%{transform:translate(-14px,-8px)}40%{transform:translate(-4px,-16px)}60%{transform:translate(12px,-6px)}80%{transform:translate(4px,4px)}}`,
+      };
+    }
+    case "jungle":
+      return {
+        svg: `<g transform="translate(${right - 22} ${g - 40})"><g class="pf-amb-bob">${px(PARROT, { r: "#e03131", w: "#ffffff", k: "#1f2328", y: "#ffd43b", g: "#2f9e44", b: "#1c7ed6" }, 0, 0, 3)}</g></g>`,
+        css: `.pf-amb-bob{transform-box:fill-box;transform-origin:50% 100%;animation:pf-amb-bob 5s steps(1) infinite}@keyframes pf-amb-bob{0%,60%{transform:none}64%{transform:rotate(-12deg)}72%{transform:none}76%{transform:rotate(-12deg)}84%,100%{transform:none}}`,
+      };
+    case "savanna":
+      // A little bird hopping along the acacia's crown.
+      return {
+        svg: `<g transform="translate(${right - 44} ${g - 64})"><g class="pf-amb-hop">${px(BIRD, { k: "#5c3d2e", w: "#ffffff", y: "#f59f00" }, 0, 0, 2)}</g></g>`,
+        css: `.pf-amb-hop{animation:pf-amb-hop 6s ease-in-out infinite}@keyframes pf-amb-hop{0%,30%{transform:none}35%{transform:translate(6px,-4px)}40%,65%{transform:translate(12px,0)}70%{transform:translate(6px,-4px)}75%,100%{transform:none}}`,
+      };
+    case "farm":
+      // A worm peeks out of the ground now and then.
+      return {
+        svg: `<clipPath id="pf-amb-soil"><rect x="${left + 50}" y="${g}" width="12" height="16"/></clipPath><rect x="${left + 52}" y="${g + 14}" width="8" height="2" fill="#6b4226"/><g clip-path="url(#pf-amb-soil)"><g class="pf-amb-worm">${px(WORM, { p: "#f783ac" }, left + 54, g + 14, 2)}</g></g>`,
+        css: `.pf-amb-worm{transform-box:fill-box;transform-origin:50% 100%;animation:pf-amb-worm 9s ease-in-out infinite}@keyframes pf-amb-worm{0%,55%,100%{transform:none}62%,80%{transform:translateY(-10px)}70%{transform:translateY(-10px) rotate(8deg)}}`,
+      };
+    case "pond": {
+      const cx = right - 50;
+      const cy = g + 13;
+      const ripple = (d: number) => `<ellipse class="pf-amb-ripple" style="animation-delay:-${d}s" cx="${cx}" cy="${cy}" rx="8" ry="2.5" fill="none" stroke="#d0ebff" stroke-width="1"/>`;
+      return {
+        svg: `${ripple(0)}${ripple(1.5)}<g class="pf-amb-fish">${px(FISH, { o: "#ff922b" }, cx - 6, cy - 2, 2)}</g>`,
+        css: `.pf-amb-ripple{transform-box:fill-box;transform-origin:center;animation:pf-amb-ripple 3s ease-out infinite}@keyframes pf-amb-ripple{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.6);opacity:0}}
+.pf-amb-fish{opacity:0;transform-box:fill-box;transform-origin:center;animation:pf-amb-fish 8s ease-in-out infinite}@keyframes pf-amb-fish{0%,70%{opacity:0;transform:translate(-8px,4px) rotate(-40deg)}72%{opacity:1}80%{transform:translate(0,-14px) rotate(0)}88%{opacity:1;transform:translate(8px,2px) rotate(40deg)}90%,100%{opacity:0;transform:translate(8px,4px) rotate(40deg)}}`,
+      };
+    }
+  }
 }

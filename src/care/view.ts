@@ -1,6 +1,6 @@
 import type { PetState } from "../types.js";
 import type { CareAction } from "./commands.js";
-import type { CareState } from "./state.js";
+import { DEFAULT_RULES, type CareRules, type CareState } from "./state.js";
 
 /** What care looks like on the card right now. Pure data, derived from the care log and a clock. */
 export interface CareView {
@@ -10,7 +10,14 @@ export interface CareView {
   /** 0 clean · 1 a few smudges · 2 smelly · 3 flies. */
   dirt: 0 | 1 | 2 | 3;
   /** The latest visit, if it's recent. Logins are validated when the log is parsed. */
-  visitor: { login: string; action: CareAction } | null;
+  visitor: Visitor | null;
+  /** Every kind of visit in the last 12 hours, oldest first, each with its latest visitor. */
+  visitors: Visitor[];
+}
+
+export interface Visitor {
+  login: string;
+  action: CareAction;
 }
 
 const HOUR = 3_600_000;
@@ -24,16 +31,24 @@ export const DIRT_DAYS = [3, 6, 10] as const;
 
 const age = (iso: string | null, now: Date) => (iso ? now.getTime() - Date.parse(iso) : Infinity);
 
-export function careView(state: CareState, now: Date): CareView {
+export function careView(state: CareState, now: Date, rules: CareRules = DEFAULT_RULES): CareView {
   const sinceBath = age(state.last.bath ?? state.since, now) / DAY;
-  const dirt = DIRT_DAYS.filter((d) => sinceBath >= d).length as CareView["dirt"];
+  const dirt = rules.dirt ? (DIRT_DAYS.filter((d) => sinceBath >= d).length as CareView["dirt"]) : 0;
   const latest = state.recent[0];
+  // recent is newest first: keep each action's newest visit, then show them in the order they happened.
+  const visitors: Visitor[] = [];
+  for (const e of state.recent) {
+    if (age(e.at, now) >= FRESH) break;
+    if (!visitors.some((v) => v.action === e.action)) visitors.push({ login: e.by, action: e.action });
+  }
+  visitors.reverse();
   return {
     fed: age(state.last.feed, now) < FRESH,
     bathed: age(state.last.bath, now) < FRESH,
     played: age(state.last.play, now) < FRESH,
     dirt,
     visitor: latest && age(latest.at, now) < FRESH ? { login: latest.by, action: latest.action } : null,
+    visitors,
   };
 }
 
@@ -41,8 +56,8 @@ export function careView(state: CareState, now: Date): CareView {
  * Visitors' care nudges the pet: a fresh meal chases hunger away, a game cheers it up, and any
  * meal in the last month keeps it from running away. Commits still drive everything else.
  */
-export function applyCare(pet: PetState, state: CareState, now: Date): PetState {
-  const view = careView(state, now);
+export function applyCare(pet: PetState, state: CareState, now: Date, rules: CareRules = DEFAULT_RULES): PetState {
+  const view = careView(state, now, rules);
   let mood = pet.mood;
   if (view.fed && mood === "hungry") mood = "idle";
   if (view.played && mood === "idle") mood = "happy";

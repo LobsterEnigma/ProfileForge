@@ -8,6 +8,7 @@ import { relative } from "node:path";
 import { LOGIN_RE } from "../options.js";
 import { answerCare, ensureHouse, prepareCare, type Prepared } from "./care.js";
 import { houseLink } from "../care/commands.js";
+import { parseRules } from "../care/state.js";
 import { generate, parseOutputs } from "./generate.js";
 import { fail, warn } from "./log.js";
 
@@ -70,6 +71,7 @@ async function main(): Promise<void> {
       repo,
       now: new Date(),
       house: house ? Number(house) : undefined,
+      rules: parseRules(input("care_actions"), input("dirt")),
     });
     prepared.warnings.forEach(warn);
   }

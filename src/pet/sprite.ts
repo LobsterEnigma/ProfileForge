@@ -1,6 +1,6 @@
 import type { Mood, PetState } from "../types.js";
-import { renderPixels, type Layer } from "../svg/pixel.js";
-import { BEHAVIOR_CSS, emoteBubble, glance, playful, trickFor, trickLayers, anchors } from "./behavior.js";
+import { renderPixels, type Grid, type Layer, type Palette } from "../svg/pixel.js";
+import { BEHAVIOR_CSS, crossEyes, emoteBubble, glance, playful, TRICK_STARTS, tricksFor, trickLayers, anchors } from "./behavior.js";
 import { getSpecies } from "./species/index.js";
 import type { EyeKind, MouthKind } from "./species/types.js";
 import { CROWN, EGG, EGG_CRACK, EGG_PALETTE, FX_PALETTE } from "./sprites.js";
@@ -32,6 +32,8 @@ export interface Sprite {
   svg: string;
   width: number;
   height: number;
+  /** Styles for today's tricks (empty when it isn't performing). */
+  css?: string;
 }
 
 function frames(a: string, b: string, seconds: number): string {
@@ -43,10 +45,32 @@ function frames(a: string, b: string, seconds: number): string {
 export interface SpriteOptions {
   /** Emote bubbles and today's trick (off for tiny logos). */
   lively?: boolean;
+  /** The random emote bubble; off when a scripted day brings its own. */
+  emote?: boolean;
+  /** Classes that swap the open eyes for others: closed during a yawn, crossed at a butterfly. */
+  eyes?: EyeSwap | null;
+  /** Worn instead of the crown: a holiday hat. */
+  hat?: Hat;
+  /** Drawn over the face (sprite units × scale): glasses, a disguise. */
+  face?: string;
+}
+
+export interface EyeSwap {
+  hide: string;
+  alts: { cls: string; kind: "closed" | "crossed" }[];
+}
+
+export interface Hat {
+  grid: Grid;
+  palette: Palette;
+  /** Hat pixels to sink onto the head (default 1). */
+  sink?: number;
+  /** The column that sits over the crown anchor (default: the middle). */
+  cx?: number;
 }
 
 /** The pet itself (no scene, no effects), animated for its mood. */
-export function renderPetSprite(state: PetState, scale: number, { lively = true }: SpriteOptions = {}): Sprite {
+export function renderPetSprite(state: PetState, scale: number, { lively = true, emote = true, eyes: swap = null, hat, face: faceArt = "" }: SpriteOptions = {}): Sprite {
   if (state.stage === "egg") return eggSprite(state, scale);
 
   const species = getSpecies(state.species);
@@ -58,14 +82,23 @@ export function renderPetSprite(state: PetState, scale: number, { lively = true 
   const [limbA, limbB] = species.limbs[state.mood];
   // Idle pets look around: straight ahead, a sideways glance, then a blink.
   const side = glance(species.eyes.open);
-  const eyes =
+  let eyes =
     state.mood === "idle"
       ? `<g class="pf-eo">${px(species.eyes.open)}</g>${side ? `<g class="pf-eg">${px(side)}</g>` : ""}<g class="pf-es">${px(species.eyes.closed)}</g>`
       : px(species.eyes[face.eyes]);
+  if (swap) {
+    const alt = (kind: "closed" | "crossed") => px(kind === "closed" ? species.eyes.closed : crossEyes(species.eyes.open, species.width));
+    eyes = `<g class="${swap.hide}">${eyes}</g>${swap.alts.map((a) => `<g class="${a.cls}">${alt(a.kind)}</g>`).join("")}`;
+  }
 
   let crown = "";
-  if (legendary) {
-    const cs = Math.max(1, Math.round((scale * 3) / 4));
+  const cs = Math.max(1, Math.round((scale * 3) / 4));
+  if (hat) {
+    // Hats use the pet's own pixel size, so they look part of the sprite.
+    const hx = species.crownAnchor.x * scale - (hat.cx ?? hat.grid[0]!.length / 2) * scale;
+    const hy = species.crownAnchor.y * scale - (hat.grid.length - (hat.sink ?? 1)) * scale;
+    crown = renderPixels([{ x: 0, y: 0, grid: hat.grid }], hat.palette, { x: hx, y: hy, scale });
+  } else if (legendary) {
     const cx = species.crownAnchor.x * scale - (CROWN[0]!.length * cs) / 2;
     const cy = species.crownAnchor.y * scale - CROWN.length * cs - 1.5 * scale;
     crown = `<g class="pf-bob">${renderPixels([{ x: 0, y: 0, grid: CROWN }], FX_PALETTE, { x: cx, y: cy, scale: cs })}</g>`;
@@ -77,16 +110,30 @@ export function renderPetSprite(state: PetState, scale: number, { lively = true 
     px(species.mouths[face.mouth]),
     face.blush ? px(species.blush) : "",
     eyes,
+    faceArt,
     crown,
   ].join("");
 
+  let css = "";
   if (lively && playful(state.mood)) {
-    const trick = trickLayers(state.trick ?? trickFor(state.date, state.login), species, scale);
-    const emote = emoteBubble(state.mood === "happy" ? "note" : "question", species.width * scale - 4, anchors(species).top * scale - 2, "pf-emote");
-    svg = `<g${trick.bodyClass ? ` class="${trick.bodyClass}"` : ""}>${svg}${trick.overlay}</g>${emote}`;
+    // Four tricks take turns; a previewed trick plays in every window.
+    const tricks = state.trick ? TRICK_STARTS.map(() => state.trick!) : tricksFor(state.date, state.login);
+    let body = svg;
+    let beside = "";
+    tricks.forEach((trick, slot) => {
+      const t = trickLayers(trick, species, scale, slot);
+      body = `${t.under}${body}${t.overlay}`;
+      if (t.bodyClass) body = `<g class="${t.bodyClass}">${body}</g>`;
+      beside += t.beside;
+      css += t.css;
+    });
+    const bubble = emote
+      ? emoteBubble(state.mood === "happy" ? "note" : "question", species.width * scale - 4, anchors(species).top * scale - 2, "pf-emote")
+      : "";
+    svg = `${body}${beside}${bubble}`;
   }
 
-  return { svg, width: species.width * scale, height: species.height * scale };
+  return { svg, width: species.width * scale, height: species.height * scale, css };
 }
 
 function eggSprite(state: PetState, scale: number): Sprite {

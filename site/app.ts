@@ -4,13 +4,13 @@
  */
 import { renderCityCard } from "../src/city/render.js";
 import { computeCityState, type CityState } from "../src/city/state.js";
-import { demoProfile, demoState } from "../src/demo.js";
+import { demoProfile, demoState, HOLIDAY_DATES } from "../src/demo.js";
 import { classForLanguage } from "../src/pet/classes.js";
 import { renderPetCard } from "../src/pet/render.js";
 import { speciesForLanguage } from "../src/pet/species/index.js";
 import { renderPetSprite, SPRITE_CSS } from "../src/pet/sprite.js";
 import { houseLink, type CareAction } from "../src/care/commands.js";
-import type { Mood, Stage, Trick } from "../src/types.js";
+import type { Mood, Stage, Surprise, Trick } from "../src/types.js";
 import type { Hemisphere, Season } from "../src/world/seasons.js";
 
 const REPO = "LobsterEnigma/ProfileForge";
@@ -35,6 +35,9 @@ interface Config {
   species: string;
   cityPet: boolean;
   care: boolean;
+  runaway: boolean;
+  actions: CareAction[];
+  dirty: boolean;
   house: string;
   theme: string;
   season: string;
@@ -44,7 +47,7 @@ interface Config {
   language: string;
   stage: Stage;
   activity: Mood | "away";
-  holiday: string;
+  surprise: string;
   trick: string;
   visit: string;
   dirt: string;
@@ -60,6 +63,9 @@ function read(): Config {
     species: value("species"),
     cityPet: checked("cityPet"),
     care: checked("care"),
+    runaway: checked("runaway"),
+    actions: (["feed", "bath", "play"] as const).filter((a) => checked(`act${a[0]!.toUpperCase()}${a.slice(1)}`)),
+    dirty: checked("dirty"),
     house: value("house").trim(),
     theme: value("theme"),
     season: value("season"),
@@ -69,7 +75,7 @@ function read(): Config {
     language: value("language"),
     stage: value("stage") as Stage,
     activity: value("activity") as Mood | "away",
-    holiday: value("holiday"),
+    surprise: value("surprise"),
     trick: value("trick"),
     visit: value("visit"),
     dirt: value("dirt"),
@@ -107,15 +113,20 @@ function renderPreviews(c: Config): void {
   };
   const language = { topLanguage: c.language, className: classForLanguage(c.language) };
 
-  const away = c.activity === "away";
+  const away = c.activity === "away" && c.runaway;
   const extras = {
     away,
     trick: (c.trick || undefined) as Trick | undefined,
-    visit: (c.visit || undefined) as CareAction | undefined,
-    dirt: Number(c.dirt) as 0 | 1 | 2 | 3,
+    // A visit only happens if the house is open and visitors may do that.
+    visit: (c.care && (c.visit === "all" ? c.actions.length === 3 : c.actions.includes(c.visit as CareAction)) ? c.visit : undefined) as CareAction | "all" | undefined,
+    surprise: (c.surprise || undefined) as Surprise | undefined,
+    dirt: (c.care && c.dirty && c.actions.includes("bath") ? Number(c.dirt) : 0) as 0 | 1 | 2 | 3,
   };
   const pet = { ...demoState(c.activity === "away" ? "sleeping" : c.activity, c.stage, c.name || undefined, species, extras), ...language };
-  if (c.holiday) pet.date = c.holiday;
+  // Only happy or active pets have the energy for tricks.
+  const trick = field<HTMLSelectElement>("trick");
+  trick.disabled = c.activity !== "happy" && c.activity !== "idle";
+  trick.title = trick.disabled ? "Tricks are for happy or active pets" : "";
   document.getElementById("pet-figure")!.hidden = !c.pet;
   if (c.pet) show(document.getElementById("pet-img") as HTMLImageElement, renderPetCard(pet, style));
 
@@ -125,7 +136,7 @@ function renderPreviews(c: Config): void {
     const city: CityState = {
       ...base,
       ...ACTIVITY[c.activity],
-      date: c.holiday || base.date,
+      date: Object.hasOwn(HOLIDAY_DATES, c.surprise) ? HOLIDAY_DATES[c.surprise as keyof typeof HOLIDAY_DATES] : base.date,
       topLanguage: { name: c.language, color: LANGUAGE_COLORS[c.language] ?? null, bytes: 1 },
       pet: c.cityPet ? pet : null,
     };
@@ -149,12 +160,13 @@ function shared(c: Config): [string, string | false | undefined][] {
   ];
 }
 
-const petQuery = (c: Config) => query([["name", c.name], ["species", c.species], ...shared(c)]);
+const petQuery = (c: Config) => query([["name", c.name], ["species", c.species], ["runaway", !c.runaway && "false"], ...shared(c)]);
 const cityQuery = (c: Config, widget: boolean) =>
   query([
     ["widget", widget && "city"],
     ["species", c.cityPet && c.species],
     ["pet", !c.cityPet && "false"],
+    ["runaway", c.cityPet && !c.runaway && "false"],
     ...shared(c),
   ]);
 
@@ -192,12 +204,17 @@ jobs:
       - uses: ${REPO}@v1
         with:${care ? `
           care: true${houseNumber(c) ? `
-          care_issue: ${houseNumber(c)}` : ""}` : ""}
+          care_issue: ${houseNumber(c)}` : ""}${careActions(c) ? `
+          care_actions: ${careActions(c)}` : ""}${c.actions.includes("bath") && !c.dirty ? `
+          dirt: false` : ""}` : ""}
           outputs: |
 ${outputs.join("\n")}`;
 }
 
 const LOGIN_RE = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
+
+/** `care_actions`, only when it differs from the default (everything). */
+const careActions = (c: Config) => (c.actions.length && c.actions.length < 3 ? c.actions.join(",") : null);
 
 /** The house issue number, if a valid one was typed in. */
 const houseNumber = (c: Config) => (/^[1-9]\d{0,9}$/.test(c.house) ? Number(c.house) : null);
@@ -208,7 +225,8 @@ function careLinks(c: Config): string {
   const house = houseNumber(c);
   // Before the first run there's no issue number yet: link to the repo's issues instead.
   const url = house ? houseLink(`${login}/${login}`, house) : `https://github.com/${login}/${login}/issues`;
-  return `[🏠 Visit ${pet}'s house: 🍖 feed · 🛁 bath · 🎾 play](${url})`;
+  const labels: Record<CareAction, string> = { feed: "🍖 feed", bath: "🛁 bath", play: "🎾 play" };
+  return `[🏠 Visit ${pet}'s house: ${c.actions.map((a) => labels[a]).join(" · ")}](${url})`;
 }
 
 function readme(c: Config): string {
@@ -248,16 +266,24 @@ let tab: Tab = "action";
 
 function renderCode(c: Config): void {
   const none = !c.pet && !c.city;
-  document.getElementById("code-hint")!.textContent = none ? "Pick at least one widget." : TABS[tab].hint;
-  document.getElementById("code")!.textContent = none ? "" : TABS[tab].code(c);
+  const noActions = c.care && c.pet && !c.actions.length;
+  document.getElementById("code-hint")!.textContent = none
+    ? "Pick at least one widget."
+    : noActions
+      ? "Pick at least one thing visitors may do, or turn the house off."
+      : TABS[tab].hint;
+  document.getElementById("code")!.textContent = none || noActions ? "" : TABS[tab].code(c);
 }
 
 // ── Wiring ───────────────────────────────────────────────────────────────────
 
-/** The config lives in the URL hash, so a setup can be shared as a link. */
-function save(c: Config): void {
+/** The form lives in the URL hash, so a setup can be shared as a link. */
+function save(): void {
   const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(c)) params.set(k, String(v));
+  for (const el of form.elements) {
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLSelectElement) || !el.name) continue;
+    params.set(el.name, el instanceof HTMLInputElement && el.type === "checkbox" ? String(el.checked) : el.value);
+  }
   history.replaceState(null, "", `#${params}`);
 }
 
@@ -273,9 +299,18 @@ function restore(): void {
 function update(): void {
   const c = read();
   field<HTMLInputElement>("cityPet").disabled = !c.city;
+  for (const name of ["actFeed", "actBath", "actPlay", "house"]) field<HTMLInputElement>(name).disabled = !c.care;
+  field<HTMLInputElement>("dirty").disabled = !c.care || !c.actions.includes("bath");
+  // The visit and bath previews only make sense for what the house allows.
+  const visit = field<HTMLSelectElement>("visit");
+  visit.disabled = !c.care;
+  for (const option of visit.options) {
+    option.disabled = option.value === "all" ? c.actions.length < 3 : !!option.value && !c.actions.includes(option.value as CareAction);
+  }
+  field<HTMLSelectElement>("dirt").disabled = !c.care || !c.dirty || !c.actions.includes("bath");
   renderPreviews(c);
   renderCode(c);
-  save(c);
+  save();
 }
 
 for (const button of document.querySelectorAll<HTMLButtonElement>("[data-tab]")) {
@@ -297,6 +332,20 @@ copy.addEventListener("click", async () => {
   setTimeout(() => (copy.textContent = "Copy"), 1600);
 });
 
+/** Ticking a visit (or opening the house) previews it right away; unticking one that's shown clears it. */
+const ACT_FIELDS: Record<string, CareAction> = { actFeed: "feed", actBath: "bath", actPlay: "play" };
+form.addEventListener("input", (e) => {
+  const box = e.target;
+  if (!(box instanceof HTMLInputElement) || box.type !== "checkbox") return;
+  const visit = field<HTMLSelectElement>("visit");
+  if (Object.hasOwn(ACT_FIELDS, box.name)) {
+    const action = ACT_FIELDS[box.name]!;
+    if (box.checked) visit.value = action;
+    else if (visit.value === action) visit.value = "";
+  } else if (box.name === "care") {
+    visit.value = box.checked ? (read().actions[0] ?? "") : "";
+  }
+});
 form.addEventListener("input", update);
 form.addEventListener("submit", (e) => e.preventDefault());
 

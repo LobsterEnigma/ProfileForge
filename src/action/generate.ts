@@ -70,7 +70,7 @@ export async function generate({ user, token, outputs, workspace, fetch = fetchP
     await writeFile(full, renderWidget(profile, params, care));
   }
   const pet = targets.find((t) => t.params.widget === "pet")?.params;
-  const plain = computePetState(profile, { petName: pet?.petName, species: pet?.species });
-  const state = care ? applyCare(plain, care.state, care.now) : plain;
+  const plain = computePetState(profile, { petName: pet?.petName, species: pet?.species, runaway: pet?.runaway });
+  const state = care ? applyCare(plain, care.state, care.now, care.rules) : plain;
   return { files: targets.map((t) => t.full), state };
 }

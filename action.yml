@@ -26,6 +26,14 @@ inputs:
   care_issue:
     description: The house issue's number, if you opened it yourself. Otherwise the first run opens one.
     default: ""
+  care_actions:
+    description: What visitors may do in the house, comma-separated. Any of feed, bath, play.
+    default: feed,bath,play
+  dirt:
+    description: |
+      "false" keeps your pet clean even if nobody bathes it. Always off when bath isn't in
+      care_actions (there'd be no way to get clean).
+    default: "true"
   care_file:
     description: Where the care log is kept (a .json file in your repo).
     default: profileforge/care.json

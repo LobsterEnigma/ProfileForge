@@ -40,6 +40,27 @@ export interface CareState {
   house: { issue: number | null; cursor: number; cursorAt: string | null };
 }
 
+/** What the owner lets visitors do, and whether skipped baths show. */
+export interface CareRules {
+  actions: CareAction[];
+  dirt: boolean;
+}
+
+export const DEFAULT_RULES: CareRules = { actions: [...CARE_ACTIONS], dirt: true };
+
+/**
+ * Reads the `care_actions` and `dirt` inputs. Without baths there's no way to get clean again,
+ * so dirt is off whenever bath is.
+ */
+export function parseRules(actions: string, dirt: string): CareRules {
+  const list = actions.trim() ? actions.split(",").map((a) => a.trim().toLowerCase()).filter(Boolean) : [...CARE_ACTIONS];
+  const unknown = list.filter((a) => !CARE_ACTIONS.includes(a as CareAction));
+  if (unknown.length) throw new Error(`care_actions: unknown ${unknown.map((u) => `"${u}"`).join(", ")} (use ${CARE_ACTIONS.join(", ")})`);
+  if (!list.length) throw new Error("care_actions: pick at least one of feed, bath, play");
+  const chosen = CARE_ACTIONS.filter((a) => list.includes(a));
+  return { actions: chosen, dirt: dirt.trim().toLowerCase() !== "false" && chosen.includes("bath") };
+}
+
 const utcDay = (d: Date) => d.toISOString().slice(0, 10);
 
 /** What `login` did today. Own properties only, so a user called "constructor" is just a user. */
@@ -179,7 +200,12 @@ export interface HandledComment {
  * Applies new comments in the pet's house, oldest first. The cursor moves past every comment
  * it reads (chat, bots, commands alike), so none is ever read twice, even if edited later.
  */
-export function applyComments(previous: CareState, comments: CareComment[], now: Date): { state: CareState; handled: HandledComment[] } {
+export function applyComments(
+  previous: CareState,
+  comments: CareComment[],
+  now: Date,
+  rules: CareRules = DEFAULT_RULES,
+): { state: CareState; handled: HandledComment[] } {
   const state: CareState = structuredClone(previous);
   startDay(state, now);
   const handled: HandledComment[] = [];
@@ -190,8 +216,9 @@ export function applyComments(previous: CareState, comments: CareComment[], now:
     state.house.cursor = comment.id;
     if (isTime(comment.createdAt, now)) state.house.cursorAt = comment.createdAt;
     if (comment.userType !== "User" || !isLogin(comment.login)) continue;
+    // Commands the owner turned off are just chat.
     const action = parseCommand(comment.body);
-    if (!action) continue;
+    if (!action || !rules.actions.includes(action)) continue;
     handled.push({ comment, outcome: visit(state, comment.login, action, now) });
   }
   return { state, handled };
@@ -202,8 +229,13 @@ export function reactionFor(outcome: HandledComment["outcome"]): "heart" | "eyes
   return outcome.kind === "done" ? "heart" : outcome.kind === "limited" ? "eyes" : "confused";
 }
 
-/** The house issue's opening post. Fixed text and the owner's pet name only. */
-export function houseIssue(petName: string): { title: string; body: string } {
+/** The house issue's opening post, listing only what visitors may do. Fixed text and the owner's pet name only. */
+export function houseIssue(petName: string, rules: CareRules = DEFAULT_RULES): { title: string; body: string } {
+  const rows: Record<CareAction, string> = {
+    feed: "| `feed` | 🍖 a meal |",
+    bath: `| \`bath\` | 🛁 a bath${rules.dirt ? ` (${petName} gets smelly without one!)` : ""} |`,
+    play: "| `play` | 🎾 a game of fetch |",
+  };
   return {
     title: `ProfileForge: ${petName}'s house 🏠`,
     body: [
@@ -213,9 +245,7 @@ export function houseIssue(petName: string): { title: string; body: string } {
       "",
       "| Comment | |",
       "|---|---|",
-      "| `feed` | 🍖 a meal |",
-      `| \`bath\` | 🛁 a bath (${petName} gets smelly without one!) |`,
-      "| `play` | 🎾 a game of fetch |",
+      ...rules.actions.map((a) => rows[a]),
       "",
       `${petName} reacts with ❤️ when it's done, or 👀 if you already did that today. Your visit shows up on the profile card within a few minutes.`,
       "",

@@ -46,7 +46,7 @@ jobs:
       - uses: LobsterEnigma/ProfileForge@v1
         with:
           outputs: |
-            profileforge/pet.svg?name=Pinchy
+            profileforge/pet.svg
             profileforge/city.svg?widget=city
 ```
 
@@ -58,6 +58,16 @@ jobs:
 ![My ProfileForge pet](./profileforge/pet.svg)
 ![My ProfileForge city](./profileforge/city.svg)
 ```
+
+**Customizing** works the same everywhere: add [options](#options) after a `?`, separated by `&`. In the Action, each line of `outputs` is one card:
+
+```yaml
+          outputs: |
+            profileforge/pet.svg?name=Biscuit&species=gopher&theme=dark
+            profileforge/city.svg?widget=city&season=winter&hide_border=true
+```
+
+With the [API](#option-b-deploy-your-own-api-to-vercel), the same options go into the URL: `…/api/pet?user=you&name=Biscuit&theme=dark`.
 
 <details>
 <summary>Action inputs</summary>
@@ -71,6 +81,8 @@ jobs:
 | `commit_message` | `chore: feed the ProfileForge pet` | |
 | `care` | `false` | `true` gives your pet a house where visitors feed, bathe and play with it. See [Let visitors care for it](#let-visitors-care-for-it). |
 | `care_issue` | | The house issue's number, if you opened it yourself. Otherwise the first run opens one. |
+| `care_actions` | `feed,bath,play` | What visitors may do in the house. |
+| `dirt` | `true` | `false` keeps your pet clean even if nobody bathes it. Always off without `bath`. |
 | `care_file` | `profileforge/care.json` | Where the care log lives. |
 
 Step outputs: `mood`, `level`, `stage` (of the pet).
@@ -84,7 +96,7 @@ The button forks this repo into your account and asks for a `GITHUB_TOKEN`. Crea
 Then add one line to your README:
 
 ```md
-![My ProfileForge pet](https://<your-app>.vercel.app/api/pet?user=<your-login>&name=Pinchy)
+![My ProfileForge pet](https://<your-app>.vercel.app/api/pet?user=<your-login>)
 ![My ProfileForge city](https://<your-app>.vercel.app/api/city?user=<your-login>)
 ```
 
@@ -127,8 +139,36 @@ XP = lifetime contributions + 2 × stars + 3 × followers, so **levels never go 
 
 ### It has a life of its own
 
-- It **looks around**, pops up little emote bubbles, and does **a trick of the day**: a dance, a twirl, heart eyes, a sneeze, or its species' signature move (crab bubbles, gopher digging, snake hissing, elephant spraying, chick pecking, turtle zoomies).
-- After **30 days without contributions it runs away**, leaving a note and a trail of footprints. Your next commit brings it home.
+- It follows **a routine that changes from day to day**: walking, sniffing around, sitting, yawning, hopping, doing laps, and the odd nap.
+- It **looks around**, says the odd word (`LGTM`, `WIP`, `404`…) and performs **four tricks a day**, taking turns, from 19: dancing, twirling, a backflip, a moonwalk, juggling, blowing a kiss, spinning until it's dizzy, hiccups, a magic trick, jump rope, a selfie, hunting down a bug, holding up a commit like treasure, bubblegum, singing, heart eyes, a sneeze, sticking its tongue out, or its species' signature move (crab bubbles, gopher digging, snake hissing, elephant spraying, chick pecking, turtle zoomies). Tomorrow brings a different four.
+- After **30 days without contributions it runs away**, leaving a note and a trail of footprints. Your next commit brings it home. Not your thing? Add `runaway=false`.
+
+### Every day could be special
+
+Like a little frog that sends postcards from its travels, your pet has days worth checking in for. At most one surprise per day, picked from the date and your contributions:
+
+| | | |
+|---|---|---|
+| <img src="examples/surprise-christmas.svg" width="260"><br>🎄 **Christmas** | <img src="examples/surprise-lunar-new-year.svg" width="260"><br>🧧 **Lunar New Year** | <img src="examples/surprise-halloween.svg" width="260"><br>🎃 **Halloween** |
+| <img src="examples/surprise-mid-autumn.svg" width="260"><br>🥮 **Mid-Autumn** | <img src="examples/surprise-postcard.svg" width="260"><br>✉️ **A weekend trip** | <img src="examples/surprise-birthday.svg" width="260"><br>🎂 **Your GitHub birthday** |
+
+- **Holidays**, each with its own outfit and decorations: New Year 🎆, Lunar New Year 🧧 (with the year's zodiac), Valentine's Day 💝, π Day 🥧 (March 14), April Fools' 🙃 (your pet shows up as another species, in a fake-nose disguise), Programmer's Day 💻 (the 256th day of the year), Mid-Autumn 🥮, Halloween 🎃 and Christmas 🎄.
+- **Milestones**: your account's **GitHub birthday**, a fresh **level-up** (and hatching, growing up, turning legendary), and a **welcome back** rainbow when you return after a week or more away.
+- **Weekend trips**: on a quiet weekend day your pet may be off travelling, and pins up a postcard from Localhost, The Cloud, Null Island, Stack Overflow, Port 8080 or The Kernel.
+- **Rare days**: a UFO beams it up (and brings it back), a pet from another language drops by to say hi, a butterfly lands on its nose in spring, or it wears shades in summer.
+
+Everything is decided by the date and your data, so it needs no setup, and a card rendered twice on the same day is identical. Preview any of them with `surprise=` (e.g. `/api/pet?user=demo&surprise=christmas`) or in the [configurator](https://lobsterenigma.github.io/ProfileForge/).
+
+### As much pet as you want
+
+Every part of the pet-keeping is optional, so it works whether you want a pretty card or a real little companion:
+
+| You want… | Set |
+|---|---|
+| **Just a card to show off** | nothing: no house, no dirt, no chores. Add `runaway=false` if you'll be away for a while. |
+| **Visitors can say hi, no upkeep** | `care: true` and `dirt: false`: feeding and playing, but it never gets dirty |
+| **Only some visits** | `care_actions: feed,play` (any of `feed`, `bath`, `play`) |
+| **The full pet** | `care: true`: visitors feed, bathe and play, and it gets smelly if nobody bathes it |
 
 ### Let visitors care for it
 
@@ -170,6 +210,8 @@ jobs:
           outputs: |
             profileforge/pet.svg
 ```
+
+Want less upkeep? Add `dirt: false`, or pick what visitors may do with `care_actions: feed,play`. The house only lists what's turned on, and other commands are treated as chat.
 
 **2.** Run it once. It opens the house, an issue titled "ProfileForge: *your pet*'s house 🏠", and prints its link. Pin it if you like.
 Prefer to open the house yourself? Title it starting with `ProfileForge:` and pass its number as `care_issue`.
@@ -236,16 +278,17 @@ Light themes paint it at sunset, dark themes at night. Seasons follow the date, 
 
 | Param | Default | Description |
 |---|---|---|
-| `user` | *required* | GitHub login. `demo` renders sample data. |
+| `user` | *required* | API only: whose widget to render. `demo` renders sample data. (The Action uses the repo owner.) |
 | `widget` | `pet` | `pet` or `city`. Only needed in the Action; the API uses `/api/pet` and `/api/city`. |
-| `name` | the species' | Your pet's name (max 16 chars). Defaults to Pinchy, Gogo, Monty or Ellie. |
+| `name` | the species' | Your pet's name (max 16 chars). Defaults to Pinchy 🦀, Gogo 🐹, Monty 🐍, Ellie 🐘, Chirpy 🐥 or Shelly 🐢. |
 | `species` | from your language | `crab` · `gopher` · `snake` · `elephant` · `chick` · `turtle` |
 | `pet` | `true` | City only: `false` keeps your pet off the streets. |
+| `runaway` | `true` | `false` keeps your pet home after a month without contributions (it just sleeps). |
 | `theme` | `auto` | `auto` · `light` · `dark` · `dracula` · `gameboy` · `sakura` |
 | `hide_border` | `false` | `true` to drop the card border. |
 | `season` | from the date | Pin `spring` · `summer` · `autumn` · `winter` instead of following the date. |
 | `hemisphere` | `north` | `south` flips the automatic seasons (December is summer) and mirrors the city's moon. |
-| `mood`, `stage`, `trick`, `away`, `visit`, `dirt` | | Pet only, with `user=demo`, to preview any state. |
+| `mood`, `stage`, `trick`, `away`, `visit`, `dirt`, `surprise` | | Previews only, with `user=demo`: force a mood, stage, trick, visit, dirt level (`dirt=0…3`) or surprise (`christmas`, `postcard`, `ufo`…). To stop your real pet getting dirty, use the Action's `dirt: false` input instead. |
 
 `auto` follows the viewer's light/dark setting: the beach gets stars and the city switches from sunset to night.
 
@@ -253,6 +296,46 @@ Light themes paint it at sunset, dark themes at night. Seasons follow the date, 
 |---|---|---|
 | <img src="examples/theme-light.svg" width="260"><br>`light` | <img src="examples/theme-dark.svg" width="260"><br>`dark` | <img src="examples/theme-dracula.svg" width="260"><br>`dracula` |
 | <img src="examples/theme-gameboy.svg" width="260"><br>`gameboy` | <img src="examples/theme-sakura.svg" width="260"><br>`sakura` | |
+
+## FAQ
+
+<details>
+<summary>I pushed a change but my profile still shows the old card</summary>
+
+GitHub caches README images for a few minutes. Wait a bit, then hard-refresh (<kbd>Cmd</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd>). Opening the SVG file in your repo always shows the latest version.
+</details>
+
+<details>
+<summary>The run fails with "Permission denied" or "403" when pushing</summary>
+
+The workflow needs `permissions: contents: write` (and `issues: write` for care). If it's there and pushes still fail, your account or organization limits the built-in token: go to your profile repo's **Settings → Actions → General → Workflow permissions** and choose **Read and write permissions**.
+</details>
+
+<details>
+<summary>My contribution count is lower than on my profile</summary>
+
+The Action's built-in token only sees public activity. To include private contributions (as counts only, nothing about the repos), turn on **Include private contributions on my profile** in your GitHub profile settings. Only public repositories count towards languages and stars.
+</details>
+
+<details>
+<summary>My pet changed species, or has an unexpected name</summary>
+
+The species follows your top language, and each species has its own default name. Pin both, e.g. `pet.svg?species=crab&name=Pinchy`.
+</details>
+
+<details>
+<summary>My pet disappeared</summary>
+
+If there's a note on a stake, it ran away after 30 days without contributions. Your next commit brings it home, or add `runaway=false` so it never leaves.
+
+If there's a postcard instead, it's just on a weekend trip: it only travels on weekend days you haven't contributed yet, and a commit brings it straight back on the next run.
+</details>
+
+<details>
+<summary>Visitors commented in the house but nothing happened</summary>
+
+Check that the workflow has the `issue_comment` trigger, `issues: write`, and `care: true`, and that the house issue's title starts with `ProfileForge:`. Only comments whose first word is an allowed command count. Each visitor can do each action once a day (they get 👀 after that), and the card updates a few minutes later (see the first question).
+</details>
 
 ## Self-hosting
 

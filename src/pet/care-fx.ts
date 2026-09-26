@@ -1,8 +1,8 @@
 /**
- * How visitors' care shows on the pet card: smudges, stink and flies when it needs a bath,
- * soap bubbles right after one, a food bowl and a ball on the ground.
+ * Grime on the pet card: smudges, stink and flies when it needs a bath. (Fresh visits are
+ * scenes of their own, in visits.ts.)
  */
-import type { CareView } from "../care/view.js";
+import type { CareView, Visitor } from "../care/view.js";
 import { seeded } from "../random.js";
 import { RectBatch } from "../svg/batch.js";
 
@@ -13,8 +13,6 @@ export const CARE_CSS = `
 @keyframes pf-orbit{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
 .pf-buzz{animation:pf-buzz-fly .15s steps(1) infinite}
 @keyframes pf-buzz-fly{0%{opacity:1}50%{opacity:.4}100%{opacity:.4}}
-.pf-soap{opacity:0;animation:pf-soap 3s ease-out infinite}
-@keyframes pf-soap{0%{transform:translateY(0);opacity:0}15%{opacity:.9}100%{transform:translateY(-30px);opacity:0}}
 `;
 
 /** Drawn in sprite coordinates, so it moves with the pet. */
@@ -53,27 +51,7 @@ export function careOverlay(care: CareView | undefined, w: number, h: number, sc
       );
     }
   }
-  if (care.bathed) {
-    for (const [i, x] of [w * 0.15, w * 0.5, w * 0.85].entries()) {
-      out.push(
-        `<rect class="pf-soap" style="animation-delay:-${(i * 1).toFixed(1)}s" x="${Math.round(x)}" y="${Math.round(h * 0.3)}" width="${2 * scale}" height="${2 * scale}" rx="${scale}" fill="none" stroke="#9fd0ec" stroke-width="1.5"/>`,
-      );
-    }
-  }
   return out.join("");
-}
-
-/** A food bowl and a ball on the ground, in card coordinates. */
-export function careProps(care: CareView | undefined, left: number, right: number, ground: number): string {
-  if (!care) return "";
-  const b = new RectBatch();
-  if (care.fed) {
-    b.add("#b5543a", left, ground + 2, 20, 6).add("#b5543a", left + 2, ground + 8, 16, 2).add("#e9c46a", left + 3, ground, 14, 3);
-  }
-  if (care.played) {
-    b.add("#e63946", right - 12, ground + 1, 10, 10).add("#ffffff", right - 12, ground + 5, 10, 2);
-  }
-  return b.toString();
 }
 
 /**
@@ -81,7 +59,10 @@ export function careProps(care: CareView | undefined, left: number, right: numbe
  * and the panel escapes the whole line.
  */
 export function visitorLine(care: CareView | undefined): string | null {
-  if (!care?.visitor) return null;
-  const who = care.visitor.login;
-  return { feed: `Fed by ${who} ♥`, bath: `Bathed by ${who} ✧`, play: `Played with ${who} ♪` }[care.visitor.action];
+  return care?.visitor ? lineFor(care.visitor) : null;
+}
+
+/** "Fed by …", "Bathed by …" or "Played with …". */
+export function lineFor(v: Visitor): string {
+  return { feed: `Fed by ${v.login} ♥`, bath: `Bathed by ${v.login} ✧`, play: `Played with ${v.login} ♪` }[v.action];
 }

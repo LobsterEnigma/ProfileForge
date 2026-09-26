@@ -16,6 +16,7 @@ const PROFILE_QUERY = /* GraphQL */ `
     user(login: $login) {
       login
       name
+      createdAt
       followers { totalCount }
       contributionsCollection {
         contributionYears
@@ -49,6 +50,7 @@ interface ProfileResponse {
   user: {
     login: string;
     name: string | null;
+    createdAt: string;
     followers: { totalCount: number };
     contributionsCollection: {
       contributionYears: number[];
@@ -140,6 +142,7 @@ export async function fetchProfile(login: string, token: string): Promise<GitHub
   return {
     login: user.login,
     name: user.name,
+    createdAt: user.createdAt,
     followers: user.followers.totalCount,
     totalStars: repos.reduce((sum, r) => sum + r.stargazerCount, 0),
     lifetimeContributions: await fetchLifetimeContributions(token, user.login, cc.contributionYears),

@@ -10,15 +10,42 @@
 .pf-value{font:400 11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:var(--pf-text)}
 .pf-stat{font:700 16px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:var(--pf-text)}
 .pf-mood{font:400 12px 'Segoe UI',Ubuntu,'Helvetica Neue',sans-serif;fill:var(--pf-muted)}
+.pf-icon-beat,.pf-icon-wobble,.pf-icon-shake{transform-box:fill-box;transform-origin:center}
+.pf-icon-beat{animation:pf-icon-beat 1.2s ease-in-out infinite}
+@keyframes pf-icon-beat{0%,45%,100%{transform:scale(1)}15%{transform:scale(1.3)}30%{transform:scale(1.1)}}
+.pf-icon-bob{animation:pf-icon-bob 1.6s ease-in-out infinite alternate}
+@keyframes pf-icon-bob{to{transform:translateY(-2px)}}
+.pf-icon-shake{animation:pf-icon-shake 2.4s linear infinite}
+@keyframes pf-icon-shake{0%,70%,100%{transform:none}75%,85%{transform:rotate(-12deg)}80%,90%{transform:rotate(12deg)}}
+.pf-icon-doze{animation:pf-icon-doze 3s ease-in-out infinite}
+@keyframes pf-icon-doze{0%,100%{opacity:1;transform:none}50%{opacity:.4;transform:translate(1px,-2px)}}
+.pf-icon-wobble{animation:pf-icon-shake 3s linear infinite}
+.pf-icon-step{animation:pf-icon-doze 2s steps(2) infinite}
+.pf-shine{animation:pf-shine 7s ease-in-out infinite}
+@keyframes pf-shine{0%,70%{transform:translateX(0)}100%{transform:translateX(210px)}}
+.pf-glint{animation:pf-glint 5s ease-in-out infinite}
+@keyframes pf-glint{0%,60%{transform:translateX(0);opacity:0}64%{opacity:.6}96%{opacity:.6}100%{transform:translateX(var(--w));opacity:0}}
+.pf-charge{animation:pf-charge 2.4s ease-in-out infinite}
+@keyframes pf-charge{0%,100%{opacity:.12}50%{opacity:.45}}
 
 .pf-fa{animation:pf-a 1s steps(1) infinite}
 .pf-fb{opacity:0;animation:pf-b 1s steps(1) infinite}
 @keyframes pf-a{0%{opacity:1}50%{opacity:0}100%{opacity:0}}
 @keyframes pf-b{0%{opacity:0}50%{opacity:1}100%{opacity:1}}
-.pf-blink-open{animation:pf-blink-open 4.2s steps(1) infinite}
-.pf-blink-shut{opacity:0;animation:pf-blink-shut 4.2s steps(1) infinite}
-@keyframes pf-blink-open{0%{opacity:1}94%{opacity:0}98%{opacity:1}100%{opacity:1}}
-@keyframes pf-blink-shut{0%{opacity:0}94%{opacity:1}98%{opacity:0}100%{opacity:0}}
+
+.pf-eo{animation:pf-eo 7s steps(1) infinite}
+.pf-eg{opacity:0;animation:pf-eg 7s steps(1) infinite}
+.pf-es{opacity:0;animation:pf-es 7s steps(1) infinite}
+@keyframes pf-eo{0%{opacity:1}38%{opacity:0}52%{opacity:1}90%{opacity:0}95%{opacity:1}100%{opacity:1}}
+@keyframes pf-eg{0%{opacity:0}38%{opacity:1}52%{opacity:0}100%{opacity:0}}
+@keyframes pf-es{0%{opacity:0}90%{opacity:1}95%{opacity:0}100%{opacity:0}}
+.pf-emote{opacity:0;transform-box:fill-box;transform-origin:0 100%;animation:pf-emote 9s ease-out infinite}
+@keyframes pf-emote{0%,40%{opacity:0;transform:scale(.3)}43%,51%{opacity:1;transform:scale(1)}54%,100%{opacity:0;transform:scale(1)}}
+.pf-emote-fast{opacity:0;transform-box:fill-box;transform-origin:0 100%;animation:pf-emote-fast 3.6s ease-out infinite}
+@keyframes pf-emote-fast{0%{opacity:0;transform:scale(.3)}8%,40%{opacity:1;transform:scale(1)}50%,100%{opacity:0}}
+.pf-stars{transform-box:fill-box;transform-origin:center;animation:pf-orbit-stars 1.2s linear infinite}
+@keyframes pf-orbit-stars{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
 .pf-bob{animation:pf-bob 2s ease-in-out infinite}
 @keyframes pf-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 
@@ -42,6 +69,11 @@
 .pf-twinkle{transform-box:fill-box;transform-origin:center;animation:pf-twinkle 1.8s ease-in-out infinite}
 @keyframes pf-twinkle{0%,100%{opacity:.15;transform:scale(.5)}50%{opacity:1;transform:scale(1)}}
 .pf-star{opacity:var(--pf-stars)}
+.pf-day{opacity:calc(.85 - var(--pf-stars) * .85)}
+.pf-cloud{animation:pf-cloud 80s linear infinite}
+@keyframes pf-cloud{from{transform:translateX(var(--from))}to{transform:translateX(var(--to))}}
+.pf-shoot{opacity:0;animation:pf-shoot 11s ease-in infinite}
+@keyframes pf-shoot{0%,88%{opacity:0;transform:translate(0,0)}90%{opacity:1}97%,100%{opacity:0;transform:translate(-60px,28px)}}
 
 .pf-fall{animation:pf-fall 10s linear infinite}
 .pf-spin{transform-box:fill-box;transform-origin:center}
@@ -58,8 +90,49 @@
 @keyframes pf-fog{0%{transform:translateX(-50px)}100%{transform:translateX(50px)}}
 
 .pf-tint{opacity:calc(.75 - var(--pf-stars) * .4)}
+
+.pf-stink{opacity:0;animation:pf-stink 2.8s ease-out infinite}
+@keyframes pf-stink{0%{transform:translateY(0);opacity:0}20%{opacity:.8}100%{transform:translateY(-22px);opacity:0}}
+.pf-orbit{animation:pf-orbit 2.2s linear infinite}
+@keyframes pf-orbit{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.pf-buzz{animation:pf-buzz-fly .15s steps(1) infinite}
+@keyframes pf-buzz-fly{0%{opacity:1}50%{opacity:.4}100%{opacity:.4}}
+
+
+.pf-scrub{transform-box:fill-box;transform-origin:50% 100%;animation:pf-scrub 1.6s ease-in-out infinite}
+@keyframes pf-scrub{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg) translateY(-1px)}}
+.pf-suds{animation:pf-suds 1.6s ease-in-out infinite}
+@keyframes pf-suds{0%,100%{transform:translate(0,0)}50%{transform:translate(1px,-2px)}}
+.pf-duck{animation:pf-duck 2.2s ease-in-out infinite}
+@keyframes pf-duck{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-2px) rotate(-6deg)}}
+.pf-drop{opacity:0;animation:pf-drop .7s linear infinite}
+@keyframes pf-drop{0%{transform:translateY(0);opacity:0}10%{opacity:.9}90%{opacity:.9}100%{transform:translateY(var(--fall));opacity:0}}
+.pf-bubble{opacity:0;animation:pf-bubble 3s ease-out infinite}
+@keyframes pf-bubble{0%{transform:translate(0,0);opacity:0}10%{opacity:1}80%{opacity:1;transform:translate(var(--dx),-34px)}82%,100%{opacity:0;transform:translate(var(--dx),-36px)}}
+.pf-steam{opacity:0;animation:pf-steam 4s ease-out infinite}
+@keyframes pf-steam{0%{transform:translate(0,0);opacity:0}25%{opacity:.55}100%{transform:translate(4px,-26px);opacity:0}}
+.pf-run{animation:pf-run .3s ease-in-out infinite}
+@keyframes pf-run{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.pf-catch{opacity:0;transform-box:fill-box;transform-origin:0 100%;animation:pf-catch 6s steps(1) infinite}
+.pf-dust{opacity:0;transform-box:fill-box;transform-origin:center;animation:pf-dust 6s ease-out infinite}
+
 @media (prefers-reduced-motion:reduce){.pf *{animation:none!important}}
-</style>
+.pf-amb-ripple{transform-box:fill-box;transform-origin:center;animation:pf-amb-ripple 3s ease-out infinite}@keyframes pf-amb-ripple{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.6);opacity:0}}
+.pf-amb-fish{opacity:0;transform-box:fill-box;transform-origin:center;animation:pf-amb-fish 8s ease-in-out infinite}@keyframes pf-amb-fish{0%,70%{opacity:0;transform:translate(-8px,4px) rotate(-40deg)}72%{opacity:1}80%{transform:translate(0,-14px) rotate(0)}88%{opacity:1;transform:translate(8px,2px) rotate(40deg)}90%,100%{opacity:0;transform:translate(8px,4px) rotate(40deg)}}@keyframes pf-p-happy-turtle{0%{transform:translateX(0px)}6.25%{transform:translateX(34px)}12.5%{transform:translateX(-34px)}18.75%{transform:translateX(34px)}25%{transform:translateX(0px)}45.833%{transform:translateX(0px)}50%{transform:translateX(20px)}58.333%{transform:translateX(20px)}66.667%{transform:translateX(-30px)}75%{transform:translateX(-30px)}83.333%{transform:translateX(0px)}100%{transform:translateX(0px)}}
+.pf-p-happy-turtle{animation:pf-p-happy-turtle 24s ease-in-out var(--pf-t0,0s) infinite}
+@keyframes pf-f-happy-turtle{0%{transform:scaleX(1)}6.25%{transform:scaleX(-1)}12.5%{transform:scaleX(1)}18.75%{transform:scaleX(-1)}45.833%{transform:scaleX(1)}58.333%{transform:scaleX(-1)}75%{transform:scaleX(1)}100%{transform:scaleX(1)}}
+.pf-f-happy-turtle{transform-box:fill-box;transform-origin:center;animation:pf-f-happy-turtle 24s steps(1) var(--pf-t0,0s) infinite}
+@keyframes pf-b-jump-happy-turtle{0%{transform:none}50.833%{transform:none}51.563%{transform:scale(1.06,.9)}53.021%{transform:translateY(-26px) scale(.95,1.08)}54.479%{transform:translateY(-22px)}55.937%{transform:none}56.667%{transform:none}67.5%{transform:none}68.229%{transform:scale(1.06,.9)}69.688%{transform:translateY(-26px) scale(.95,1.08)}71.146%{transform:translateY(-22px)}72.604%{transform:none}73.333%{transform:none}100%{transform:none}}
+.pf-b-jump-happy-turtle{transform-box:fill-box;transform-origin:50% 100%;animation:pf-b-jump-happy-turtle 24s ease-in-out var(--pf-t0,0s) infinite}
+@keyframes pf-b-spin-happy-turtle{0%{transform:none}25.833%{transform:none}26.667%{transform:translateY(-10px) scaleX(-1)}28.333%{transform:translateY(-16px) scaleX(1)}30%{transform:translateY(-10px) scaleX(-1)}31.667%{transform:none}32.5%{transform:none}100%{transform:none}}
+.pf-b-spin-happy-turtle{transform-box:fill-box;transform-origin:50% 100%;animation:pf-b-spin-happy-turtle 24s steps(1) var(--pf-t0,0s) infinite}
+@keyframes pf-e0-happy-turtle{0%{opacity:0}50%{opacity:1}58.333%{opacity:0}100%{opacity:0}}
+.pf-e0-happy-turtle{opacity:0;animation:pf-e0-happy-turtle 24s steps(1) var(--pf-t0,0s) infinite}
+@keyframes pf-e1-happy-turtle{0%{opacity:0}66.667%{opacity:1}74.167%{opacity:0}100%{opacity:0}}
+.pf-e1-happy-turtle{opacity:0;animation:pf-e1-happy-turtle 24s steps(1) var(--pf-t0,0s) infinite}.pf-k0-hiccup{transform-box:fill-box;transform-origin:50% 100%;animation:pf-k0-hiccup 48s ease-out var(--pf-t0,0s) infinite}@keyframes pf-k0-hiccup{0%,17.5%,100%{transform:none}18.25%{transform:translateY(-7px) scale(.96,1.05)}18.625%{transform:none}19.5%{transform:translateY(-7px) scale(.96,1.05)}19.875%{transform:none}20.75%{transform:translateY(-7px) scale(.96,1.05)}21.125%{transform:none}}
+.pf-k0-show{opacity:0;animation:pf-k0-show 48s steps(1) var(--pf-t0,0s) infinite}@keyframes pf-k0-show{0%{opacity:0}17.5%{opacity:1}22%{opacity:0}100%{opacity:0}}.pf-k1-raise{transform-box:fill-box;transform-origin:50% 100%;animation:pf-k1-raise 48s ease-out var(--pf-t0,0s) infinite}@keyframes pf-k1-raise{0%,42.5%,47%,100%{transform:none}43%{transform:scale(1.06,.9)}43.5%,46.5%{transform:translateY(-4px) scale(.97,1.05)}}
+.pf-k1-lift{opacity:0;animation:pf-k1-lift 48s ease-out var(--pf-t0,0s) infinite}@keyframes pf-k1-lift{0%,43.225%{opacity:0;transform:translateY(10px)}43.25%{opacity:1;transform:translateY(10px)}44%,46.5%{opacity:1;transform:none}47%,100%{opacity:0;transform:none}}.pf-k2-juggle{opacity:0;animation:pf-k2-juggle 48s ease-in-out var(--pf-t0,0s) infinite}@keyframes pf-k2-juggle{0%,67.404%{opacity:0;transform:none}67.5%{opacity:1;transform:none}68.25%{transform:translate(var(--jx),-22px)}69%{transform:none}69.75%{transform:translate(var(--jx),-22px)}70.5%{transform:none}71.25%{transform:translate(var(--jx),-22px)}72%{opacity:1;transform:none}72.233%,100%{opacity:0}}.pf-k3-zoom{animation:pf-k3-zoom 48s ease-in-out var(--pf-t0,0s) infinite}@keyframes pf-k3-zoom{0%,92.5%,100%{transform:translateX(0)}93.75%{transform:translateX(44px)}95.25%{transform:translateX(-44px)}96.75%{transform:translateX(0)}}
+.pf-k3-show{opacity:0;animation:pf-k3-show 48s steps(1) var(--pf-t0,0s) infinite}@keyframes pf-k3-show{0%{opacity:0}92.5%{opacity:1}97%{opacity:0}100%{opacity:0}}</style>
 
 <rect width="480" height="190" rx="10" style="fill:var(--pf-bg)"/>
 <rect x=".5" y=".5" width="479" height="189" rx="10" fill="none" style="stroke:var(--pf-border)"/>
@@ -76,29 +149,36 @@
 </defs>
 <g clip-path="url(#pf-clip)">
   <rect x="12" y="12" width="200" height="166" fill="url(#pf-sky)"/>
-  <g class="pf-star"><rect class="pf-twinkle" style="animation-delay:-0s" x="28" y="26" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-0.7s" x="62" y="44" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-1.3s" x="96" y="22" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-0.4s" x="138" y="38" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-1.1s" x="178" y="24" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-0.2s" x="196" y="56" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-1.5s" x="44" y="70" width="3" height="3" fill="#fff"/></g>
+  <g class="pf-star"><rect class="pf-twinkle" style="animation-delay:-0s" x="28" y="26" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-0.7s" x="62" y="44" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-1.3s" x="96" y="22" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-0.4s" x="138" y="38" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-1.1s" x="178" y="24" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-0.2s" x="196" y="56" width="3" height="3" fill="#fff"/><rect class="pf-twinkle" style="animation-delay:-1.5s" x="44" y="70" width="3" height="3" fill="#fff"/></g><g class="pf-day"><g class="pf-cloud" style="--from:-32px;--to:210px;animation-duration:70s;animation-delay:-20s"><path fill="#ffffff" d="M12 42h28v8h-28zM18 36h14v6h-14zM16 50h22v4h-22z"/></g><g class="pf-cloud" style="--from:-32px;--to:210px;animation-duration:95s;animation-delay:-70s"><path fill="#ffffff" d="M12 70h21v6h-21zM16.5 65.5h10.5v4.5h-10.5zM15 76h16.5v3h-16.5z"/></g></g><g class="pf-star"><g class="pf-shoot"><rect x="172" y="26" width="14" height="1.5" fill="#ffffff" transform="rotate(-25 179 27)"/></g></g>
   <rect x="12" y="144" width="200" height="34" style="fill:var(--pf-ground)"/>
   <path d="M12 144h8v-3h-8zM28 144h8v-3h-8zM44 144h8v-3h-8zM60 144h8v-3h-8zM76 144h8v-3h-8zM92 144h8v-3h-8zM108 144h8v-3h-8zM124 144h8v-3h-8zM140 144h8v-3h-8zM156 144h8v-3h-8zM172 144h8v-3h-8zM188 144h8v-3h-8zM204 144h8v-3h-8z" style="fill:var(--pf-ground)"/>
   <rect class="pf-tint" x="12" y="141" width="200" height="37" fill="#79b865"/>
   
   <path fill="#5fa8d3" d="M142 150h56v14h-56zM148 148h44v2h-44zM148 164h44v2h-44z"/><path fill="#9fd0ec" d="M154 153h12v2h-12z"/><path fill="#3f8f4f" d="M176 154h10v5h-10z"/><path fill="#ff8fa3" d="M179 153h3v2h-3z"/><path fill="#2c6b3a" d="M200 128h2v22h-2zM204 128h2v22h-2z"/><path fill="#8a5a33" d="M200 124h2v5h-2zM204 124h2v5h-2z"/>
+  <ellipse class="pf-amb-ripple" style="animation-delay:-0s" cx="162" cy="157" rx="8" ry="2.5" fill="none" stroke="#d0ebff" stroke-width="1"/><ellipse class="pf-amb-ripple" style="animation-delay:-1.5s" cx="162" cy="157" rx="8" ry="2.5" fill="none" stroke="#d0ebff" stroke-width="1"/><g class="pf-amb-fish"><path fill="#ff922b" d="M160 155h4v2h-4zM156 157h12v2h-12zM158 159h4v2h-4zM164 159h4v2h-4z"/></g>
+  
   <g>
-  <g class=""><rect class="pf-shadow pf-jump-shadow" x="80" y="146" width="64" height="6" rx="3" opacity=".35" style="fill:var(--pf-ground-dark)"/><g transform="translate(72 100)"><g class="pf-jump"><g class="pf-fa" style="animation-duration:0.6s"><path fill="#13304f" d="M16 36h4v4h-4zM24 36h4v4h-4zM16 40h4v4h-4zM24 40h4v4h-4zM16 44h12v4h-12zM44 36h4v4h-4zM52 36h4v4h-4zM44 40h4v4h-4zM52 40h4v4h-4zM44 44h12v4h-12z"/><path fill="#9ad3a8" d="M20 36h4v4h-4zM20 40h4v4h-4zM48 36h4v4h-4zM48 40h4v4h-4z"/></g><g class="pf-fb" style="animation-duration:0.6s"><path fill="#13304f" d="M20 36h4v4h-4zM28 36h4v4h-4zM20 40h4v4h-4zM28 40h4v4h-4zM20 44h12v4h-12zM40 36h4v4h-4zM48 36h4v4h-4zM40 40h4v4h-4zM48 40h4v4h-4zM40 44h12v4h-12z"/><path fill="#9ad3a8" d="M24 36h4v4h-4zM24 40h4v4h-4zM44 36h4v4h-4zM44 40h4v4h-4z"/></g><path fill="#13304f" d="M4 28h8v4h-8zM8 32h4v4h-4zM24 8h24v4h-24zM16 12h8v4h-8zM48 12h8v4h-8zM12 16h4v4h-4zM56 16h4v4h-4zM12 20h4v4h-4zM56 20h4v4h-4zM12 24h4v4h-4zM56 24h4v4h-4zM12 28h4v4h-4zM56 28h4v4h-4zM12 32h4v4h-4zM56 32h4v4h-4zM16 36h40v4h-40zM60 16h16v4h-16zM56 20h4v4h-4zM76 20h4v4h-4zM56 24h4v4h-4zM76 24h4v4h-4zM56 28h4v4h-4zM76 28h4v4h-4zM60 32h16v4h-16z"/><path fill="#7fb0e8" d="M24 12h4v4h-4zM16 16h4v4h-4z"/><path fill="#3178c6" d="M28 12h20v4h-20zM20 16h12v4h-12zM40 16h16v4h-16zM16 20h12v4h-12zM32 20h8v4h-8zM44 20h12v4h-12zM16 24h8v4h-8zM28 24h16v4h-16zM48 24h8v4h-8zM16 28h12v4h-12zM44 28h12v4h-12z"/><path fill="#235a97" d="M32 16h8v4h-8zM28 20h4v4h-4zM40 20h4v4h-4zM24 24h4v4h-4zM44 24h4v4h-4zM28 28h16v4h-16z"/><path fill="#9fc3ec" d="M16 32h40v4h-40z"/><path fill="#9ad3a8" d="M60 20h16v4h-16zM60 24h16v4h-16zM60 28h16v4h-16z"/><path fill="#111111" d="M68 28h8v4h-8zM72 24h4v4h-4z"/><path fill="#ff8fa3" d="M60 28h4v4h-4z"/><path fill="#111111" d="M68 20h4v4h-4zM64 24h4v4h-4z"/></g></g></g>
-  <g class="pf-rise" style="animation-delay:-0.3s"><path fill="#ff5c7a" d="M80 100h4v2h-4zM86 100h4v2h-4zM80 102h10v2h-10zM82 104h6v2h-6zM84 106h2v2h-2z"/></g><g class="pf-rise" style="animation-delay:-1.2s"><path fill="#ff5c7a" d="M112 94h4v2h-4zM118 94h4v2h-4zM112 96h10v2h-10zM114 98h6v2h-6zM116 100h2v2h-2z"/></g><g class="pf-rise" style="animation-delay:-2.1s"><path fill="#ff5c7a" d="M140 104h4v2h-4zM146 104h4v2h-4zM140 106h10v2h-10zM142 108h6v2h-6zM144 110h2v2h-2z"/></g>
+  <g class="pf-p-happy-turtle"><rect class="pf-shadow pf-jump-shadow" x="80" y="146" width="64" height="6" rx="3" opacity=".35" style="fill:var(--pf-ground-dark)"/><g transform="translate(72 100)"><g class="pf-jump"><g class="pf-b-spin-happy-turtle"><g class="pf-b-jump-happy-turtle"><g class="pf-f-happy-turtle"><g class="pf-k3-zoom"><g class="pf-k1-raise"><g class="pf-k0-hiccup"><g class="pf-fa" style="animation-duration:0.6s"><path fill="#13304f" d="M16 36h4v4h-4zM24 36h4v4h-4zM16 40h4v4h-4zM24 40h4v4h-4zM16 44h12v4h-12zM44 36h4v4h-4zM52 36h4v4h-4zM44 40h4v4h-4zM52 40h4v4h-4zM44 44h12v4h-12z"/><path fill="#9ad3a8" d="M20 36h4v4h-4zM20 40h4v4h-4zM48 36h4v4h-4zM48 40h4v4h-4z"/></g><g class="pf-fb" style="animation-duration:0.6s"><path fill="#13304f" d="M20 36h4v4h-4zM28 36h4v4h-4zM20 40h4v4h-4zM28 40h4v4h-4zM20 44h12v4h-12zM40 36h4v4h-4zM48 36h4v4h-4zM40 40h4v4h-4zM48 40h4v4h-4zM40 44h12v4h-12z"/><path fill="#9ad3a8" d="M24 36h4v4h-4zM24 40h4v4h-4zM44 36h4v4h-4zM44 40h4v4h-4z"/></g><path fill="#13304f" d="M4 28h8v4h-8zM8 32h4v4h-4zM24 8h24v4h-24zM16 12h8v4h-8zM48 12h8v4h-8zM12 16h4v4h-4zM56 16h4v4h-4zM12 20h4v4h-4zM56 20h4v4h-4zM12 24h4v4h-4zM56 24h4v4h-4zM12 28h4v4h-4zM56 28h4v4h-4zM12 32h4v4h-4zM56 32h4v4h-4zM16 36h40v4h-40zM60 16h16v4h-16zM56 20h4v4h-4zM76 20h4v4h-4zM56 24h4v4h-4zM76 24h4v4h-4zM56 28h4v4h-4zM76 28h4v4h-4zM60 32h16v4h-16z"/><path fill="#7fb0e8" d="M24 12h4v4h-4zM16 16h4v4h-4z"/><path fill="#3178c6" d="M28 12h20v4h-20zM20 16h12v4h-12zM40 16h16v4h-16zM16 20h12v4h-12zM32 20h8v4h-8zM44 20h12v4h-12zM16 24h8v4h-8zM28 24h16v4h-16zM48 24h8v4h-8zM16 28h12v4h-12zM44 28h12v4h-12z"/><path fill="#235a97" d="M32 16h8v4h-8zM28 20h4v4h-4zM40 20h4v4h-4zM24 24h4v4h-4zM44 24h4v4h-4zM28 28h16v4h-16z"/><path fill="#9fc3ec" d="M16 32h40v4h-40z"/><path fill="#9ad3a8" d="M60 20h16v4h-16zM60 24h16v4h-16zM60 28h16v4h-16z"/><path fill="#111111" d="M68 28h8v4h-8zM72 24h4v4h-4z"/><path fill="#ff8fa3" d="M60 28h4v4h-4z"/><path fill="#111111" d="M68 20h4v4h-4zM64 24h4v4h-4z"/></g><g class="pf-k1-lift"><path fill="#216e39" d="M32 -4h16v4h-16zM32 0h4v4h-4zM44 0h4v4h-4zM32 4h4v4h-4zM44 4h4v4h-4zM32 8h16v4h-16z"/><path fill="#40c463" d="M36 0h8v4h-8zM36 4h8v4h-8z"/><path fill="#fff3a0" d="M27 0h2v2h-2zM25 2h6v2h-6zM27 4h2v2h-2z"/><path fill="#fff3a0" d="M59 -4h2v2h-2zM57 -2h6v2h-6zM59 0h2v2h-2z"/><path fill="#fff3a0" d="M31 -16h2v2h-2zM29 -14h6v2h-6zM31 -12h2v2h-2z"/><path fill="#fff3a0" d="M57 -18h2v2h-2zM55 -16h6v2h-6zM57 -14h2v2h-2z"/></g></g><rect class="pf-k2-juggle" style="--jx:12px;animation-delay:calc(var(--pf-t0,0s) + 0s)" x="24" y="10" width="8" height="8" rx="4" fill="#ff6b6b" stroke="#1f2328" stroke-width="1"/><rect class="pf-k2-juggle" style="--jx:0px;animation-delay:calc(var(--pf-t0,0s) + 0.36s)" x="36" y="10" width="8" height="8" rx="4" fill="#ffd43b" stroke="#1f2328" stroke-width="1"/><rect class="pf-k2-juggle" style="--jx:-12px;animation-delay:calc(var(--pf-t0,0s) + 0.72s)" x="48" y="10" width="8" height="8" rx="4" fill="#4dabf7" stroke="#1f2328" stroke-width="1"/><g class="pf-k3-show"><path fill="#8d96a0" d="M-16 16.799999999999997h12v2h-12zM-16 26.400000000000002h12v2h-12zM-16 36h12v2h-12z"/></g></g><g class="pf-k0-show"><rect x="74" y="0" width="34" height="14" rx="4" fill="#ffffff" stroke="#1f2328" stroke-width="1"/><rect x="77" y="13" width="3" height="3" fill="#ffffff" stroke="#1f2328" stroke-width="1"/><path fill="#1f2328" d="M78 2h2v2h-2zM82 2h2v2h-2zM86 2h6v2h-6zM96 2h4v2h-4zM102 2h2v2h-2zM78 4h2v2h-2zM82 4h2v2h-2zM88 4h2v2h-2zM94 4h2v2h-2zM102 4h2v2h-2zM78 6h6v2h-6zM88 6h2v2h-2zM94 6h2v2h-2zM102 6h2v2h-2zM78 8h2v2h-2zM82 8h2v2h-2zM88 8h2v2h-2zM94 8h2v2h-2zM78 10h2v2h-2zM82 10h2v2h-2zM86 10h6v2h-6zM96 10h4v2h-4zM102 10h2v2h-2z"/></g></g></g></g></g><g class="pf-e0-happy-turtle"><rect x="74" y="0" width="18" height="14" rx="4" fill="#ffffff" stroke="#1f2328" stroke-width="1"/><rect x="77" y="13" width="3" height="3" fill="#ffffff" stroke="#1f2328" stroke-width="1"/><path fill="#1f2328" d="M80 2h2v2h-2zM84 2h2v2h-2zM78 4h10v2h-10zM78 6h10v2h-10zM80 8h6v2h-6zM82 10h2v2h-2z"/></g><g class="pf-e1-happy-turtle"><rect x="74" y="0" width="16" height="14" rx="4" fill="#ffffff" stroke="#1f2328" stroke-width="1"/><rect x="77" y="13" width="3" height="3" fill="#ffffff" stroke="#1f2328" stroke-width="1"/><path fill="#1f2328" d="M82 2h4v2h-4zM82 4h2v2h-2zM82 6h2v2h-2zM78 8h6v2h-6zM78 10h4v2h-4z"/></g><g class="pf-rise" style="animation-delay:-0.3s"><path fill="#ff5c7a" d="M12 16h4v2h-4zM18 16h4v2h-4zM12 18h10v2h-10zM14 20h6v2h-6zM16 22h2v2h-2z"/></g><g class="pf-rise" style="animation-delay:-1.2s"><path fill="#ff5c7a" d="M44 16h4v2h-4zM50 16h4v2h-4zM44 18h10v2h-10zM46 20h6v2h-6zM48 22h2v2h-2z"/></g><g class="pf-rise" style="animation-delay:-2.1s"><path fill="#ff5c7a" d="M72 16h4v2h-4zM78 16h4v2h-4zM72 18h10v2h-10zM74 20h6v2h-6zM76 22h2v2h-2z"/></g></g></g>
+  
   </g>
+  
   <g><path class="pf-fall pf-spin" style="--dx:-6px;--spin:540deg;animation-duration:13.4s;animation-delay:-1.5s" fill="#f4a261" d="M39 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:-36px;--spin:540deg;animation-duration:11.0s;animation-delay:-5.2s" fill="#f4a261" d="M66 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:-10px;--spin:540deg;animation-duration:11.9s;animation-delay:-0.4s" fill="#e76f51" d="M177 12h2v1h2v2h-2v-1h-1v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:31px;--spin:-540deg;animation-duration:14.0s;animation-delay:-13.3s" fill="#e76f51" d="M124 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:28px;--spin:-540deg;animation-duration:11.9s;animation-delay:-9.7s" fill="#e76f51" d="M50 12h2v1h2v2h-2v-1h-1v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:31px;--spin:-540deg;animation-duration:12.3s;animation-delay:-10.3s" fill="#f4a261" d="M176 12h2v1h2v2h-2v-1h-1v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:4px;--spin:540deg;animation-duration:10.9s;animation-delay:-0.4s" fill="#f4a261" d="M128 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:-14px;--spin:540deg;animation-duration:9.2s;animation-delay:-5.4s" fill="#e9c46a" d="M147 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:38px;--spin:-540deg;animation-duration:9.4s;animation-delay:-7.6s" fill="#e76f51" d="M173 12h2v1h1v1h-2v-1h-1z"/><path class="pf-fall pf-spin" style="--dx:35px;--spin:-540deg;animation-duration:8.9s;animation-delay:-5.9s" fill="#f4a261" d="M115 12h2v1h1v1h-2v-1h-1z"/></g>
+  
 </g>
 
 <g>
   <text x="230" y="40" class="pf-name">Shelly</text>
+  <clipPath id="pf-name-clip"><text x="230" y="40" class="pf-name">Shelly</text></clipPath>
+  <g clip-path="url(#pf-name-clip)"><g class="pf-shine"><rect transform="skewX(-20)" x="222" y="20" width="10" height="26" style="fill:var(--pf-accent)" opacity=".75"/></g></g>
   <text x="230" y="61" class="pf-class"><tspan class="pf-accent">Lv.27 Knight</tspan><tspan class="pf-muted"> · TypeScript</tspan></text>
   
-  <text x="230" y="88" class="pf-label">HP</text><rect x="260" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="274" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="288" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="302" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="316" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="330" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="344" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="358" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="372" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="386" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-bar-empty)"/>
+  <text x="230" y="88" class="pf-label">HP</text><rect x="260" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="274" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="288" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="302" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="316" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="330" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="344" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="358" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="372" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-hp)"/><rect x="386" y="79" width="12" height="10" rx="1.5" style="fill:var(--pf-bar-empty)"/><rect class="pf-glint" style="--w:122px" x="260" y="79" width="3" height="10" fill="#ffffff" opacity="0"/>
   <text x="464" y="88" class="pf-value" text-anchor="end">13/14d</text>
   
-  <text x="230" y="108" class="pf-label">EXP</text><rect x="260" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="274" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="288" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="302" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="316" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="330" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="344" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-bar-empty)"/><rect x="358" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-bar-empty)"/><rect x="372" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-bar-empty)"/><rect x="386" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-bar-empty)"/>
+  <text x="230" y="108" class="pf-label">EXP</text><rect x="260" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="274" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="288" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="302" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="316" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="330" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect x="344" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-bar-empty)"/><rect x="358" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-bar-empty)"/><rect x="372" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-bar-empty)"/><rect x="386" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-bar-empty)"/><rect class="pf-charge" x="344" y="99" width="12" height="10" rx="1.5" style="fill:var(--pf-exp)"/><rect class="pf-glint" style="--w:80px" x="260" y="99" width="3" height="10" fill="#ffffff" opacity="0"/>
   <text x="464" y="108" class="pf-value" text-anchor="end">3.5k/3.6k</text>
   <text x="230" y="128" class="pf-label">STR</text><text x="230" y="147" class="pf-stat">40</text><text x="290" y="128" class="pf-label">INT</text><text x="290" y="147" class="pf-stat">31</text><text x="350" y="128" class="pf-label">CHA</text><text x="350" y="147" class="pf-stat">27</text><text x="410" y="128" class="pf-label">DEX</text><text x="410" y="147" class="pf-stat">26</text>
-  <text x="230" y="174" class="pf-mood">♥ Happy · 12-day streak!</text>
+  <g class="pf-icon-beat"><path fill="#ff5c7a" d="M230 164h4v2h-4zM236 164h4v2h-4zM230 166h10v2h-10zM232 168h6v2h-6zM234 170h2v2h-2z"/></g>
+  <text x="246" y="174" class="pf-mood">Happy · 12-day streak!</text>
 </g>
 </svg>

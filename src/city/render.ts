@@ -26,12 +26,15 @@ const SANS = "'Segoe UI',Ubuntu,'Helvetica Neue',sans-serif";
 const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
 const SHADES = ["var(--pf-bldg1)", "var(--pf-bldg2)", "var(--pf-bldg3)"];
 
+/** Round wheels with a light hub, so they read against the dark road. */
 const CAR: Grid = [
   "...ccccc....",
   "..cwwcwwc...",
   "qccccccccccy",
   "cccccccccccc",
-  ".kk......kk.",
+  "cckkcccckkcc",
+  ".kggk..kggk.",
+  "..kk....kk..",
 ];
 const CAR_COLORS = ["#e63946", "#4ea8de", "#f4a261"];
 
@@ -227,12 +230,12 @@ function street(state: CityState, season: Season, pet: string): string {
   // Traffic follows the last two weeks: no commits, empty streets.
   const cars = state.activeDays14 === 0 ? 0 : state.activeDays14 <= 4 ? 1 : state.activeDays14 <= 9 ? 2 : 3;
   const lanes = [
-    { dir: "r", y: 233, delay: 3 },
-    { dir: "l", y: 247, delay: 7 },
-    { dir: "r", y: 233, delay: 10 },
+    { dir: "r", y: 229, delay: 3 },
+    { dir: "l", y: 243, delay: 7 },
+    { dir: "r", y: 229, delay: 10 },
   ];
   const traffic = lanes.slice(0, cars).map(({ dir, y, delay }, i) => {
-    const palette = { c: CAR_COLORS[i]!, w: "#bde0fe", k: "#111111", y: "#fff3a0", q: "#ff4d4d" };
+    const palette = { c: CAR_COLORS[i]!, w: "#bde0fe", k: "#0b0b0f", g: "#c3c8d0", y: "#fff3a0", q: "#ff4d4d" };
     const grid = dir === "r" ? CAR : mirror(CAR);
     const beam =
       dir === "r"

@@ -13,7 +13,9 @@ import {
   reactionFor,
   redirectReply,
   serializeCareState,
+  DEFAULT_RULES,
   type CareIssue,
+  type CareRules,
   type CareState,
   type HandledComment,
 } from "../care/state.js";
@@ -36,6 +38,7 @@ export interface PrepareOptions {
   now: Date;
   /** The house issue, when the owner picked one (`care_issue`). */
   house?: number;
+  rules?: CareRules;
   fetch?: Fetch;
 }
 
@@ -54,7 +57,7 @@ const save = async (file: string, state: CareState) => {
   await writeFile(file, serializeCareState(state));
 };
 
-export async function prepareCare({ workspace, file, token, repo, now, house, fetch: f = fetch }: PrepareOptions): Promise<Prepared> {
+export async function prepareCare({ workspace, file, token, repo, now, house, rules = DEFAULT_RULES, fetch: f = fetch }: PrepareOptions): Promise<Prepared> {
   if (!file.endsWith(".json")) throw new Error(`care_file "${file}" must be a .json file`);
   const full = resolveInside(workspace, file);
   const warnings: string[] = [];
@@ -87,7 +90,7 @@ export async function prepareCare({ workspace, file, token, repo, now, house, fe
         { since: state.house.cursorAt, after: state.house.cursor, want: LIMITS.perRun },
         f,
       );
-      ({ state, handled } = applyComments(state, comments, now));
+      ({ state, handled } = applyComments(state, comments, now, rules));
     } catch (err) {
       warnings.push(`couldn't read the house's comments, skipping visits this run (${(err as Error).message})`);
     }
@@ -98,7 +101,7 @@ export async function prepareCare({ workspace, file, token, repo, now, house, fe
   const strays = issues.filter((i) => i.number !== state.house.issue && i.userType === "User" && i.login.toLowerCase() !== owner);
 
   await save(full, state);
-  return { care: { state, now }, file: full, handled, strays, warnings };
+  return { care: { state, now, rules }, file: full, handled, strays, warnings };
 }
 
 /**
@@ -108,7 +111,7 @@ export async function prepareCare({ workspace, file, token, repo, now, house, fe
 export async function ensureHouse(prepared: Prepared, token: string, repo: string, petName: string, f: Fetch = fetch): Promise<number | null> {
   const { state } = prepared.care;
   if (state.house.issue !== null) return null;
-  const { title, body } = houseIssue(petName);
+  const { title, body } = houseIssue(petName, prepared.care.rules);
   const number = await createIssue(token, repo, title, body, f);
   state.house.issue = number;
   await save(prepared.file, state);

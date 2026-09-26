@@ -225,7 +225,8 @@ describe("careView and applyCare", () => {
   it("renders every level of care as valid SVG", () => {
     for (const dirt of [0, 1, 2, 3] as const) {
       for (const mood of ["happy", "idle", "hungry", "sleeping"] as const) {
-        const care = { fed: true, bathed: dirt === 0, played: true, dirt, visitor: { login: "octocat", action: "play" as const } };
+        const visitor = { login: "octocat", action: "play" as const };
+        const care = { fed: true, bathed: dirt === 0, played: true, dirt, visitor, visitors: [visitor] };
         const svg = renderPetCard({ ...demoState(mood), care });
         expect(XMLValidator.validate(svg)).toBe(true);
         expect(svg).not.toMatch(/undefined|NaN/);

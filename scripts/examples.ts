@@ -17,6 +17,15 @@ for (const mood of MOODS) write(`mood-${mood}.svg`, renderPetCard(demoState(mood
 for (const stage of STAGES) write(`stage-${stage}.svg`, renderPetCard(demoState("happy", stage)));
 for (const theme of THEME_NAMES) write(`theme-${theme}.svg`, renderPetCard(demoState("idle", "adult"), { theme }));
 for (const species of Object.keys(SPECIES)) write(`species-${species}.svg`, renderPetCard(demoState("happy", "adult", undefined, species)));
+const surprises = [
+  ["christmas", "crab"],
+  ["lunar-new-year", "chick"],
+  ["halloween", "gopher"],
+  ["mid-autumn", "snake"],
+  ["postcard", "turtle"],
+  ["birthday", "elephant"],
+] as const;
+for (const [surprise, species] of surprises) write(`surprise-${surprise}.svg`, renderPetCard(demoState("idle", "adult", undefined, species, { surprise })));
 
 const city = computeCityState(demoProfile());
 write("city.svg", renderCityCard(city));

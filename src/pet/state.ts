@@ -1,4 +1,4 @@
-import type { ContributionDay, GitHubProfile, Mood, PetState, PetStats, Stage } from "../types.js";
+import type { ContributionDay, GitHubProfile, Moments, Mood, PetState, PetStats, Stage } from "../types.js";
 import { classForLanguage } from "./classes.js";
 import { getSpecies, speciesForLanguage } from "./species/index.js";
 
@@ -61,10 +61,48 @@ export function statFor(value: number): number {
   return Math.max(1, Math.min(99, Math.round(25 * Math.log10(Math.max(0, value) + 1))));
 }
 
+/** Days of silence that make a return worth a welcome. */
+export const WELCOME_BACK_DAYS = 7;
+
+/**
+ * Milestones worth celebrating on the card. Level-ups and returns count for two days, so a
+ * late-night commit still gets its party when the card refreshes the next morning.
+ */
+export function momentsFor(profile: GitHubProfile, xp: number, level: number, date: string): Moments {
+  const moments: Moments = {};
+  const cal = profile.calendar;
+
+  if (profile.createdAt) {
+    const born = profile.createdAt.slice(0, 10);
+    const years = Number(date.slice(0, 4)) - Number(born.slice(0, 4));
+    // Leap-day accounts celebrate on the 28th in other years.
+    const leap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+    const md = born.slice(5) === "02-29" && !leap(Number(date.slice(0, 4))) ? "02-28" : born.slice(5);
+    if (years >= 1 && date.slice(5) === md) moments.birthday = years;
+  }
+
+  const recent = cal.slice(-2).reduce((sum, d) => sum + d.count, 0);
+  const before = levelForXp(xp - recent);
+  if (recent > 0 && before < level) moments.levelUp = before;
+
+  // The last contribution was today or yesterday, after a long silence.
+  let i = cal.length - 1;
+  while (i >= 0 && cal[i]!.count === 0) i--;
+  if (i >= cal.length - 2) {
+    let gap = 0;
+    for (let j = i - 1; j >= 0 && cal[j]!.count === 0; j--) gap++;
+    // Only a real gap: a silence that ran into the start of the calendar may be longer still.
+    if (gap >= WELCOME_BACK_DAYS && i - 1 - gap >= 0) moments.welcomeBack = gap;
+  }
+  return moments;
+}
+
 export interface PetOptions {
   petName?: string;
   /** Defaults to the species for your top language. */
   species?: string;
+  /** `false` keeps the pet home no matter how long you're away. */
+  runaway?: boolean;
 }
 
 export function computePetState(profile: GitHubProfile, options: PetOptions = {}): PetState {
@@ -79,9 +117,11 @@ export function computePetState(profile: GitHubProfile, options: PetOptions = {}
     dex: statFor(profile.issues),
   };
 
+  const date = profile.calendar.at(-1)?.date ?? new Date().toISOString().slice(0, 10);
+
   return {
     login: profile.login,
-    date: profile.calendar.at(-1)?.date ?? new Date().toISOString().slice(0, 10),
+    date,
     petName: options.petName ?? species.defaultName,
     species: species.id,
     level,
@@ -96,6 +136,7 @@ export function computePetState(profile: GitHubProfile, options: PetOptions = {}
     streak: currentStreak(profile.calendar),
     daysSinceLastContribution: daysSinceLastContribution(profile.calendar),
     stats,
-    ranAway: level >= 3 && daysSinceLastContribution(profile.calendar) >= RUN_AWAY_DAYS,
+    ranAway: options.runaway !== false && level >= 3 && daysSinceLastContribution(profile.calendar) >= RUN_AWAY_DAYS,
+    moments: momentsFor(profile, xp, level, date),
   };
 }

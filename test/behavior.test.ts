@@ -1,6 +1,6 @@
 import { XMLValidator } from "fast-xml-parser";
 import { describe, expect, it } from "vitest";
-import { anchors, glance, TRICKS, trickFor } from "../src/pet/behavior.js";
+import { anchors, glance, TRICK_STARTS, TRICKS, trickFor, tricksFor } from "../src/pet/behavior.js";
 import { demoState } from "../src/demo.js";
 import { renderPetCard } from "../src/pet/render.js";
 import { SPECIES } from "../src/pet/species/index.js";
@@ -46,6 +46,23 @@ describe("tricks", () => {
     expect(trickFor("2026-09-25", "octocat")).toBe(trickFor("2026-09-25", "octocat"));
   });
 
+  it("lines up four different tricks a day, often with the species' own move", () => {
+    const days = Array.from({ length: 40 }, (_, i) => tricksFor(`2026-03-${String((i % 28) + 1).padStart(2, "0")}`, `u${i}`));
+    for (const day of days) {
+      expect(day).toHaveLength(TRICK_STARTS.length);
+      expect(new Set(day).size).toBe(day.length);
+    }
+    expect(days.filter((d) => d.includes("signature")).length).toBeGreaterThan(days.length / 2);
+    expect(new Set(days.flat()).size).toBeGreaterThanOrEqual(15);
+  });
+
+  it("gives each of today's tricks its own window", () => {
+    const svg = renderPetCard(demoState("happy", "adult", undefined, "crab"));
+    for (const slot of [0, 1, 2, 3]) expect(svg).toMatch(new RegExp(`class="pf-k${slot}-`));
+    // Slot 1 starts at 20.4s of the 48s loop: 42.5%.
+    expect(svg).toMatch(/@keyframes pf-k1-[\w-]+\{[^}]*42\.5%/);
+  });
+
   it("varies across days", () => {
     const seen = new Set(Array.from({ length: 60 }, (_, i) => trickFor(`2026-01-${String((i % 28) + 1).padStart(2, "0")}`, `u${i}`)));
     expect(seen.size).toBeGreaterThanOrEqual(5);
@@ -64,8 +81,8 @@ describe("tricks", () => {
   }
 
   it("only performs when the pet is in the mood", () => {
-    expect(renderPetCard(demoState("idle", "adult", undefined, "crab", { trick: "dance" }))).toContain('class="pf-dance"');
-    expect(renderPetCard(demoState("hungry", "adult", undefined, "crab", { trick: "dance" }))).not.toContain('class="pf-dance"');
+    expect(renderPetCard(demoState("idle", "adult", undefined, "crab", { trick: "dance" }))).toContain('class="pf-k0-dance"');
+    expect(renderPetCard(demoState("hungry", "adult", undefined, "crab", { trick: "dance" }))).not.toContain("pf-k0-dance");
     expect(renderPetCard(demoState("sleeping", "adult", undefined, "crab", { trick: "dance" }))).not.toContain('class="pf-emote"');
   });
 

@@ -2,35 +2,8 @@ import type { Rng } from "../random.js";
 import type { Canvas } from "./buildings.js";
 import { BASE_Y, W } from "./layout.js";
 
-export type Holiday = "halloween" | "christmas" | "new-year" | "lunar-new-year";
-
-/** Lunar New Year moves every year; these are the first days of each. */
-const LUNAR_NEW_YEAR: Record<number, string> = {
-  2026: "02-17",
-  2027: "02-06",
-  2028: "01-26",
-  2029: "02-13",
-  2030: "02-03",
-  2031: "01-23",
-  2032: "02-11",
-  2033: "01-31",
-  2034: "02-19",
-  2035: "02-08",
-};
-
-const DAY = 86_400_000;
-
-export function holidayFor(date: string): Holiday | null {
-  const md = date.slice(5);
-  if (md >= "10-25" && md <= "10-31") return "halloween";
-  if (md >= "12-18" && md <= "12-26") return "christmas";
-  if (md === "12-31" || md === "01-01") return "new-year";
-  const lny = LUNAR_NEW_YEAR[Number(date.slice(0, 4))];
-  if (lny && Math.abs(Date.parse(`${date}T00:00:00Z`) - Date.parse(`${date.slice(0, 4)}-${lny}T00:00:00Z`)) <= 3 * DAY) {
-    return "lunar-new-year";
-  }
-  return null;
-}
+export { holidayFor, type Holiday } from "../world/calendar.js";
+import type { Holiday } from "../world/calendar.js";
 
 export const EVENTS_CSS = `
 .pf-xmas-a{animation:pf-xmas 1.4s steps(1) infinite}

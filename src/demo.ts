@@ -1,6 +1,8 @@
-import type { ContributionDay, GitHubProfile, Mood, PetState, Stage, Trick } from "./types.js";
+import type { ContributionDay, GitHubProfile, Mood, PetState, Stage, Surprise, Trick } from "./types.js";
 import type { CareAction } from "./care/commands.js";
+import type { CareView, Visitor } from "./care/view.js";
 import { seeded } from "./random.js";
+import type { Holiday } from "./world/calendar.js";
 import { classForLanguage } from "./pet/classes.js";
 import { getSpecies } from "./pet/species/index.js";
 import { xpForLevel } from "./pet/state.js";
@@ -32,18 +34,59 @@ export interface DemoExtras {
   trick?: Trick;
   /** Pretend the pet has run away (a month without contributions). */
   away?: boolean;
-  /** Pretend a visitor just did this (care previews). */
-  visit?: CareAction;
+  /** Pretend a visitor just did this, or `all` for three visitors taking turns (care previews). */
+  visit?: CareAction | "all";
   /** Pretend it's gone this long without a bath: 0 clean … 3 flies. */
   dirt?: 0 | 1 | 2 | 3;
+  /** Pretend today brings this surprise (a holiday, a milestone, a rare treat). */
+  surprise?: Surprise;
 }
+
+/** A day in each holiday, for previews. */
+export const HOLIDAY_DATES: Record<Holiday, string> = {
+  "new-year": "2027-01-01",
+  "lunar-new-year": "2027-02-06",
+  valentines: "2027-02-14",
+  "pi-day": "2027-03-14",
+  "april-fools": "2027-04-01",
+  "programmers-day": "2026-09-13",
+  "mid-autumn": "2026-09-25",
+  halloween: "2026-10-31",
+  christmas: "2026-12-24",
+};
+
+/** Made-up visitors for previews: one, or three taking turns. */
+function demoCare(visit: DemoExtras["visit"], dirt: DemoExtras["dirt"]): CareView {
+  const visitors: Visitor[] =
+    visit === "all"
+      ? [
+          { login: "octocat", action: "feed" },
+          { login: "hubot", action: "bath" },
+          { login: "monalisa", action: "play" },
+        ]
+      : visit
+        ? [{ login: "octocat", action: visit }]
+        : [];
+  const did = (a: CareAction) => visitors.some((v) => v.action === a);
+  return {
+    fed: did("feed"),
+    bathed: did("bath"),
+    played: did("play"),
+    dirt: did("bath") ? 0 : (dirt ?? 0),
+    visitor: visitors.at(-1) ?? null,
+    visitors,
+  };
+}
+
+/** The numbers a previewed milestone shows. */
+const DEMO_MOMENTS = { birthday: 6, welcomeBack: 12 };
 
 export function demoState(
   mood: Mood = "happy",
   stage: Stage = "adult",
   petName?: string,
   speciesId = "crab",
-  { trick, away = false, visit, dirt }: DemoExtras = {},
+  { trick, away = false, visit, dirt, surprise }: DemoExtras = {},
 ): PetState {
   const species = getSpecies(speciesId);
   const language = DEMO_LANGUAGE[species.id] ?? "Rust";
@@ -53,7 +96,7 @@ export function demoState(
   const power = level / 99;
   return {
     login: "demo",
-    date: "2026-09-24",
+    date: surprise && Object.hasOwn(HOLIDAY_DATES, surprise) ? HOLIDAY_DATES[surprise as Holiday] : "2026-09-24",
     petName: petName ?? species.defaultName,
     species: species.id,
     level,
@@ -68,15 +111,12 @@ export function demoState(
     ...(away ? { daysSinceLastContribution: 41, activeDays14: 0, streak: 0 } : {}),
     ranAway: away && stage !== "egg",
     trick,
+    // Previews show an ordinary day unless they ask for a surprise.
+    surprise: surprise ?? null,
+    ...(surprise ? { moments: { ...DEMO_MOMENTS, levelUp: level - 1 } } : {}),
     ...(visit || dirt !== undefined
       ? {
-          care: {
-            fed: visit === "feed",
-            bathed: visit === "bath",
-            played: visit === "play",
-            dirt: visit === "bath" ? 0 : (dirt ?? 0),
-            visitor: visit ? { login: "octocat", action: visit } : null,
-          },
+          care: demoCare(visit, dirt),
         }
       : {}),
     stats: {
