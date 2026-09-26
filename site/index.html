@@ -213,8 +213,10 @@
         <option value="turtle">🐢 Turtle (TypeScript)</option>
       </select>
       <label class="check"><input type="checkbox" name="cityPet" checked> Let it walk around the city</label>
-      <label class="check"><input type="checkbox" name="care"> Let visitors feed, bathe and play with it</label>
-      <span class="hint">Visitors open an issue; the Action replies and closes it. Needs your username below.</span>
+      <label class="check"><input type="checkbox" name="care"> Give it a house where visitors can feed, bathe and play with it</label>
+      <span class="hint">One issue in your profile repo; visitors comment "feed", "bath" or "play" and your pet reacts with ❤️.</span>
+      <label for="house">House issue number <span class="hint">(optional, if you opened it yourself)</span></label>
+      <input type="text" id="house" name="house" inputmode="numeric" maxlength="10" placeholder="Opened on the first run">
     </fieldset>
 
     <fieldset>

@@ -4,7 +4,7 @@
  * malformed falls back to a fresh state rather than failing the run.
  */
 import { LOGIN_RE } from "../options.js";
-import { CARE_ACTIONS, parseTitle, type CareAction } from "./commands.js";
+import { CARE_ACTIONS, parseCommand, type CareAction } from "./commands.js";
 
 export const LIMITS = {
   /** Each visitor may do each action once per UTC day. */
@@ -14,7 +14,6 @@ export const LIMITS = {
   /** Issues handled per run; the rest wait for the next one. */
   perRun: 30,
   maxFileBytes: 64 * 1024,
-  maxHandled: 300,
   maxRecent: 5,
   maxTotal: 1_000_000_000,
 };
@@ -37,8 +36,8 @@ export interface CareState {
   totals: Record<CareAction, number>;
   /** Newest first. */
   recent: CareEvent[];
-  /** Issue numbers already applied, so a retry never applies one twice. */
-  handled: number[];
+  /** The pet's house: one issue where visitors comment, and the last comment already read. */
+  house: { issue: number | null; cursor: number; cursorAt: string | null };
 }
 
 const utcDay = (d: Date) => d.toISOString().slice(0, 10);
@@ -56,7 +55,7 @@ export function newCareState(now: Date): CareState {
     todayTotal: 0,
     totals: { feed: 0, bath: 0, play: 0 },
     recent: [],
-    handled: [],
+    house: { issue: null, cursor: 0, cursorAt: null },
   };
 }
 
@@ -117,10 +116,11 @@ export function parseCareState(text: string | null, now: Date): { state: CareSta
       .slice(0, LIMITS.maxRecent)
       .map(({ action, by, at }) => ({ action, by, at }));
   }
-  if (Array.isArray(raw.handled)) {
-    state.handled = raw.handled
-      .filter((n): n is number => Number.isInteger(n) && (n as number) > 0)
-      .slice(-LIMITS.maxHandled);
+  if (isObject(raw.house)) {
+    const { issue, cursor, cursorAt } = raw.house;
+    if (Number.isSafeInteger(issue) && (issue as number) > 0) state.house.issue = issue as number;
+    if (Number.isSafeInteger(cursor) && (cursor as number) > 0) state.house.cursor = cursor as number;
+    if (isTime(cursorAt, now)) state.house.cursorAt = cursorAt;
   }
   return { state };
 }
@@ -129,6 +129,7 @@ export const serializeCareState = (state: CareState) => JSON.stringify(state, nu
 
 // ── Applying issues ──────────────────────────────────────────────────────────
 
+/** An open issue whose title looks like a care request (from before the house existed). */
 export interface CareIssue {
   number: number;
   title: string;
@@ -137,78 +138,93 @@ export interface CareIssue {
   userType: string;
 }
 
-export type Outcome =
-  | { kind: "done"; action: CareAction }
-  | { kind: "limited"; action: CareAction }
-  | { kind: "busy" }
-  | { kind: "unknown" };
+export type Outcome = { kind: "done"; action: CareAction } | { kind: "limited"; action: CareAction } | { kind: "busy" };
 
-export interface Handled {
-  issue: CareIssue;
-  outcome: Outcome;
-}
-
-/**
- * Applies care issues, oldest first. Returns the new state and what happened to each issue,
- * so the caller can reply once the state is safely committed. Issues that aren't for the pet,
- * come from bots, or were already handled are skipped.
- */
-export function applyIssues(previous: CareState, issues: CareIssue[], now: Date): { state: CareState; handled: Handled[] } {
-  const state: CareState = structuredClone(previous);
+function startDay(state: CareState, now: Date): void {
   if (state.day !== utcDay(now)) {
     state.day = utcDay(now);
     state.today = {};
     state.todayTotal = 0;
   }
+}
 
-  const seen = new Set(state.handled);
-  const handled: Handled[] = [];
-  const queue = [...issues].sort((a, b) => a.number - b.number);
+/** One visit, within the daily limits. Mutates `state`, which is always a private copy. */
+function visit(state: CareState, login: string, action: CareAction, now: Date): Outcome {
+  if (state.todayTotal >= LIMITS.perDay) return { kind: "busy" };
+  if (todayOf(state, login).filter((a) => a === action).length >= LIMITS.perVisitorPerAction) return { kind: "limited", action };
+  const at = now.toISOString();
+  state.today[login] = [...todayOf(state, login), action];
+  state.todayTotal++;
+  state.totals[action] = Math.min(state.totals[action] + 1, LIMITS.maxTotal);
+  state.last[action] = at;
+  state.recent = [{ action, by: login, at }, ...state.recent].slice(0, LIMITS.maxRecent);
+  return { kind: "done", action };
+}
 
-  for (const issue of queue) {
+export interface CareComment {
+  id: number;
+  body: string;
+  login: string;
+  userType: string;
+  /** ISO timestamp from the API, used to only fetch newer comments next time. */
+  createdAt: string;
+}
+
+export interface HandledComment {
+  comment: CareComment;
+  outcome: Outcome;
+}
+
+/**
+ * Applies new comments in the pet's house, oldest first. The cursor moves past every comment
+ * it reads (chat, bots, commands alike), so none is ever read twice, even if edited later.
+ */
+export function applyComments(previous: CareState, comments: CareComment[], now: Date): { state: CareState; handled: HandledComment[] } {
+  const state: CareState = structuredClone(previous);
+  startDay(state, now);
+  const handled: HandledComment[] = [];
+  const fresh = comments.filter((c) => c.id > state.house.cursor).sort((a, b) => a.id - b.id);
+
+  for (const comment of fresh) {
     if (handled.length >= LIMITS.perRun) break;
-    if (seen.has(issue.number) || issue.userType !== "User" || !isLogin(issue.login)) continue;
-    const parsed = parseTitle(issue.title);
-    if (!parsed) continue;
-
-    let outcome: Outcome;
-    if (parsed.kind === "unknown") {
-      outcome = { kind: "unknown" };
-    } else if (state.todayTotal >= LIMITS.perDay) {
-      outcome = { kind: "busy" };
-    } else if (todayOf(state, issue.login).filter((a) => a === parsed.action).length >= LIMITS.perVisitorPerAction) {
-      outcome = { kind: "limited", action: parsed.action };
-    } else {
-      const at = now.toISOString();
-      state.today[issue.login] = [...todayOf(state, issue.login), parsed.action];
-      state.todayTotal++;
-      state.totals[parsed.action] = Math.min(state.totals[parsed.action] + 1, LIMITS.maxTotal);
-      state.last[parsed.action] = at;
-      state.recent = [{ action: parsed.action, by: issue.login, at }, ...state.recent].slice(0, LIMITS.maxRecent);
-      outcome = { kind: "done", action: parsed.action };
-    }
-
-    handled.push({ issue, outcome });
-    seen.add(issue.number);
-    state.handled = [...state.handled, issue.number].slice(-LIMITS.maxHandled);
+    state.house.cursor = comment.id;
+    if (isTime(comment.createdAt, now)) state.house.cursorAt = comment.createdAt;
+    if (comment.userType !== "User" || !isLogin(comment.login)) continue;
+    const action = parseCommand(comment.body);
+    if (!action) continue;
+    handled.push({ comment, outcome: visit(state, comment.login, action, now) });
   }
   return { state, handled };
 }
 
-/** The reply posted on a handled issue. Only fixed text, the pet's name and a validated login. */
-export function replyFor(outcome: Outcome, petName: string, login: string): string {
-  switch (outcome.kind) {
-    case "done":
-      return {
-        feed: `🍖 Nom nom! ${petName} is fed. Thanks for stopping by, ${login}!`,
-        bath: `🛁 Splash! ${petName} is squeaky clean again. Thanks, ${login}!`,
-        play: `🎾 ${petName} chased the ball and had a blast. Thanks for playing, ${login}!`,
-      }[outcome.action] + "\n\nThe card updates within a few minutes. This issue closes itself.";
-    case "limited":
-      return `${petName} already got that from you today. Come back tomorrow! 🌙`;
-    case "busy":
-      return `${petName} has had a very busy day and is resting now. Try again tomorrow! 💤`;
-    case "unknown":
-      return `${petName} only understands \`feed\`, \`bath\` and \`play\`. Try a title like "ProfileForge: feed".`;
-  }
+/** How the pet answers a comment in its house: a reaction, never a reply. */
+export function reactionFor(outcome: HandledComment["outcome"]): "heart" | "eyes" | "confused" {
+  return outcome.kind === "done" ? "heart" : outcome.kind === "limited" ? "eyes" : "confused";
+}
+
+/** The house issue's opening post. Fixed text and the owner's pet name only. */
+export function houseIssue(petName: string): { title: string; body: string } {
+  return {
+    title: `ProfileForge: ${petName}'s house 🏠`,
+    body: [
+      `## Welcome to ${petName}'s house!`,
+      "",
+      `Leave a comment starting with one of these words to take care of ${petName}:`,
+      "",
+      "| Comment | |",
+      "|---|---|",
+      "| `feed` | 🍖 a meal |",
+      `| \`bath\` | 🛁 a bath (${petName} gets smelly without one!) |`,
+      "| `play` | 🎾 a game of fetch |",
+      "",
+      `${petName} reacts with ❤️ when it's done, or 👀 if you already did that today. Your visit shows up on the profile card within a few minutes.`,
+      "",
+      "<sub>Powered by [ProfileForge](https://github.com/LobsterEnigma/ProfileForge). Each visitor can do each action once a day.</sub>",
+    ].join("\n"),
+  };
+}
+
+/** The reply on a stray care issue, pointing its author to the house. Fixed text only. */
+export function redirectReply(petName: string, house: number): string {
+  return `🏠 ${petName} lives in its house now! Say hi in #${house}: comment \`feed\`, \`bath\` or \`play\` there. Closing this one to keep things tidy.`;
 }

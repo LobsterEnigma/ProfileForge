@@ -20,10 +20,12 @@ inputs:
     default: profileforge/pet.svg
   care:
     description: |
-      "true" lets visitors feed, bathe and play with your pet by opening issues titled
-      "ProfileForge: feed" (or bath, play). Needs `issues: write` and an `issues: [opened]`
-      trigger; see the README. Off by default.
+      "true" gives your pet a house: one issue where visitors comment "feed", "bath" or "play".
+      Needs `issues: write` and an `issue_comment` trigger; see the README. Off by default.
     default: "false"
+  care_issue:
+    description: The house issue's number, if you opened it yourself. Otherwise the first run opens one.
+    default: ""
   care_file:
     description: Where the care log is kept (a .json file in your repo).
     default: profileforge/care.json

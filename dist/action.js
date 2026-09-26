@@ -815,12 +815,14 @@ var SYNONYMS = {
   play: "play",
   ball: "play"
 };
-function parseTitle(title) {
-  if (title.length > 256) return null;
-  const match = /^\s*profileforge\s*:\s*([a-z]+)?/i.exec(title);
-  if (!match) return null;
-  const word = (match[1] ?? "").toLowerCase();
-  return Object.hasOwn(SYNONYMS, word) ? { kind: "action", action: SYNONYMS[word] } : { kind: "unknown" };
+function parseCommand(body) {
+  if (body.length > 2e3) return null;
+  const match = /^[^\p{L}\p{N}]*([a-z]+)/iu.exec(body);
+  const word = (match?.[1] ?? "").toLowerCase();
+  return Object.hasOwn(SYNONYMS, word) ? SYNONYMS[word] : null;
+}
+function houseLink(repo, issue) {
+  return `https://github.com/${repo}/issues/${issue}`;
 }
 
 // src/svg/batch.ts
@@ -1076,7 +1078,6 @@ var LIMITS = {
   /** Issues handled per run; the rest wait for the next one. */
   perRun: 30,
   maxFileBytes: 64 * 1024,
-  maxHandled: 300,
   maxRecent: 5,
   maxTotal: 1e9
 };
@@ -1092,7 +1093,7 @@ function newCareState(now) {
     todayTotal: 0,
     totals: { feed: 0, bath: 0, play: 0 },
     recent: [],
-    handled: []
+    house: { issue: null, cursor: 0, cursorAt: null }
   };
 }
 var isObject = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -1135,64 +1136,74 @@ function parseCareState(text, now) {
   if (Array.isArray(raw.recent)) {
     state.recent = raw.recent.filter((e) => isObject(e) && isAction(e.action) && isLogin(e.by) && isTime(e.at, now)).slice(0, LIMITS.maxRecent).map(({ action, by, at }) => ({ action, by, at }));
   }
-  if (Array.isArray(raw.handled)) {
-    state.handled = raw.handled.filter((n) => Number.isInteger(n) && n > 0).slice(-LIMITS.maxHandled);
+  if (isObject(raw.house)) {
+    const { issue, cursor, cursorAt } = raw.house;
+    if (Number.isSafeInteger(issue) && issue > 0) state.house.issue = issue;
+    if (Number.isSafeInteger(cursor) && cursor > 0) state.house.cursor = cursor;
+    if (isTime(cursorAt, now)) state.house.cursorAt = cursorAt;
   }
   return { state };
 }
 var serializeCareState = (state) => JSON.stringify(state, null, 2) + "\n";
-function applyIssues(previous, issues, now) {
-  const state = structuredClone(previous);
+function startDay(state, now) {
   if (state.day !== utcDay(now)) {
     state.day = utcDay(now);
     state.today = {};
     state.todayTotal = 0;
   }
-  const seen = new Set(state.handled);
+}
+function visit(state, login, action, now) {
+  if (state.todayTotal >= LIMITS.perDay) return { kind: "busy" };
+  if (todayOf(state, login).filter((a) => a === action).length >= LIMITS.perVisitorPerAction) return { kind: "limited", action };
+  const at = now.toISOString();
+  state.today[login] = [...todayOf(state, login), action];
+  state.todayTotal++;
+  state.totals[action] = Math.min(state.totals[action] + 1, LIMITS.maxTotal);
+  state.last[action] = at;
+  state.recent = [{ action, by: login, at }, ...state.recent].slice(0, LIMITS.maxRecent);
+  return { kind: "done", action };
+}
+function applyComments(previous, comments, now) {
+  const state = structuredClone(previous);
+  startDay(state, now);
   const handled = [];
-  const queue = [...issues].sort((a, b) => a.number - b.number);
-  for (const issue of queue) {
+  const fresh = comments.filter((c) => c.id > state.house.cursor).sort((a, b) => a.id - b.id);
+  for (const comment2 of fresh) {
     if (handled.length >= LIMITS.perRun) break;
-    if (seen.has(issue.number) || issue.userType !== "User" || !isLogin(issue.login)) continue;
-    const parsed = parseTitle(issue.title);
-    if (!parsed) continue;
-    let outcome;
-    if (parsed.kind === "unknown") {
-      outcome = { kind: "unknown" };
-    } else if (state.todayTotal >= LIMITS.perDay) {
-      outcome = { kind: "busy" };
-    } else if (todayOf(state, issue.login).filter((a) => a === parsed.action).length >= LIMITS.perVisitorPerAction) {
-      outcome = { kind: "limited", action: parsed.action };
-    } else {
-      const at = now.toISOString();
-      state.today[issue.login] = [...todayOf(state, issue.login), parsed.action];
-      state.todayTotal++;
-      state.totals[parsed.action] = Math.min(state.totals[parsed.action] + 1, LIMITS.maxTotal);
-      state.last[parsed.action] = at;
-      state.recent = [{ action: parsed.action, by: issue.login, at }, ...state.recent].slice(0, LIMITS.maxRecent);
-      outcome = { kind: "done", action: parsed.action };
-    }
-    handled.push({ issue, outcome });
-    seen.add(issue.number);
-    state.handled = [...state.handled, issue.number].slice(-LIMITS.maxHandled);
+    state.house.cursor = comment2.id;
+    if (isTime(comment2.createdAt, now)) state.house.cursorAt = comment2.createdAt;
+    if (comment2.userType !== "User" || !isLogin(comment2.login)) continue;
+    const action = parseCommand(comment2.body);
+    if (!action) continue;
+    handled.push({ comment: comment2, outcome: visit(state, comment2.login, action, now) });
   }
   return { state, handled };
 }
-function replyFor(outcome, petName, login) {
-  switch (outcome.kind) {
-    case "done":
-      return {
-        feed: `\u{1F356} Nom nom! ${petName} is fed. Thanks for stopping by, ${login}!`,
-        bath: `\u{1F6C1} Splash! ${petName} is squeaky clean again. Thanks, ${login}!`,
-        play: `\u{1F3BE} ${petName} chased the ball and had a blast. Thanks for playing, ${login}!`
-      }[outcome.action] + "\n\nThe card updates within a few minutes. This issue closes itself.";
-    case "limited":
-      return `${petName} already got that from you today. Come back tomorrow! \u{1F319}`;
-    case "busy":
-      return `${petName} has had a very busy day and is resting now. Try again tomorrow! \u{1F4A4}`;
-    case "unknown":
-      return `${petName} only understands \`feed\`, \`bath\` and \`play\`. Try a title like "ProfileForge: feed".`;
-  }
+function reactionFor(outcome) {
+  return outcome.kind === "done" ? "heart" : outcome.kind === "limited" ? "eyes" : "confused";
+}
+function houseIssue(petName) {
+  return {
+    title: `ProfileForge: ${petName}'s house \u{1F3E0}`,
+    body: [
+      `## Welcome to ${petName}'s house!`,
+      "",
+      `Leave a comment starting with one of these words to take care of ${petName}:`,
+      "",
+      "| Comment | |",
+      "|---|---|",
+      "| `feed` | \u{1F356} a meal |",
+      `| \`bath\` | \u{1F6C1} a bath (${petName} gets smelly without one!) |`,
+      "| `play` | \u{1F3BE} a game of fetch |",
+      "",
+      `${petName} reacts with \u2764\uFE0F when it's done, or \u{1F440} if you already did that today. Your visit shows up on the profile card within a few minutes.`,
+      "",
+      "<sub>Powered by [ProfileForge](https://github.com/LobsterEnigma/ProfileForge). Each visitor can do each action once a day.</sub>"
+    ].join("\n")
+  };
+}
+function redirectReply(petName, house) {
+  return `\u{1F3E0} ${petName} lives in its house now! Say hi in #${house}: comment \`feed\`, \`bath\` or \`play\` there. Closing this one to keep things tidy.`;
 }
 
 // src/github/issues.ts
@@ -1210,6 +1221,9 @@ function headers(token) {
 }
 function checkRepo(repo) {
   if (!REPO_RE.test(repo)) throw new IssuesError(`"${repo}" is not a valid owner/repo`);
+}
+function checkNumber(n) {
+  if (!Number.isSafeInteger(n) || n <= 0) throw new IssuesError(`"${n}" is not a valid id`);
 }
 async function listCareIssues(token, repo, f = fetch) {
   checkRepo(repo);
@@ -1229,6 +1243,50 @@ async function listCareIssues(token, repo, f = fetch) {
     }
     return [{ number: i.number, title: i.title, login: user.login, userType: user.type }];
   });
+}
+async function listHouseComments(token, repo, issue, q, f = fetch) {
+  checkRepo(repo);
+  checkNumber(issue);
+  const out = [];
+  const query = `per_page=100${q.since ? `&since=${encodeURIComponent(q.since)}` : ""}`;
+  for (let page = 1; page <= 50 && out.length < q.want; page++) {
+    const res = await f(`${API}/repos/${repo}/issues/${issue}/comments?${query}&page=${page}`, { headers: headers(token) });
+    if (!res.ok) throw new IssuesError(`listing comments on #${issue} failed: ${res.status}`);
+    const body = await res.json();
+    if (!Array.isArray(body)) throw new IssuesError("unexpected comments response");
+    for (const item of body) {
+      if (typeof item !== "object" || item === null) continue;
+      const c = item;
+      const user = c.user;
+      if (Number.isSafeInteger(c.id) && c.id > q.after && typeof c.body === "string" && typeof c.created_at === "string" && typeof user?.login === "string" && typeof user?.type === "string") {
+        out.push({ id: c.id, body: c.body, login: user.login, userType: user.type, createdAt: new Date(c.created_at).toISOString() });
+      }
+    }
+    if (body.length < 100) break;
+  }
+  return out;
+}
+async function react(token, repo, commentId, content, f = fetch) {
+  checkRepo(repo);
+  checkNumber(commentId);
+  const res = await f(`${API}/repos/${repo}/issues/comments/${commentId}/reactions`, {
+    method: "POST",
+    headers: { ...headers(token), "content-type": "application/json" },
+    body: JSON.stringify({ content })
+  });
+  if (!res.ok) throw new IssuesError(`reacting to comment ${commentId} failed: ${res.status}`);
+}
+async function createIssue(token, repo, title, body, f = fetch) {
+  checkRepo(repo);
+  const res = await f(`${API}/repos/${repo}/issues`, {
+    method: "POST",
+    headers: { ...headers(token), "content-type": "application/json" },
+    body: JSON.stringify({ title, body })
+  });
+  if (!res.ok) throw new IssuesError(`creating the house issue failed: ${res.status}`);
+  const number = (await res.json()).number;
+  if (!Number.isSafeInteger(number) || number <= 0) throw new IssuesError("unexpected issue response");
+  return number;
 }
 async function comment(token, repo, issue, body, f = fetch) {
   checkRepo(repo);
@@ -2746,8 +2804,8 @@ function bar(label, ratio, value, y, color) {
 }
 function moodLine(state) {
   if (state.ranAway) return "Ran away \xB7 a commit will bring it home";
-  const visit = visitorLine(state.care);
-  if (visit) return visit;
+  const visit2 = visitorLine(state.care);
+  if (visit2) return visit2;
   if (state.stage === "egg") return "Egg \xB7 hatches at Lv.3";
   const d = state.daysSinceLastContribution;
   switch (state.mood) {
@@ -2869,41 +2927,78 @@ async function generate({ user, token, outputs, workspace, fetch: fetch2 = fetch
 }
 
 // src/action/care.ts
-async function prepareCare({ workspace, file, token, repo, now, fetch: f = fetch }) {
+var ACTIONS_BOT = "github-actions[bot]";
+var HOUSE_SUFFIX = "'s house \u{1F3E0}";
+var save = async (file, state) => {
+  await mkdir2(dirname2(file), { recursive: true });
+  await writeFile2(file, serializeCareState(state));
+};
+async function prepareCare({ workspace, file, token, repo, now, house, fetch: f = fetch }) {
   if (!file.endsWith(".json")) throw new Error(`care_file "${file}" must be a .json file`);
   const full = resolveInside(workspace, file);
   const warnings = [];
   const text = await readFile(full, "utf8").catch(() => null);
   const parsed = parseCareState(text, now);
   if (parsed.warning) warnings.push(parsed.warning);
+  let state = parsed.state;
+  if (house !== void 0) state.house.issue = house;
   let issues = [];
   try {
     issues = await listCareIssues(token, repo, f);
   } catch (err) {
-    warnings.push(`couldn't list issues, skipping visits this run (${err.message})`);
+    warnings.push(`couldn't list issues (${err.message})`);
   }
-  const before = new Set(parsed.state.handled);
-  const { state, handled } = applyIssues(parsed.state, issues, now);
-  const leftOpen = issues.filter((i) => before.has(i.number)).map((i) => i.number);
-  await mkdir2(dirname2(full), { recursive: true });
-  await writeFile2(full, serializeCareState(state));
-  return { care: { state, now }, file: full, handled, leftOpen, warnings };
-}
-async function answerIssues(token, repo, prepared, petName, f = fetch) {
-  const warnings = [];
-  for (const { issue, outcome } of prepared.handled) {
+  if (state.house.issue === null) {
+    const orphan = issues.find((i) => i.login === ACTIONS_BOT && i.title.endsWith(HOUSE_SUFFIX));
+    if (orphan) state.house.issue = orphan.number;
+  }
+  let handled = [];
+  if (state.house.issue !== null) {
     try {
-      await comment(token, repo, issue.number, replyFor(outcome, petName, issue.login), f);
-      await close(token, repo, issue.number, f);
+      const comments = await listHouseComments(
+        token,
+        repo,
+        state.house.issue,
+        { since: state.house.cursorAt, after: state.house.cursor, want: LIMITS.perRun },
+        f
+      );
+      ({ state, handled } = applyComments(state, comments, now));
+    } catch (err) {
+      warnings.push(`couldn't read the house's comments, skipping visits this run (${err.message})`);
+    }
+  }
+  const owner = repo.split("/")[0].toLowerCase();
+  const strays = issues.filter((i) => i.number !== state.house.issue && i.userType === "User" && i.login.toLowerCase() !== owner);
+  await save(full, state);
+  return { care: { state, now }, file: full, handled, strays, warnings };
+}
+async function ensureHouse(prepared, token, repo, petName, f = fetch) {
+  const { state } = prepared.care;
+  if (state.house.issue !== null) return null;
+  const { title, body } = houseIssue(petName);
+  const number = await createIssue(token, repo, title, body, f);
+  state.house.issue = number;
+  await save(prepared.file, state);
+  return number;
+}
+async function answerCare(token, repo, prepared, petName, f = fetch) {
+  const warnings = [];
+  for (const { comment: c, outcome } of prepared.handled) {
+    try {
+      await react(token, repo, c.id, reactionFor(outcome), f);
     } catch (err) {
       warnings.push(err.message);
     }
   }
-  for (const number of prepared.leftOpen) {
-    try {
-      await close(token, repo, number, f);
-    } catch (err) {
-      warnings.push(err.message);
+  const house = prepared.care.state.house.issue;
+  if (house !== null) {
+    for (const stray of prepared.strays) {
+      try {
+        await comment(token, repo, stray.number, redirectReply(petName, house), f);
+        await close(token, repo, stray.number, f);
+      } catch (err) {
+        warnings.push(err.message);
+      }
     }
   }
   return warnings;
@@ -2964,14 +3059,33 @@ async function main() {
   const repo = process.env.GITHUB_REPOSITORY ?? "";
   let prepared;
   if (input("care") === "true") {
-    prepared = await prepareCare({ workspace, file: input("care_file") || "profileforge/care.json", token, repo, now: /* @__PURE__ */ new Date() });
+    const house2 = input("care_issue");
+    if (house2 && !/^[1-9]\d{0,9}$/.test(house2)) throw new Error(`care_issue "${house2}" is not an issue number`);
+    prepared = await prepareCare({
+      workspace,
+      file: input("care_file") || "profileforge/care.json",
+      token,
+      repo,
+      now: /* @__PURE__ */ new Date(),
+      house: house2 ? Number(house2) : void 0
+    });
     prepared.warnings.forEach(warn);
   }
   const { files, state } = await generate({ user, token, outputs, workspace, care: prepared?.care });
   const mood = `${state.petName} is ${state.mood} \xB7 Lv.${state.level} ${state.className} (${state.stage})`;
   console.log(`\u{1F980} ${mood}`);
   for (const f of files) console.log(`  wrote ${relative2(workspace, f)}`);
-  const visits = prepared ? ` \xB7 Visits handled: ${prepared.handled.length}` : "";
+  let opened = null;
+  if (prepared) {
+    try {
+      opened = await ensureHouse(prepared, token, repo, state.petName);
+    } catch (err) {
+      warn(`couldn't open the pet's house (${err.message})`);
+    }
+  }
+  const house = prepared?.care.state.house.issue;
+  const visits = prepared ? ` \xB7 Visits: ${prepared.handled.length}${house ? ` \xB7 House: ${houseLink(repo, house)}` : ""}` : "";
+  if (opened) console.log(`\u{1F3E0} Opened ${state.petName}'s house: ${houseLink(repo, opened)}. Link to it from your README!`);
   appendTo("GITHUB_STEP_SUMMARY", `### \u{1F980} ${mood}
 
 Streak: ${state.streak} days \xB7 XP: ${state.xp}${visits}`);
@@ -2982,7 +3096,7 @@ stage=${state.stage}`);
     const toCommit = prepared ? [...files, prepared.file] : files;
     commitAndPush(workspace, toCommit, input("commit_message") || "chore: feed the ProfileForge pet");
   }
-  if (prepared) (await answerIssues(token, repo, prepared, state.petName)).forEach(warn);
+  if (prepared) (await answerCare(token, repo, prepared, state.petName)).forEach(warn);
 }
 main().catch((err) => {
   fail(err instanceof Error ? err.message : String(err));

@@ -6,7 +6,8 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { relative } from "node:path";
 import { LOGIN_RE } from "../options.js";
-import { answerIssues, prepareCare, type Prepared } from "./care.js";
+import { answerCare, ensureHouse, prepareCare, type Prepared } from "./care.js";
+import { houseLink } from "../care/commands.js";
 import { generate, parseOutputs } from "./generate.js";
 import { fail, warn } from "./log.js";
 
@@ -60,7 +61,16 @@ async function main(): Promise<void> {
   // Visitors' care, if the owner turned it on: applied before rendering, answered after committing.
   let prepared: Prepared | undefined;
   if (input("care") === "true") {
-    prepared = await prepareCare({ workspace, file: input("care_file") || "profileforge/care.json", token, repo, now: new Date() });
+    const house = input("care_issue");
+    if (house && !/^[1-9]\d{0,9}$/.test(house)) throw new Error(`care_issue "${house}" is not an issue number`);
+    prepared = await prepareCare({
+      workspace,
+      file: input("care_file") || "profileforge/care.json",
+      token,
+      repo,
+      now: new Date(),
+      house: house ? Number(house) : undefined,
+    });
     prepared.warnings.forEach(warn);
   }
 
@@ -69,7 +79,18 @@ async function main(): Promise<void> {
   const mood = `${state.petName} is ${state.mood} · Lv.${state.level} ${state.className} (${state.stage})`;
   console.log(`🦀 ${mood}`);
   for (const f of files) console.log(`  wrote ${relative(workspace, f)}`);
-  const visits = prepared ? ` · Visits handled: ${prepared.handled.length}` : "";
+  let opened: number | null = null;
+  if (prepared) {
+    try {
+      opened = await ensureHouse(prepared, token, repo, state.petName);
+    } catch (err) {
+      warn(`couldn't open the pet's house (${(err as Error).message})`);
+    }
+  }
+
+  const house = prepared?.care.state.house.issue;
+  const visits = prepared ? ` · Visits: ${prepared.handled.length}${house ? ` · House: ${houseLink(repo, house)}` : ""}` : "";
+  if (opened) console.log(`🏠 Opened ${state.petName}'s house: ${houseLink(repo, opened)}. Link to it from your README!`);
   appendTo("GITHUB_STEP_SUMMARY", `### 🦀 ${mood}\n\nStreak: ${state.streak} days · XP: ${state.xp}${visits}`);
   appendTo("GITHUB_OUTPUT", `mood=${state.mood}\nlevel=${state.level}\nstage=${state.stage}`);
 
@@ -79,7 +100,7 @@ async function main(): Promise<void> {
   }
 
   // Only now, with the visits saved, tell the visitors.
-  if (prepared) (await answerIssues(token, repo, prepared, state.petName)).forEach(warn);
+  if (prepared) (await answerCare(token, repo, prepared, state.petName)).forEach(warn);
 }
 
 main().catch((err: unknown) => {

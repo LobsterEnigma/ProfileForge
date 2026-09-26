@@ -69,7 +69,8 @@ jobs:
 | `github_token` | `${{ github.token }}` | The built-in token can read public contributions. |
 | `commit` | `true` | Commit and push the SVGs (only when they changed). |
 | `commit_message` | `chore: feed the ProfileForge pet` | |
-| `care` | `false` | `true` lets visitors feed, bathe and play with your pet. See [Let visitors care for it](#let-visitors-care-for-it). |
+| `care` | `false` | `true` gives your pet a house where visitors feed, bathe and play with it. See [Let visitors care for it](#let-visitors-care-for-it). |
+| `care_issue` | | The house issue's number, if you opened it yourself. Otherwise the first run opens one. |
 | `care_file` | `profileforge/care.json` | Where the care log lives. |
 
 Step outputs: `mood`, `level`, `stage` (of the pet).
@@ -131,9 +132,11 @@ XP = lifetime contributions + 2 × stars + 3 × followers, so **levels never go 
 
 ### Let visitors care for it
 
-Turn on `care` and anyone visiting your profile can **feed**, **bathe** or **play** with your pet, just by opening an issue. Skip baths for too long and it gets smudged, then smelly, then flies start circling. 🪰
+Turn on `care` and your pet gets a **house**: one issue in your profile repo where anyone can comment **`feed`**, **`bath`** or **`play`**. Your pet reacts with ❤️, shows the visit on its card ("Fed by …"), and gets a food bowl, a ball or soap bubbles. Skip baths for too long and it gets smudged, then smelly, then flies start circling. 🪰
 
-**1.** Give your workflow an issues trigger and permission, and turn care on:
+Everything happens in that single issue, so your repo stays tidy: no new issues, no bot replies, just visitors' comments and reactions.
+
+**1.** Add a comment trigger and permission to your workflow, and turn care on:
 
 ```yaml
 name: ProfileForge
@@ -142,8 +145,8 @@ on:
   schedule:
     - cron: "0 */6 * * *"
   workflow_dispatch:
-  issues:
-    types: [opened]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: write
@@ -156,8 +159,8 @@ concurrency:
 
 jobs:
   forge:
-    # Skip issues that aren't for the pet. The Action checks the title again itself.
-    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'ProfileForge:')
+    # Only comments in the pet's house (never on pull requests) start a run.
+    if: github.event_name != 'issue_comment' || (!github.event.issue.pull_request && startsWith(github.event.issue.title, 'ProfileForge:'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -168,27 +171,27 @@ jobs:
             profileforge/pet.svg
 ```
 
-**2.** Put the care links under your pet (replace `you` with your username):
+**2.** Run it once. It opens the house, an issue titled "ProfileForge: *your pet*'s house 🏠", and prints its link. Pin it if you like.
+Prefer to open the house yourself? Title it starting with `ProfileForge:` and pass its number as `care_issue`.
+
+**3.** Link to the house under your pet:
 
 ```md
-[🍖 Feed](https://github.com/you/you/issues/new?title=ProfileForge%3A%20feed) ·
-[🛁 Bath](https://github.com/you/you/issues/new?title=ProfileForge%3A%20bath) ·
-[🎾 Play](https://github.com/you/you/issues/new?title=ProfileForge%3A%20play)
+[🏠 Visit my pet's house: 🍖 feed · 🛁 bath · 🎾 play](https://github.com/you/you/issues/1)
 ```
-
-A visit shows on the card within a few minutes ("Fed by …"), the pet gets a food bowl, a ball or soap bubbles, and the issue gets a reply and closes itself.
 
 <details>
 <summary>How care stays safe</summary>
 
-- **Issue text is never trusted.** Only the title is read, and only to match `feed`, `bath` or `play` exactly. It's never echoed, rendered, logged or passed to a shell; the issue body is ignored entirely. The only visitor data kept is their login, validated against GitHub's username rules.
-- **Replies are fixed templates** with your pet's name and the visitor's login, without `@` mentions.
-- **Limits:** each visitor can do each action once a day, there are at most 60 visits a day in total, at most 30 issues handled per run, and issues from bots are ignored.
+- **Comments are never trusted.** Only a comment's first word is read, and only to match `feed`, `bath` or `play` (and a few synonyms) exactly. It's never echoed, rendered, logged or passed to a shell. Any other comment is simply chat and is left alone.
+- **The pet answers with reactions**, never with text: ❤️ done, 👀 already done today, 😕 too busy.
+- **Each comment is read exactly once.** A cursor remembers the last comment read, so editing an old comment does nothing, and reactions come only after the new state is committed.
+- **Limits:** each visitor can do each action once a day, there are at most 60 visits a day in total, at most 30 per run, and bots are ignored.
 - **The care log (`care.json`) is validated on every read.** Unknown fields are dropped, sizes are capped, and a corrupted log simply starts over.
-- **Every issue is applied exactly once.** Handled issue numbers are remembered, and issues are only answered after the new state is committed, so a failed run is safely retried.
-- **Least privilege:** the workflow only needs `contents: write` (to commit the SVGs) and `issues: write` (to reply and close).
+- **Tidy by design:** issues opened from old-style links ("ProfileForge: feed") get a one-line pointer to the house and are closed. Your own issues are never touched.
+- **Least privilege:** the workflow only needs `contents: write` (to commit the SVGs) and `issues: write` (to react and open the house). Comments on pull requests never start a run, and the workflow always runs your default branch's code.
 
-To turn it off, remove `care: true` (and the `issues` trigger). Existing issues stay as they are.
+To turn it off, remove `care: true` and the `issue_comment` trigger.
 </details>
 
 ### It has RPG stats

@@ -9,7 +9,7 @@ import { classForLanguage } from "../src/pet/classes.js";
 import { renderPetCard } from "../src/pet/render.js";
 import { speciesForLanguage } from "../src/pet/species/index.js";
 import { renderPetSprite, SPRITE_CSS } from "../src/pet/sprite.js";
-import { careLink, CARE_ACTIONS, type CareAction } from "../src/care/commands.js";
+import { houseLink, type CareAction } from "../src/care/commands.js";
 import type { Mood, Stage, Trick } from "../src/types.js";
 import type { Hemisphere, Season } from "../src/world/seasons.js";
 
@@ -35,6 +35,7 @@ interface Config {
   species: string;
   cityPet: boolean;
   care: boolean;
+  house: string;
   theme: string;
   season: string;
   hemisphere: string;
@@ -59,6 +60,7 @@ function read(): Config {
     species: value("species"),
     cityPet: checked("cityPet"),
     care: checked("care"),
+    house: value("house").trim(),
     theme: value("theme"),
     season: value("season"),
     hemisphere: value("hemisphere"),
@@ -168,8 +170,8 @@ on:
   schedule:
     - cron: "0 */6 * * *" # every 6 hours
   workflow_dispatch:${care ? `
-  issues:
-    types: [opened]` : ""}
+  issue_comment:
+    types: [created]` : ""}
 
 permissions:
   contents: write${care ? `
@@ -182,24 +184,31 @@ concurrency:
 
 jobs:
   forge:${care ? `
-    # Skip issues that aren't for the pet. The Action checks the title again itself.
-    if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'ProfileForge:')` : ""}
+    # Only comments in the pet's house (never on pull requests) start a run.
+    if: github.event_name != 'issue_comment' || (!github.event.issue.pull_request && startsWith(github.event.issue.title, 'ProfileForge:'))` : ""}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: ${REPO}@v1
         with:${care ? `
-          care: true` : ""}
+          care: true${houseNumber(c) ? `
+          care_issue: ${houseNumber(c)}` : ""}` : ""}
           outputs: |
 ${outputs.join("\n")}`;
 }
 
 const LOGIN_RE = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
-const EMOJI: Record<CareAction, string> = { feed: "🍖 Feed", bath: "🛁 Bath", play: "🎾 Play" };
+
+/** The house issue number, if a valid one was typed in. */
+const houseNumber = (c: Config) => (/^[1-9]\d{0,9}$/.test(c.house) ? Number(c.house) : null);
 
 function careLinks(c: Config): string {
   const login = LOGIN_RE.test(c.login) ? c.login : "your-login";
-  return CARE_ACTIONS.map((a) => `[${EMOJI[a]}](${careLink(`${login}/${login}`, a)})`).join(" · ");
+  const pet = c.name || "my pet";
+  const house = houseNumber(c);
+  // Before the first run there's no issue number yet: link to the repo's issues instead.
+  const url = house ? houseLink(`${login}/${login}`, house) : `https://github.com/${login}/${login}/issues`;
+  return `[🏠 Visit ${pet}'s house: 🍖 feed · 🛁 bath · 🎾 play](${url})`;
 }
 
 function readme(c: Config): string {
