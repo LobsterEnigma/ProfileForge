@@ -15,6 +15,14 @@ describe("species", () => {
     expect(speciesForLanguage("Rust")).toBe("crab");
     expect(speciesForLanguage("JavaScript")).toBe("chick");
     expect(speciesForLanguage("TypeScript")).toBe("turtle");
+    expect(speciesForLanguage("Java")).toBe("capybara");
+    expect(speciesForLanguage("Kotlin")).toBe("otter");
+    expect(speciesForLanguage("C#")).toBe("hedgehog");
+    expect(speciesForLanguage("C")).toBe("octopus");
+    expect(speciesForLanguage("C++")).toBe("squid");
+    expect(speciesForLanguage("Shell")).toBe("snail");
+    expect(speciesForLanguage("Ruby")).toBe("fox");
+    expect(speciesForLanguage("Swift")).toBe("swift");
     expect(speciesForLanguage("COBOL")).toBe("crab");
     expect(speciesForLanguage(null)).toBe("crab");
   });
@@ -29,6 +37,15 @@ describe("species", () => {
   it("falls back to the crab for unknown ids", () => {
     expect(getSpecies("dragon").id).toBe("crab");
     expect(getSpecies("toString").id).toBe("crab"); // not fooled by Object.prototype
+  });
+
+  it("gives every species its own name, and open eyes the glances and glasses can find", () => {
+    const names = Object.values(SPECIES).map((s) => s.defaultName);
+    expect(new Set(names).size).toBe(names.length);
+    for (const s of Object.values(SPECIES)) {
+      const eyes = s.eyes.open.map((l) => l.grid.join(""));
+      expect(eyes.some((g) => g.includes("k") && g.includes("w")), s.id).toBe(true);
+    }
   });
 
   for (const species of Object.values(SPECIES)) {

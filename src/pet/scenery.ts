@@ -1,12 +1,13 @@
 import { RectBatch } from "../svg/batch.js";
 import { renderPixels, type Grid, type Palette } from "../svg/pixel.js";
 import { SNOW, type Area } from "../world/seasons.js";
+import { homeAmbient, homeProps, type Home } from "./homes.js";
 
 /**
  * Each species lives somewhere that suits it. The terrain tints the theme's ground and adds a
  * few props around the edges of the scene, leaving the middle to the pet.
  */
-export type Terrain = "beach" | "meadow" | "jungle" | "savanna" | "farm" | "pond";
+export type Terrain = "beach" | "meadow" | "jungle" | "savanna" | "farm" | "pond" | Home;
 
 const TERRAIN: Record<string, Terrain> = {
   crab: "beach",
@@ -15,6 +16,14 @@ const TERRAIN: Record<string, Terrain> = {
   elephant: "savanna",
   chick: "farm",
   turtle: "pond",
+  capybara: "onsen",
+  hedgehog: "forest",
+  octopus: "reef",
+  snail: "garden",
+  fox: "pinewood",
+  swift: "treetop",
+  squid: "deepsea",
+  otter: "river",
 };
 
 export const terrainFor = (species: string): Terrain => (Object.hasOwn(TERRAIN, species) ? TERRAIN[species]! : "beach");
@@ -27,6 +36,14 @@ const TINT: Record<Terrain, string | null> = {
   savanna: "#cfb25e",
   farm: "#86b862",
   pond: "#79b865",
+  onsen: "#8cbf73",
+  forest: "#6fa55a",
+  reef: null,
+  garden: "#7cc36a",
+  pinewood: "#6f9e5c",
+  treetop: "#7fb366",
+  deepsea: null,
+  river: "#7fb366",
 };
 
 export const SCENERY_CSS = `.pf-tint{opacity:calc(.75 - var(--pf-stars) * .4)}`;
@@ -91,6 +108,8 @@ export function props(species: string, area: Area): string {
       b.add("#3f8f4f", right - 36, g + 10, 10, 5).add("#ff8fa3", right - 33, g + 9, 3, 2);
       for (const x of [right - 12, right - 8]) b.add(DARK_GREEN, x, g - 16, 2, 22).add(WOOD, x, g - 20, 2, 5);
       break;
+    default:
+      return homeProps(terrainFor(species) as Home, area);
   }
   return b.toString();
 }
@@ -181,5 +200,7 @@ export function ambient(species: string, area: Area): { svg: string; css: string
 .pf-amb-fish{opacity:0;transform-box:fill-box;transform-origin:center;animation:pf-amb-fish 8s ease-in-out infinite}@keyframes pf-amb-fish{0%,70%{opacity:0;transform:translate(-8px,4px) rotate(-40deg)}72%{opacity:1}80%{transform:translate(0,-14px) rotate(0)}88%{opacity:1;transform:translate(8px,2px) rotate(40deg)}90%,100%{opacity:0;transform:translate(8px,4px) rotate(40deg)}}`,
       };
     }
+    default:
+      return homeAmbient(terrainFor(species) as Home, area);
   }
 }

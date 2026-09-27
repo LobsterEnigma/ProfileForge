@@ -204,26 +204,33 @@ function fillAttr(color) {
   return color.startsWith("var(") ? `style="fill:${color}"` : `fill="${color}"`;
 }
 function renderPixels(layers, palette, { x = 0, y = 0, scale }) {
-  const paths = /* @__PURE__ */ new Map();
+  const rows = /* @__PURE__ */ new Map();
   for (const l of layers) {
     l.grid.forEach((row, ry) => {
-      let cx = 0;
-      while (cx < row.length) {
-        const ch = row[cx];
-        let run = 1;
-        while (row[cx + run] === ch) run++;
-        if (ch !== "." && ch !== " ") {
-          const color = palette[ch];
-          if (color === void 0) throw new Error(`Pixel "${ch}" has no palette entry`);
-          const px4 = x + (l.x + cx) * scale;
-          const py = y + (l.y + ry) * scale;
-          const segs = paths.get(color) ?? [];
-          segs.push(`M${px4} ${py}h${run * scale}v${scale}h${-run * scale}z`);
-          paths.set(color, segs);
-        }
-        cx += run;
-      }
+      const cy = l.y + ry;
+      [...row].forEach((ch, rx) => {
+        if (ch === "." || ch === " ") return;
+        if (palette[ch] === void 0) throw new Error(`Pixel "${ch}" has no palette entry`);
+        let cells = rows.get(cy);
+        if (!cells) rows.set(cy, cells = /* @__PURE__ */ new Map());
+        cells.set(l.x + rx, ch);
+      });
     });
+  }
+  const paths = /* @__PURE__ */ new Map();
+  for (const cy of [...rows.keys()].sort((a, b) => a - b)) {
+    const cells = rows.get(cy);
+    const xs = [...cells.keys()].sort((a, b) => a - b);
+    for (let i = 0; i < xs.length; ) {
+      const ch = cells.get(xs[i]);
+      let run = 1;
+      while (i + run < xs.length && xs[i + run] === xs[i] + run && cells.get(xs[i + run]) === ch) run++;
+      const color = palette[ch];
+      const segs = paths.get(color) ?? [];
+      segs.push(`M${x + xs[i] * scale} ${y + cy * scale}h${run * scale}v${scale}h${-run * scale}z`);
+      paths.set(color, segs);
+      i += run;
+    }
   }
   return [...paths].map(([color, segs]) => `<path ${fillAttr(color)} d="${segs.join("")}"/>`).join("");
 }
@@ -239,8 +246,82 @@ function outlined(grid) {
   );
 }
 
-// src/pet/species/chick.ts
+// src/pet/species/capybara.ts
 var BODY = [
+  ".......ooooooooo..",
+  ".....oobbhhhhbbboo",
+  "...oobbhhbbbbbbbbb",
+  "..obbbbbbbbbbbbbbb",
+  ".obbbbbbbbbbbbbbbb",
+  "obbbbbbbbbbbbbbbbb",
+  "obbbbbbbbbbbbbbbbb",
+  "obbbbbbbbbbbbbbbbb",
+  ".obbbbbbbbbbbbbbbo",
+  "..oddddddddddddddo",
+  "...oooooooooooooo."
+];
+var HEAD = [
+  ".ooooo..",
+  "obbbbboo",
+  "bbbbbbbo",
+  "bbbbbddo",
+  "bbbbbdno",
+  "bbbbbddo",
+  "bbbbbbbo",
+  "bbbbbbbo",
+  "bbbbbboo"
+];
+var EAR = ["oo", "od"];
+var LEG = ["obo", "odo", "ooo"];
+var legs = (back = 3, front = 12, lift = 0) => [layer(back, 10 - lift, LEG), layer(front, 10, LEG)];
+var capybara = {
+  id: "capybara",
+  defaultName: "Mocha",
+  width: 20,
+  height: 13,
+  facing: "right",
+  palette: {
+    o: "#3b2616",
+    b: "#a9764d",
+    h: "#c99a6e",
+    d: "#86573a",
+    n: "#2a1a10",
+    k: "#1a1a1a",
+    w: "#ffffff",
+    p: "#ff8fa3"
+  },
+  legendaryPalette: {
+    o: "#5a3d0a",
+    b: "#f6c343",
+    h: "#fff1a8",
+    d: "#c99a1a"
+  },
+  body: [layer(0, 1, BODY), layer(12, 0, HEAD), layer(13, 0, EAR)],
+  eyes: {
+    open: [layer(15, 2, ["kw", "kk"])],
+    happy: [layer(15, 2, [".k", "k."])],
+    closed: [layer(15, 3, ["kk"])],
+    sad: [layer(15, 2, ["oo", "kk"])]
+  },
+  mouths: {
+    smile: [layer(17, 7, ["kk"]), layer(16, 6, ["k"])],
+    neutral: [layer(17, 7, ["kk"])],
+    frown: [layer(16, 7, ["kk"])]
+  },
+  blush: [layer(14, 5, ["pp"])],
+  limbs: {
+    // An unhurried trot.
+    happy: [legs(), legs(4, 11, 1)],
+    idle: [legs(), legs(4, 11)],
+    hungry: [legs(), legs()],
+    // Lying down: legs tucked away.
+    sleeping: [[], []]
+  },
+  crownAnchor: { x: 15, y: 0 }
+};
+
+// src/pet/species/chick.ts
+var BODY2 = [
   "....oooooo....",
   "..oohyyyyyoo..",
   ".ohyyyyyyyyyo.",
@@ -280,7 +361,7 @@ var chick = {
     y: "#ffd54a",
     h: "#ffffff"
   },
-  body: [layer(8, 0, ["oo"]), layer(2, 1, BODY)],
+  body: [layer(8, 0, ["oo"]), layer(2, 1, BODY2)],
   eyes: {
     open: eyes(["kw", "kk"]),
     happy: eyes([".kk.", "k..k"], 4),
@@ -318,7 +399,7 @@ var chick = {
 };
 
 // src/pet/species/crab.ts
-var BODY2 = [
+var BODY3 = [
   "..oooooooo..",
   ".orhhrrrrro.",
   "orhrrrrrrrro",
@@ -344,7 +425,7 @@ var STALKS = [layer(7, 4, ["o", "o"]), layer(12, 4, ["o", "o"])];
 var eyes2 = (grid) => [layer(5, 0, grid), layer(11, 0, grid), ...STALKS];
 var claws = (grid, y) => [layer(0, y, grid), layer(15, y, mirror(grid))];
 var ARMS = [layer(4, 6, ["o"]), layer(15, 6, ["o"])];
-var legs = (grid) => [layer(0, 11, grid)];
+var legs2 = (grid) => [layer(0, 11, grid)];
 var clawsUp = (grid) => [...claws(grid, 1), ...ARMS];
 var clawsDown = (grid) => claws(grid, 4);
 var crab = {
@@ -367,7 +448,7 @@ var crab = {
     h: "#fff1a8",
     d: "#c99a1a"
   },
-  body: [layer(4, 6, BODY2)],
+  body: [layer(4, 6, BODY3)],
   eyes: {
     open: eyes2(EYE_OPEN),
     closed: [layer(5, 3, EYE_TUCKED), layer(11, 3, EYE_TUCKED)],
@@ -383,21 +464,21 @@ var crab = {
   limbs: {
     // Snapping claws while bouncing around.
     happy: [
-      [...clawsUp(CLAW_OPEN), ...legs(LEGS_A)],
-      [...clawsUp(CLAW_SHUT), ...legs(LEGS_A)]
+      [...clawsUp(CLAW_OPEN), ...legs2(LEGS_A)],
+      [...clawsUp(CLAW_SHUT), ...legs2(LEGS_A)]
     ],
     // Scuttling sideways, like a proper crab.
     idle: [
-      [...clawsUp(CLAW_OPEN), ...legs(LEGS_A)],
-      [...clawsUp(CLAW_OPEN), ...legs(LEGS_B)]
+      [...clawsUp(CLAW_OPEN), ...legs2(LEGS_A)],
+      [...clawsUp(CLAW_OPEN), ...legs2(LEGS_B)]
     ],
     hungry: [
-      [...clawsDown(CLAW_OPEN), ...legs(LEGS_A)],
-      [...clawsDown(CLAW_OPEN), ...legs(LEGS_A)]
+      [...clawsDown(CLAW_OPEN), ...legs2(LEGS_A)],
+      [...clawsDown(CLAW_OPEN), ...legs2(LEGS_A)]
     ],
     sleeping: [
-      [...clawsDown(CLAW_SHUT), ...legs(LEGS_A)],
-      [...clawsDown(CLAW_SHUT), ...legs(LEGS_A)]
+      [...clawsDown(CLAW_SHUT), ...legs2(LEGS_A)],
+      [...clawsDown(CLAW_SHUT), ...legs2(LEGS_A)]
     ]
   },
   crownAnchor: { x: 10, y: 0 }
@@ -410,7 +491,7 @@ var TORSO = [
   "obbbbbbbbbbbbo",
   "obbbbbbbbbbbbo"
 ];
-var HEAD = [
+var HEAD2 = [
   "..oooooooo..",
   ".obbbbbbbbo.",
   "obhhbbbbbbbo",
@@ -423,7 +504,7 @@ var HEAD = [
   "...oobboo..."
 ];
 var TRUNK = ["obbo", "obbo", "obbo", ".oo."];
-var EAR = [
+var EAR2 = [
   ".ooo.",
   "obbbo",
   "obeeb",
@@ -470,7 +551,7 @@ var elephant = {
     d: "#c99a1a",
     e: "#ffd98a"
   },
-  body: [layer(3, 7, TORSO), layer(4, 0, HEAD), layer(8, 10, TRUNK), layer(7, 10, ["t"]), layer(12, 10, ["t"])],
+  body: [layer(3, 7, TORSO), layer(4, 0, HEAD2), layer(8, 10, TRUNK), layer(7, 10, ["t"]), layer(12, 10, ["t"])],
   eyes: {
     open: pair(6, 4, ["kw", "kk"], 6),
     happy: pair(5, 4, [".kk.", "k..k"], 6),
@@ -486,28 +567,100 @@ var elephant = {
   limbs: {
     // Flapping ears.
     happy: [
-      [...ears(EAR), ...feet2()],
+      [...ears(EAR2), ...feet2()],
       [...ears(EAR_FLAP), ...feet2()]
     ],
     // Plodding along.
     idle: [
-      [...ears(EAR), ...feet2()],
-      [...ears(EAR), ...feet2(10, 11)]
+      [...ears(EAR2), ...feet2()],
+      [...ears(EAR2), ...feet2(10, 11)]
     ],
     hungry: [
-      [...ears(EAR, 2), ...feet2()],
-      [...ears(EAR, 2), ...feet2()]
+      [...ears(EAR2, 2), ...feet2()],
+      [...ears(EAR2, 2), ...feet2()]
     ],
     sleeping: [
-      [...ears(EAR, 2), ...feet2()],
-      [...ears(EAR, 2), ...feet2()]
+      [...ears(EAR2, 2), ...feet2()],
+      [...ears(EAR2, 2), ...feet2()]
     ]
   },
   crownAnchor: { x: 10, y: 0 }
 };
 
+// src/pet/species/fox.ts
+var HEAD3 = [
+  ".o..........o.",
+  "oko........oko",
+  "oiro......orio",
+  "oirroooooorrio",
+  "orrrrrrrrrrrro",
+  "orrrrrrrrrrrro",
+  "orrrrrrrrrrrro",
+  "owwrrrrrrrrwwo",
+  ".owwwwnnwwwwo.",
+  "..oowwwwwwoo..",
+  "....oooooo...."
+];
+var BODY4 = [
+  "..orrrrrro..",
+  ".orrwwwwrro.",
+  "orrrwwwwrrro",
+  "orrrrwwrrrro",
+  "orrrrrrrrrro",
+  ".oooooooooo."
+];
+var TAIL = ["...oo.", "..owwo", ".owwro", ".orrro", "orrrro", "orrrro", ".orrro", "..ooo."];
+var TAIL_WAG = ["....oo", "...owo", "..owwo", ".orrro", "orrrro", "orrrro", ".orrro", "..ooo."];
+var DROOP = ["......", "......", "......", "......", "..ooo.", ".orrro", "orrrwo", ".oooo."];
+var PAW = ["okko", "oooo"];
+var paws = (lift = 0) => [layer(5, 14 - lift, PAW), layer(9, 14, PAW)];
+var tail = (grid) => [layer(12, 7, grid)];
+var fox = {
+  id: "fox",
+  defaultName: "Ember",
+  width: 18,
+  height: 16,
+  palette: {
+    o: "#4a1a0c",
+    r: "#e8622c",
+    i: "#ffb3a0",
+    w: "#fff4e6",
+    n: "#1a1a1a",
+    k: "#1a1a1a",
+    p: "#ff8fa3"
+  },
+  legendaryPalette: {
+    o: "#5a3d0a",
+    r: "#f6c343",
+    i: "#fff1a8"
+  },
+  body: [layer(3, 9, BODY4), layer(2, 0, HEAD3)],
+  eyes: {
+    open: [layer(5, 5, ["kw", "kk"]), layer(11, 5, ["kw", "kk"])],
+    happy: [layer(5, 5, [".k.", "k.k"]), layer(10, 5, [".k.", "k.k"])],
+    closed: [layer(5, 6, ["kk"]), layer(11, 6, ["kk"])],
+    sad: [layer(5, 5, ["oo", "kk"]), layer(11, 5, ["oo", "kk"])]
+  },
+  mouths: {
+    smile: [layer(7, 9, ["k..k"])],
+    neutral: [layer(8, 9, ["kk"])],
+    frown: [layer(7, 9, [".kk."])]
+  },
+  blush: [layer(3, 7, ["p"]), layer(14, 7, ["p"])],
+  limbs: {
+    // The tail wags.
+    happy: [[...tail(TAIL), ...paws()], [...tail(TAIL_WAG), ...paws(1)]],
+    idle: [[...tail(TAIL), ...paws()], [...tail(TAIL_WAG), ...paws()]],
+    // Tail drooping.
+    hungry: [[...tail(DROOP), ...paws()], [...tail(DROOP), ...paws()]],
+    // Curled up, the tail as a blanket.
+    sleeping: [[...tail(TAIL), ...paws()], [...tail(TAIL), ...paws()]]
+  },
+  crownAnchor: { x: 9, y: 3 }
+};
+
 // src/pet/species/gopher.ts
-var BODY3 = [
+var BODY5 = [
   "..oooooooooo..",
   ".oghhgggggggo.",
   "oghggggggggggo",
@@ -522,7 +675,7 @@ var BODY3 = [
   ".oggggggggggo.",
   "..oooooooooo.."
 ];
-var EAR2 = [".oo", "ogg"];
+var EAR3 = [".oo", "ogg"];
 var SNOUT = [".kk.", "ssss", ".ss."];
 var TEETH = layer(7, 11, ["ww"]);
 var ARM = ["oo", "og", "oo"];
@@ -549,7 +702,7 @@ var gopher = {
     g: "#f6c343",
     h: "#fff1a8"
   },
-  body: [layer(2, 1, EAR2), layer(11, 1, mirror(EAR2)), layer(1, 2, BODY3), layer(6, 8, SNOUT)],
+  body: [layer(2, 1, EAR3), layer(11, 1, mirror(EAR3)), layer(1, 2, BODY5), layer(6, 8, SNOUT)],
   eyes: {
     open: eyes3([".oo.", "owko", "owwo", ".oo."]),
     happy: eyes3(["....", ".oo.", "o..o", "...."]),
@@ -585,8 +738,298 @@ var gopher = {
   crownAnchor: { x: 8, y: 1 }
 };
 
+// src/pet/species/hedgehog.ts
+var DOME = [
+  "....o.o.o.o.....",
+  "..o.oxoxoxo.o...",
+  ".oxoxxxxxxxoxo..",
+  "oxxxxxxxxxxxxxo.",
+  "oxxxxxxxxxxxxxo.",
+  "oxxxxxxxxxxxxxo.",
+  "oxxxxxxxxxxxxxo.",
+  "oxxxxxxxxxxxxxo.",
+  ".oxxxxxxxxxxxo..",
+  "..offffffffffo..",
+  "...oooooooooo..."
+];
+var SPIKES = DOME.map((row, y) => [...row].map((c, x) => c === "x" ? ((x - y) % 3 + 3) % 3 === 0 ? "S" : "s" : c).join(""));
+var FACE = [
+  "oo......",
+  "ffo.....",
+  "fffoo...",
+  "ffffffoo",
+  "fffffffn",
+  "ffffffoo",
+  "fffoo...",
+  "ooo....."
+];
+var EAR4 = ["oo", "oi"];
+var FOOT4 = ["off", "ooo"];
+var feet4 = (back = 3, front = 10, lift = 0) => [layer(back, 11 - lift, FOOT4), layer(front, 11, FOOT4)];
+var hedgehog = {
+  id: "hedgehog",
+  defaultName: "Spike",
+  width: 20,
+  height: 13,
+  facing: "right",
+  palette: {
+    o: "#2e1d12",
+    s: "#6b4a33",
+    S: "#a67b55",
+    f: "#f3d9b1",
+    i: "#e8a0a0",
+    n: "#141414",
+    k: "#141414",
+    w: "#ffffff",
+    p: "#ff8fa3"
+  },
+  legendaryPalette: {
+    o: "#5a3d0a",
+    s: "#c99a1a",
+    S: "#fff1a8"
+  },
+  body: [layer(0, 0, SPIKES), layer(11, 3, FACE), layer(12, 2, EAR4)],
+  eyes: {
+    open: [layer(13, 5, ["kw", "kk"])],
+    happy: [layer(13, 5, [".k", "k."])],
+    closed: [layer(13, 6, ["kk"])],
+    sad: [layer(13, 5, ["oo", "kk"])]
+  },
+  mouths: {
+    smile: [layer(15, 8, ["kk"])],
+    neutral: [layer(15, 8, ["k"])],
+    frown: [layer(14, 8, ["k"]), layer(15, 7, ["k"])]
+  },
+  blush: [layer(12, 7, ["pp"])],
+  limbs: {
+    // Pitter-patter.
+    happy: [feet4(), feet4(4, 9, 1)],
+    idle: [feet4(), feet4(4, 9)],
+    hungry: [feet4(), feet4()],
+    // Curled up.
+    sleeping: [[], []]
+  },
+  crownAnchor: { x: 7, y: 0 }
+};
+
+// src/pet/species/octopus.ts
+var HEAD4 = [
+  "....oooooooo....",
+  "..oohhhhhmmmoo..",
+  ".ohhhmmmmmmsmmo.",
+  ".ohmmmmmmmmmmmo.",
+  "ohmmsmmmmmmmmmmo",
+  "ommmmmmmmmmmmsmo",
+  "ommmmmmmmmmmmmmo",
+  "ommmmmmmmmmmmmmo",
+  "ommmmmmmmmmmmmmo",
+  "ommmmmmmmmmmmmmo",
+  ".ommmmmmmmmmmmo."
+];
+var SKIRT = ["ommmmmmmmmmmmmmmmo"];
+var WAVE_A = [
+  "omo.omo..omo.omo..",
+  "omo..omo.omo..omo.",
+  ".omo.omo..omo.omo.",
+  "..oo..oo...oo..oo."
+];
+var WAVE_B = [
+  "..omo.omo..omo.omo",
+  ".omo.omo..omo.omo.",
+  ".omo..omo.omo..omo",
+  ".oo...oo..oo...oo."
+];
+var REST = [
+  "omo.omo..omo.omo..",
+  "ommoommooommoommo.",
+  ".oo..oo...oo..oo..",
+  ".................."
+];
+var eyes4 = (grid) => [layer(4, 4, grid), layer(10, 4, grid)];
+var tentacles = (grid) => [layer(0, 11, SKIRT), layer(0, 12, grid)];
+var octopus = {
+  id: "octopus",
+  defaultName: "Inky",
+  width: 18,
+  height: 16,
+  palette: {
+    o: "#5c1d3a",
+    m: "#ee6a8f",
+    h: "#ffa8bf",
+    s: "#c9446c",
+    k: "#1a1a1a",
+    w: "#ffffff",
+    p: "#ffd1dc"
+  },
+  legendaryPalette: {
+    o: "#5a3d0a",
+    m: "#f6c343",
+    h: "#fff1a8",
+    s: "#c99a1a"
+  },
+  body: [layer(1, 0, HEAD4)],
+  eyes: {
+    open: eyes4([".oo.", "owko", "owwo", ".oo."]),
+    happy: eyes4(["....", ".oo.", "o..o", "...."]),
+    closed: eyes4(["....", "....", "o..o", ".oo."]),
+    sad: eyes4(["....", "oooo", "owko", ".oo."])
+  },
+  mouths: {
+    smile: [layer(7, 8, ["o..o", ".oo."])],
+    neutral: [layer(8, 9, ["oo"])],
+    frown: [layer(7, 8, [".oo.", "o..o"])]
+  },
+  blush: [layer(3, 8, ["pp"]), layer(13, 8, ["pp"])],
+  limbs: {
+    happy: [tentacles(WAVE_A), tentacles(WAVE_B)],
+    idle: [tentacles(WAVE_A), tentacles(WAVE_B)],
+    hungry: [tentacles(REST), tentacles(REST)],
+    sleeping: [tentacles(REST), tentacles(REST)]
+  },
+  crownAnchor: { x: 9, y: 0 }
+};
+
+// src/pet/species/otter.ts
+var BODY6 = [
+  "........oooooooo..",
+  "......oobbhhhhbbbo",
+  "....oobbbbbbbbbbbb",
+  "ooooobbbbbbbbbbbbb",
+  "obbbbbbbbbbbbbbbbb",
+  ".oooobbbbbbbbbbbbb",
+  ".....obccccccccbbo",
+  "......oooooooooo.."
+];
+var HEAD5 = [
+  ".oo.....",
+  "oboooo..",
+  "obbbbboo",
+  "bbbbbbbo",
+  "bbbbbccn",
+  "bbbbcccc",
+  "obbbcccc",
+  ".ooooooo"
+];
+var BANDANA = ["vv", "vv", "vV", "vv", ".v"];
+var LEG2 = ["obo", "ooo"];
+var legs3 = (back = 5, front = 13, lift = 0) => [layer(back, 10 - lift, LEG2), layer(front, 10, LEG2)];
+var otter = {
+  id: "otter",
+  defaultName: "Kody",
+  width: 22,
+  height: 12,
+  facing: "right",
+  palette: {
+    o: "#2e1b10",
+    b: "#8a5a3a",
+    h: "#b07d56",
+    c: "#f1dcc0",
+    n: "#1a1a1a",
+    v: "#7f52ff",
+    V: "#e44857",
+    k: "#1a1a1a",
+    w: "#ffffff",
+    p: "#ff8fa3"
+  },
+  legendaryPalette: {
+    o: "#5a3d0a",
+    b: "#f6c343",
+    h: "#fff1a8"
+  },
+  body: [layer(0, 2, BODY6), layer(14, 1, HEAD5), layer(13, 3, BANDANA)],
+  eyes: {
+    open: [layer(17, 3, ["kw", "kk"])],
+    happy: [layer(17, 3, [".k", "k."])],
+    closed: [layer(17, 4, ["kk"])],
+    sad: [layer(17, 3, ["oo", "kk"])]
+  },
+  mouths: {
+    smile: [layer(19, 7, ["k"]), layer(20, 6, ["k"])],
+    neutral: [layer(19, 7, ["kk"])],
+    frown: [layer(19, 6, ["k"]), layer(20, 7, ["k"])]
+  },
+  blush: [layer(16, 6, ["pp"])],
+  limbs: {
+    // Scampering.
+    happy: [legs3(), legs3(6, 12, 1)],
+    idle: [legs3(), legs3(6, 12)],
+    hungry: [legs3(), legs3()],
+    // Curled up on its side.
+    sleeping: [[], []]
+  },
+  crownAnchor: { x: 17, y: 1 }
+};
+
+// src/pet/species/snail.ts
+var SHELL = [
+  "...ooooo...",
+  ".ooyyyyyoo.",
+  "oyyhrrrryyo",
+  "oyhryyyyryo",
+  "oyryyrryryo",
+  "oyryryyryyo",
+  "oyryyrryyyo",
+  "oyyryyyyryo",
+  ".oyyrrrryo.",
+  "..ooooooo.."
+];
+var FOOT5 = [
+  "..............bbbbo.",
+  ".oobbbbbbbbbbbbbbo..",
+  "obbbbbbbbbbbbbbbbbo.",
+  ".oooooooooooooooooo."
+];
+var HEAD6 = [".oooo.", "obbbbo", "obbbbo", "obbbbo", "obbbbo"];
+var STALK = ["g", "g", "g"];
+var stalks = (tilt = 0) => [layer(14 + tilt, 3, STALK), layer(17 + tilt, 3, STALK)];
+var snail = {
+  id: "snail",
+  defaultName: "Bash",
+  width: 20,
+  height: 14,
+  facing: "right",
+  palette: {
+    o: "#3d2b1f",
+    y: "#e9b04f",
+    h: "#f7dc93",
+    r: "#9a5d27",
+    b: "#b9dcc3",
+    g: "#7fb592",
+    k: "#1a1a1a",
+    w: "#ffffff",
+    p: "#ff8fa3"
+  },
+  legendaryPalette: {
+    o: "#5a3d0a",
+    y: "#f6c343",
+    h: "#fff1a8",
+    r: "#c99a1a"
+  },
+  body: [layer(0, 10, FOOT5), layer(13, 6, HEAD6), layer(2, 1, SHELL)],
+  eyes: {
+    open: [layer(13, 1, ["wk", "kk"]), layer(16, 1, ["wk", "kk"])],
+    happy: [layer(13, 1, ["k.", ".k"]), layer(16, 1, ["k.", ".k"])],
+    closed: [layer(13, 2, ["kk"]), layer(16, 2, ["kk"])],
+    sad: [layer(13, 1, ["oo", "kk"]), layer(16, 1, ["oo", "kk"])]
+  },
+  mouths: {
+    smile: [layer(16, 9, ["k"]), layer(17, 8, ["k"])],
+    neutral: [layer(16, 9, ["kk"])],
+    frown: [layer(16, 8, ["k"]), layer(17, 9, ["k"])]
+  },
+  blush: [layer(14, 8, ["pp"])],
+  limbs: {
+    // The stalks bob as it glides.
+    happy: [stalks(), stalks(1)],
+    idle: [stalks(), stalks()],
+    hungry: [stalks(), stalks()],
+    sleeping: [stalks(), stalks()]
+  },
+  crownAnchor: { x: 7, y: 1 }
+};
+
 // src/pet/species/snake.ts
-var HEAD2 = [
+var HEAD7 = [
   "...oooo...",
   ".oobbbboo.",
   "obbbbbbbbo",
@@ -628,7 +1071,7 @@ var snake = {
     h: "#fff1a8",
     y: "#fff8d6"
   },
-  body: [layer(2, 7, COILS), layer(5, 0, HEAD2)],
+  body: [layer(2, 7, COILS), layer(5, 0, HEAD7)],
   eyes: {
     open: [layer(7, 2, ["kw", "kk"]), layer(11, 2, ["kw", "kk"])],
     happy: [layer(6, 2, [".k.", "k.k"]), layer(11, 2, [".k.", "k.k"])],
@@ -651,8 +1094,152 @@ var snake = {
   crownAnchor: { x: 10, y: 0 }
 };
 
+// src/pet/species/squid.ts
+var MANTLE = [
+  "....oo....",
+  "...ohbo...",
+  "..ohbbbo..",
+  ".ohbbbbbo.",
+  "ohbbbbbbbo",
+  "ohbbbbbbbo",
+  "obbbbbbbbo",
+  "obbbbbbbbo",
+  "obbbbbbbbo",
+  "obbbbbbbbo",
+  "obbbbbbbbo",
+  ".obbbbbbo."
+];
+var FIN = ["...o", "..ob", ".obb", "obbb", ".oob", "...o"];
+var ARMS_A = [
+  "..obbbbbbbbbbo..",
+  ".obobobobobobo..",
+  "ob.ob.ob.ob.ob.o",
+  "o..o..o..o..o..o"
+];
+var ARMS_B = [
+  "..obbbbbbbbbbo..",
+  "..obobobobobobo.",
+  ".o.bo.bo.bo.bo.o",
+  "...o..o..o..o..."
+];
+var TENTACLE_A = ["o..", "bo.", "bo.", "bo.", "bbo", "obb"];
+var TENTACLE_B = [".o.", "ob.", "ob.", "ob.", "obb", "bbo"];
+var REST2 = [
+  "..obbbbbbbbbbo..",
+  ".obbbbbbbbbbbbo.",
+  "obobobobobobobo.",
+  "................"
+];
+var eyes5 = (grid) => [layer(6, 7, grid), layer(10, 7, grid)];
+var arms2 = (skirt, left, right) => [layer(1, 12, skirt), layer(0, 11, left), layer(15, 11, right)];
+var squid = {
+  id: "squid",
+  defaultName: "Plus",
+  width: 18,
+  height: 17,
+  palette: {
+    o: "#0b2a4a",
+    b: "#4f8fd8",
+    h: "#9cc4f0",
+    k: "#111111",
+    w: "#ffffff",
+    p: "#ffb3c6"
+  },
+  legendaryPalette: {
+    o: "#5a3d0a",
+    b: "#f6c343",
+    h: "#fff1a8"
+  },
+  body: [layer(1, 2, FIN), layer(13, 2, mirror(FIN)), layer(4, 0, MANTLE)],
+  eyes: {
+    open: eyes5(["wk", "kk"]),
+    happy: eyes5([".o.", "o.o"]),
+    closed: eyes5(["...", "ooo"]),
+    sad: eyes5(["oo", "kk"])
+  },
+  mouths: {
+    smile: [layer(8, 10, ["o..o"]), layer(9, 11, ["oo"])],
+    neutral: [layer(9, 10, ["oo"])],
+    frown: [layer(9, 10, ["oo"]), layer(8, 11, ["o..o"])]
+  },
+  blush: [layer(4, 10, ["pp"]), layer(12, 10, ["pp"])],
+  limbs: {
+    happy: [arms2(ARMS_A, TENTACLE_A, mirror(TENTACLE_A)), arms2(ARMS_B, TENTACLE_B, mirror(TENTACLE_B))],
+    idle: [arms2(ARMS_A, TENTACLE_A, mirror(TENTACLE_A)), arms2(ARMS_B, TENTACLE_B, mirror(TENTACLE_B))],
+    hungry: [arms2(REST2, TENTACLE_B, mirror(TENTACLE_B)), arms2(REST2, TENTACLE_B, mirror(TENTACLE_B))],
+    sleeping: [arms2(REST2, TENTACLE_B, mirror(TENTACLE_B)), arms2(REST2, TENTACLE_B, mirror(TENTACLE_B))]
+  },
+  crownAnchor: { x: 9, y: 0 }
+};
+
+// src/pet/species/swift.ts
+var BODY7 = [
+  "..........oooo....",
+  ".........orrrro...",
+  "o.......orrrrrro..",
+  "oro.....orrrrrrro.",
+  ".oro...orrrrrrrro.",
+  "..orr.orrrrrrrwwo.",
+  "oorrrorrrrrrwwwwo.",
+  "orrrrrrrrrrwwwwo..",
+  ".ooorrrrrrwwwwo...",
+  "....ooooooooo....."
+];
+var BEAK = ["yy", "y."];
+var WING_DOWN = ["...ooooo", "..ohhhho", ".oddddo.", "odddoo..", "ooo....."];
+var WING_UP2 = ["....oo..", "..oddo..", ".odddo..", "odddddo.", ".ooooo.."];
+var FEET = ["y..y", "yy.yy"];
+var flap = (up) => up ? [layer(6, 1, WING_UP2)] : [];
+var feet5 = [layer(7, 12, FEET)];
+var swift = {
+  id: "swift",
+  defaultName: "Zippy",
+  width: 18,
+  height: 14,
+  facing: "right",
+  palette: {
+    o: "#4a1a0f",
+    r: "#f05138",
+    d: "#c63a24",
+    h: "#ff8a6e",
+    w: "#fff4ec",
+    y: "#f4b73f",
+    k: "#1a1a1a",
+    p: "#ff9fb0"
+  },
+  legendaryPalette: {
+    o: "#5a3d0a",
+    r: "#f6c343",
+    d: "#c99a1a",
+    h: "#fff1a8"
+  },
+  body: [layer(0, 2, BODY7), layer(16, 6, BEAK), layer(4, 7, WING_DOWN)],
+  eyes: {
+    open: [layer(13, 5, ["kw", "kk"])],
+    happy: [layer(13, 5, [".k", "k."])],
+    closed: [layer(13, 6, ["kk"])],
+    sad: [layer(13, 5, ["oo", "kk"])]
+  },
+  // The beak does the talking: its tip marks the mouth (for treats, kisses and the ball).
+  mouths: {
+    smile: [layer(16, 7, ["y"])],
+    neutral: [layer(16, 7, ["y"])],
+    frown: [layer(16, 7, ["y"])]
+  },
+  blush: [layer(12, 7, ["pp"])],
+  limbs: {
+    // Flapping with joy.
+    happy: [[...flap(false), ...feet5], [...flap(true), ...feet5]],
+    // Hopping from foot to foot.
+    idle: [feet5, [layer(7, 12, ["y..y", "yy.y."]), layer(10, 13, ["y"])]],
+    hungry: [feet5, feet5],
+    sleeping: [feet5, feet5]
+  },
+  crownAnchor: { x: 12, y: 2 }
+};
+
 // src/pet/species/turtle.ts
-var SHELL = [
+var SHELL2 = [
   "...oooooo...",
   ".oohsssssoo.",
   "ohsssddsssso",
@@ -662,10 +1249,10 @@ var SHELL = [
   "oeeeeeeeeeeo",
   ".oooooooooo."
 ];
-var HEAD3 = [".oooo.", "oggggo", "oggggo", "oggggo", ".oooo."];
-var TAIL = ["oo", ".o"];
-var LEG = ["ogo", "ogo", "ooo"];
-var legs2 = (back = 4, front = 11) => [layer(back, 9, LEG), layer(front, 9, LEG)];
+var HEAD8 = [".oooo.", "oggggo", "oggggo", "oggggo", ".oooo."];
+var TAIL2 = ["oo", ".o"];
+var LEG3 = ["ogo", "ogo", "ooo"];
+var legs4 = (back = 4, front = 11) => [layer(back, 9, LEG3), layer(front, 9, LEG3)];
 var turtle = {
   id: "turtle",
   defaultName: "Shelly",
@@ -690,7 +1277,7 @@ var turtle = {
     d: "#c99a1a",
     e: "#fff1a8"
   },
-  body: [layer(1, 7, TAIL), layer(3, 2, SHELL), layer(14, 4, HEAD3)],
+  body: [layer(1, 7, TAIL2), layer(3, 2, SHELL2), layer(14, 4, HEAD8)],
   eyes: {
     open: [layer(16, 5, ["kw", "kk"])],
     happy: [layer(16, 5, [".k", "k."])],
@@ -705,10 +1292,10 @@ var turtle = {
   blush: [layer(15, 7, ["p"])],
   limbs: {
     // A happy little shuffle.
-    happy: [legs2(), legs2(5, 10)],
+    happy: [legs4(), legs4(5, 10)],
     // Slow and steady.
-    idle: [legs2(), legs2(5, 10)],
-    hungry: [legs2(), legs2()],
+    idle: [legs4(), legs4(5, 10)],
+    hungry: [legs4(), legs4()],
     // Tucked into its shell.
     sleeping: [[], []]
   },
@@ -716,7 +1303,7 @@ var turtle = {
 };
 
 // src/pet/species/index.ts
-var SPECIES = { crab, gopher, snake, elephant, chick, turtle };
+var SPECIES = { crab, gopher, snake, elephant, chick, turtle, capybara, hedgehog, octopus, snail, fox, swift, squid, otter };
 var BY_LANGUAGE = {
   Rust: "crab",
   Go: "gopher",
@@ -724,7 +1311,27 @@ var BY_LANGUAGE = {
   "Jupyter Notebook": "snake",
   PHP: "elephant",
   JavaScript: "chick",
-  TypeScript: "turtle"
+  TypeScript: "turtle",
+  // The JVM crowd: calm, reliable, a coffee in hand.
+  Java: "capybara",
+  Scala: "capybara",
+  Groovy: "capybara",
+  // Java's nimble modern cousin.
+  Kotlin: "otter",
+  // C sharp: all spikes.
+  "C#": "hedgehog",
+  "F#": "hedgehog",
+  // A hand for every pointer.
+  C: "octopus",
+  // C, plus two: eight arms and two tentacles.
+  "C++": "squid",
+  // It carries its own shell.
+  Shell: "snail",
+  PowerShell: "snail",
+  Batchfile: "snail",
+  Ruby: "fox",
+  Swift: "swift",
+  "Objective-C": "swift"
 };
 function speciesForLanguage(language) {
   return language && Object.hasOwn(BY_LANGUAGE, language) ? BY_LANGUAGE[language] : "crab";
@@ -996,26 +1603,26 @@ var textWidth = (text2) => pixelText(text2)[0].length;
 // src/pet/behavior.ts
 function shiftPupils(grid, dir) {
   return grid.map((row) => {
-    const px4 = [...row];
-    const order = dir === -1 ? px4.keys() : [...px4.keys()].reverse();
+    const px5 = [...row];
+    const order = dir === -1 ? px5.keys() : [...px5.keys()].reverse();
     for (const i of order) {
-      if (px4[i] === "k" && px4[i + dir] === "w") [px4[i], px4[i + dir]] = [px4[i + dir], px4[i]];
+      if (px5[i] === "k" && px5[i + dir] === "w") [px5[i], px5[i + dir]] = [px5[i + dir], px5[i]];
     }
-    return px4.join("");
+    return px5.join("");
   });
 }
-function glance(eyes4) {
+function glance(eyes6) {
   for (const dir of [-1, 1]) {
-    const moved = eyes4.map((l) => ({ ...l, grid: shiftPupils(l.grid, dir) }));
-    if (moved.some((l, i) => l.grid.join() !== eyes4[i].grid.join())) return moved;
+    const moved = eyes6.map((l) => ({ ...l, grid: shiftPupils(l.grid, dir) }));
+    if (moved.some((l, i) => l.grid.join() !== eyes6[i].grid.join())) return moved;
   }
   return null;
 }
-function crossEyes(eyes4, spriteWidth) {
-  return eyes4.map((l) => {
+function crossEyes(eyes6, spriteWidth) {
+  return eyes6.map((l) => {
     if (!/k/.test(l.grid.join("")) || !/w/.test(l.grid.join(""))) return l;
     const centre = l.x + width(l) / 2;
-    return { ...l, grid: shiftPupils(l.grid, centre < spriteWidth / 2 || eyes4.length === 1 ? 1 : -1) };
+    return { ...l, grid: shiftPupils(l.grid, centre < spriteWidth / 2 || eyes6.length === 1 ? 1 : -1) };
   });
 }
 var width = (l) => Math.max(...l.grid.map((r) => r.length));
@@ -1037,14 +1644,14 @@ function eyeBoxes(species) {
   return boxes.sort((a, b) => a.x - b.x);
 }
 function anchors(species) {
-  const eyes4 = species.eyes.open.filter((l) => /[kw]/.test(l.grid.join(""))).map((l) => ({ x: l.x + width(l) / 2, y: l.y + l.grid.length / 2 }));
+  const eyes6 = species.eyes.open.filter((l) => /[kw]/.test(l.grid.join(""))).map((l) => ({ x: l.x + width(l) / 2, y: l.y + l.grid.length / 2 }));
   const mouthLayers = [species.mouths.smile, species.mouths.neutral, species.mouths.frown].find((m) => m.length) ?? [];
   const mouth = mouthLayers.length ? {
     x: (Math.min(...mouthLayers.map((l) => l.x)) + Math.max(...mouthLayers.map((l) => l.x + width(l)))) / 2,
     y: Math.max(...mouthLayers.map((l) => l.y + l.grid.length))
   } : { x: species.width / 2, y: species.height * 0.7 };
   const top = Math.min(...species.eyes.open.map((l) => l.y));
-  return { eyes: eyes4, mouth, top };
+  return { eyes: eyes6, mouth, top };
 }
 var GLYPHS2 = {
   question: ["xxx", "..x", ".xx", "...", ".x."],
@@ -1086,7 +1693,15 @@ var SIGNATURE = {
   snake: "hiss",
   elephant: "spray",
   chick: "peck",
-  turtle: "zoomies"
+  turtle: "zoomies",
+  capybara: "yuzu",
+  hedgehog: "roll",
+  octopus: "ink",
+  snail: "slime",
+  fox: "pounce",
+  swift: "loop",
+  squid: "jetup",
+  otter: "float"
 };
 var TRICK_PERIOD = 48;
 var TRICK_STARTS = [8.4, 20.4, 32.4, 44.4];
@@ -1150,6 +1765,13 @@ var ANIMS = {
   gum: { props: "opacity:0;transform-box:fill-box;transform-origin:0 50%", timing: "ease-in", frames: "0%,71.9%{opacity:0;transform:scale(0)}72%{opacity:1;transform:scale(.2)}82%{opacity:1;transform:scale(1.6)}83%{opacity:1;transform:scale(1.8)}83.1%,100%{opacity:0;transform:scale(1.8)}" },
   pop: { props: "opacity:0", timing: "ease-out", frames: "0%,83%{opacity:0;transform:translate(0,0)}83.2%{opacity:1}88%{opacity:0;transform:translate(var(--dx),var(--dy))}100%{opacity:0}" },
   sway: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}74%,82%{transform:rotate(-5deg)}78%,86%{transform:rotate(5deg)}" },
+  roll: { props: "transform-box:fill-box;transform-origin:center", timing: "linear", frames: "0%,70%,88%,100%{transform:none}72%{transform:scale(.85,.75)}76%{transform:translateX(-10px) rotate(-180deg) scale(.8)}80%{transform:translateX(-20px) rotate(-360deg) scale(.8)}84%{transform:translateX(-10px) rotate(-540deg) scale(.8)}87%{transform:rotate(-720deg) scale(.85)}" },
+  jet: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-out", frames: "0%,70%,88%,100%{transform:none}72%{transform:scale(1.1,.85)}75%{transform:translate(-16px,-18px) scale(.9,1.1)}81%{transform:translate(-20px,-10px)}86%{transform:translate(-8px,-2px)}" },
+  inch: { props: "transform-box:fill-box;transform-origin:0 100%", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}73%,79%,85%{transform:scaleX(1.18)}76%,82%{transform:scaleX(.9)}" },
+  pounce2: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}72%{transform:translateY(3px) scale(1.06,.9)}76%{transform:translate(8px,-30px) rotate(25deg)}80%{transform:translate(14px,-14px) rotate(70deg)}83%{transform:translate(16px,2px) rotate(90deg) scale(1,.8)}86%{transform:translate(8px,0) rotate(20deg)}" },
+  loop: { props: "transform-box:fill-box;transform-origin:center", timing: "linear", frames: "0%,70%,88%,100%{transform:none}73%{transform:translateY(-12px)}77%{transform:translate(-8px,-28px) rotate(-120deg)}81%{transform:translate(-2px,-32px) rotate(-240deg)}85%{transform:translate(4px,-14px) rotate(-360deg)}" },
+  jetup: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-out", frames: "0%,70%,88%,100%{transform:none}72%{transform:scale(1.1,.85)}75%{transform:translateY(-32px) scale(.85,1.2)}80%{transform:translateY(-28px)}85%{transform:translateY(-8px)}" },
+  belly: { props: "transform-box:fill-box;transform-origin:center", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}73%,85%{transform:rotate(180deg) scaleX(-1) translateY(-2px)}79%{transform:rotate(180deg) scaleX(-1) translateY(-5px)}" },
   note: { props: "opacity:0", timing: "ease-out", frames: "0%,70%{opacity:0;transform:translate(0,0)}72%{opacity:1}88%{opacity:0;transform:translate(var(--dx),-30px)}100%{opacity:0}" }
 };
 var r3 = (n) => +n.toFixed(3);
@@ -1174,7 +1796,7 @@ function trickLayers(trick, species, scale, slot = 0) {
   const burst = (from, color, size, particles2, round3 = false, anim = "burst") => particles2.map(
     (p) => `<rect class="${k(anim)}" style="--dx:${p.dx}px;--dy:${p.dy}px;animation-delay:calc(var(--pf-t0,0s) + ${p.delay}s)" x="${from.x - size / 2}" y="${from.y - size / 2}" width="${size}" height="${size}"${round3 ? ` rx="${size / 2}" fill="none" stroke="${color}" stroke-width="1"` : ` fill="${color}"`}/>`
   ).join("");
-  const px4 = (grid, palette, x, y, s) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale: s });
+  const px5 = (grid, palette, x, y, s) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale: s });
   const a = anchors(species);
   const at2 = (p) => ({ x: p.x * scale, y: p.y * scale });
   const mouth = at2(a.mouth);
@@ -1192,7 +1814,7 @@ function trickLayers(trick, species, scale, slot = 0) {
       return layers(k("twirl"));
     case "heart-eyes": {
       const hs = Math.max(1, Math.round(scale * 0.75));
-      const hearts = a.eyes.map((e) => at2(e)).map((e) => px4(HEART, FX_PALETTE, e.x - 5 * hs / 2, e.y - 2 * hs, hs)).join("");
+      const hearts = a.eyes.map((e) => at2(e)).map((e) => px5(HEART, FX_PALETTE, e.x - 5 * hs / 2, e.y - 2 * hs, hs)).join("");
       return layers("", `<g class="${k("show")}">${hearts}</g>`);
     }
     case "sneeze": {
@@ -1211,14 +1833,14 @@ function trickLayers(trick, species, scale, slot = 0) {
       const star = ["..y..", ".yyy.", "..y.."];
       const stars = [0, 1, 2].map((i) => {
         const angle = i / 3 * Math.PI * 2;
-        return px4(star, { y: "#ffd43b" }, w / 2 + Math.cos(angle) * 16 - 7.5, top - 6 + Math.sin(angle) * 5 - 4.5, 3);
+        return px5(star, { y: "#ffd43b" }, w / 2 + Math.cos(angle) * 16 - 7.5, top - 6 + Math.sin(angle) * 5 - 4.5, 3);
       }).join("");
       const body = k("dizzy");
       return layers(body, `<g class="${k("late")}"><g class="pf-stars">${stars}</g></g>`);
     }
     case "kiss": {
       const body = k("pucker");
-      return layers(body, `<g class="${k("kiss")}">${px4(HEART, FX_PALETTE, mouth.x - 5, mouth.y - 6, 2)}</g>`);
+      return layers(body, `<g class="${k("kiss")}">${px5(HEART, FX_PALETTE, mouth.x - 5, mouth.y - 6, 2)}</g>`);
     }
     case "juggle": {
       const balls = ["#ff6b6b", "#ffd43b", "#4dabf7"].map((color, i) => {
@@ -1248,15 +1870,15 @@ function trickLayers(trick, species, scale, slot = 0) {
       return layers(body, "", "", say("CHEESE", "early") + flash);
     }
     case "bug-hunt": {
-      const bug = px4(["k.k.k", ".ggg.", "gGgGg", ".ggg.", "k.k.k"], { k: "#1f2328", g: "#2f9e44", G: "#8ce99a" }, w / 2 + 16, h - 15, 3);
+      const bug = px5(["k.k.k", ".ggg.", "gGgGg", ".ggg.", "k.k.k"], { k: "#1f2328", g: "#2f9e44", G: "#8ce99a" }, w / 2 + 16, h - 15, 3);
       const body = k("pounce");
       return layers(body, "", "", `<g class="${k("crawl")}">${bug}</g>` + bubble(pixelText("FIXED!"), w + 6, top - 2, k("fixed")));
     }
     case "item-get": {
       const body = k("raise");
       const cs = Math.max(2, scale);
-      const item = px4(COMMIT, FX_PALETTE, w / 2 - 2 * cs, top - 6 * cs, cs);
-      const sparkles = [[-3, 0], [5, -1], [-2, -4], [4.5, -4.5]].map(([dx, dy]) => px4(["..s..", ".sss.", "..s.."], FX_PALETTE, w / 2 + dx * cs - 5, top - 5 * cs + dy * cs, 2)).join("");
+      const item = px5(COMMIT, FX_PALETTE, w / 2 - 2 * cs, top - 6 * cs, cs);
+      const sparkles = [[-3, 0], [5, -1], [-2, -4], [4.5, -4.5]].map(([dx, dy]) => px5(["..s..", ".sss.", "..s.."], FX_PALETTE, w / 2 + dx * cs - 5, top - 5 * cs + dy * cs, 2)).join("");
       return layers(body, `<g class="${k("lift")}">${item}${sparkles}</g>`);
     }
     case "bubblegum": {
@@ -1266,7 +1888,7 @@ function trickLayers(trick, species, scale, slot = 0) {
     }
     case "sing": {
       const body = k("sway");
-      const notes = [0, 1, 2].map((i) => `<g class="${k("note")}" style="--dx:${6 + i * 6}px;animation-delay:calc(var(--pf-t0,0s) + ${i * 0.45}s)">${px4(["..xx", "..x.", "..x.", "xxx.", "xx.."], { x: "#1f2328" }, mouth.x + 4, mouth.y - 10, 2)}</g>`).join("");
+      const notes = [0, 1, 2].map((i) => `<g class="${k("note")}" style="--dx:${6 + i * 6}px;animation-delay:calc(var(--pf-t0,0s) + ${i * 0.45}s)">${px5(["..xx", "..x.", "..x.", "xxx.", "xx.."], { x: "#1f2328" }, mouth.x + 4, mouth.y - 10, 2)}</g>`).join("");
       const open = `<rect class="${k("show")}" x="${mouth.x - scale}" y="${mouth.y - scale}" width="${2 * scale}" height="${2 * scale}" rx="${scale}" fill="#3b1d1d"/>`;
       return layers(body, open, "", notes);
     }
@@ -1290,6 +1912,29 @@ function trickLayers(trick, species, scale, slot = 0) {
         for (const dx of [-3, 2, 6]) seeds.add("#e9c46a", w / 2 + dx * scale, h - scale / 2, scale / 2 + 1, scale / 2 + 1);
         const body = k("peck");
         return layers(body, `<g class="${k("show")}">${seeds}</g>`);
+      }
+      case "yuzu": {
+        const yuzu = px5(outlined([".l.", "yyy", "yYy", ".y."]), { y: "#fcc419", Y: "#ffe066", l: "#51cf66", o: "#8a6a00" }, (species.crownAnchor.x - 2.5) * scale, (species.crownAnchor.y - 5) * scale, scale);
+        return layers("", `<g class="${k("lift")}">${yuzu}</g>`);
+      }
+      case "roll":
+        return layers(k("roll"));
+      case "ink":
+        return layers(k("jet"), "", "", burst({ x: w / 2, y: h - scale }, "#2b2140", scale * 1.5, fan(6, 44, 4)));
+      case "slime": {
+        const trail = new RectBatch();
+        for (let i = 0; i < 5; i++) trail.add(i % 2 ? "#e7f5ff" : "#b6e0f5", -i * 3 * scale - 2 * scale, h - scale, 2 * scale, scale / 2 + 1);
+        return layers(k("inch"), "", `<g class="${k("show")}">${trail}</g>`);
+      }
+      case "pounce":
+        return layers(k("pounce2"), "", "", burst({ x: w / 2 + 14, y: h - scale }, "#e9e3d5", scale, fan(6, 50, 12)));
+      case "loop":
+        return layers(k("loop"));
+      case "jetup":
+        return layers(k("jetup"), "", "", burst({ x: w / 2, y: h }, "#d0ebff", scale, fan(5, 30, -6)));
+      case "float": {
+        const pebble = px5(outlined(["ss", "sS"]), { s: "#adb5bd", S: "#dee2e6", o: "#495057" }, w / 2 - 2 * scale, -2 * scale, scale);
+        return layers(k("belly"), "", "", `<g class="${k("show")}">${pebble}</g>`);
       }
       case "zoomies": {
         const lines = new RectBatch();
@@ -1879,7 +2524,7 @@ function escapeXml(text2) {
 }
 
 // src/pet/sprite.ts
-var FACE = {
+var FACE2 = {
   happy: { eyes: "happy", mouth: "smile", blush: true },
   idle: { eyes: "open", mouth: "smile", blush: false },
   hungry: { eyes: "sad", mouth: "frown", blush: false },
@@ -1905,14 +2550,14 @@ function renderPetSprite(state, scale, { lively = true, emote = true, eyes: swap
   const species = getSpecies(state.species);
   const legendary = state.stage === "legendary";
   const palette = legendary ? { ...species.palette, ...species.legendaryPalette } : species.palette;
-  const px4 = (layers) => renderPixels(layers, palette, { scale });
-  const face = FACE[state.mood];
+  const px5 = (layers) => renderPixels(layers, palette, { scale });
+  const face = FACE2[state.mood];
   const [limbA, limbB] = species.limbs[state.mood];
   const side = glance(species.eyes.open);
-  let eyes4 = state.mood === "idle" ? `<g class="pf-eo">${px4(species.eyes.open)}</g>${side ? `<g class="pf-eg">${px4(side)}</g>` : ""}<g class="pf-es">${px4(species.eyes.closed)}</g>` : px4(species.eyes[face.eyes]);
+  let eyes6 = state.mood === "idle" ? `<g class="pf-eo">${px5(species.eyes.open)}</g>${side ? `<g class="pf-eg">${px5(side)}</g>` : ""}<g class="pf-es">${px5(species.eyes.closed)}</g>` : px5(species.eyes[face.eyes]);
   if (swap) {
-    const alt = (kind) => px4(kind === "closed" ? species.eyes.closed : crossEyes(species.eyes.open, species.width));
-    eyes4 = `<g class="${swap.hide}">${eyes4}</g>${swap.alts.map((a) => `<g class="${a.cls}">${alt(a.kind)}</g>`).join("")}`;
+    const alt = (kind) => px5(kind === "closed" ? species.eyes.closed : crossEyes(species.eyes.open, species.width));
+    eyes6 = `<g class="${swap.hide}">${eyes6}</g>${swap.alts.map((a) => `<g class="${a.cls}">${alt(a.kind)}</g>`).join("")}`;
   }
   let crown = "";
   const cs = Math.max(1, Math.round(scale * 3 / 4));
@@ -1926,11 +2571,11 @@ function renderPetSprite(state, scale, { lively = true, emote = true, eyes: swap
     crown = `<g class="pf-bob">${renderPixels([{ x: 0, y: 0, grid: CROWN }], FX_PALETTE, { x: cx, y: cy, scale: cs })}</g>`;
   }
   let svg = [
-    frames(px4(limbA), px4(limbB), FRAME_SPEED[state.mood]),
-    px4(species.body),
-    px4(species.mouths[face.mouth]),
-    face.blush ? px4(species.blush) : "",
-    eyes4,
+    frames(px5(limbA), px5(limbB), FRAME_SPEED[state.mood]),
+    px5(species.body),
+    px5(species.mouths[face.mouth]),
+    face.blush ? px5(species.blush) : "",
+    eyes6,
     faceArt,
     crown
   ].join("");
@@ -2530,17 +3175,17 @@ function moonPhaseName(phase) {
   ];
   return names[Math.round(phase * 8) % 8];
 }
-function pixelCircle(batch, fill, cx, cy, radius, px4) {
-  const r = Math.round(radius / px4);
+function pixelCircle(batch, fill, cx, cy, radius, px5) {
+  const r = Math.round(radius / px5);
   for (let dy = -r; dy < r; dy++) {
     const half = Math.round(Math.sqrt(r * r - (dy + 0.5) ** 2));
-    batch.add(fill, cx - half * px4, cy + dy * px4, half * 2 * px4, px4);
+    batch.add(fill, cx - half * px5, cy + dy * px5, half * 2 * px5, px5);
   }
 }
-function pixelMoon(cx, cy, radius, px4, phase, south = false) {
+function pixelMoon(cx, cy, radius, px5, phase, south = false) {
   const lit = new RectBatch();
   const dark2 = new RectBatch();
-  const r = Math.round(radius / px4);
+  const r = Math.round(radius / px5);
   const terminator = Math.cos(2 * Math.PI * phase);
   for (let dy = -r; dy < r; dy++) {
     const yc = (dy + 0.5) / r;
@@ -2550,7 +3195,7 @@ function pixelMoon(cx, cy, radius, px4, phase, south = false) {
     let runLit = null;
     const flush = (end) => {
       if (runLit === null || end <= runStart) return;
-      (runLit ? lit : dark2).add("var(--pf-celestial)", cx + runStart * px4, cy + dy * px4, (end - runStart) * px4, px4);
+      (runLit ? lit : dark2).add("var(--pf-celestial)", cx + runStart * px5, cy + dy * px5, (end - runStart) * px5, px5);
     };
     for (let dx = -cols; dx < cols; dx++) {
       const xc = (dx + 0.5) / r * (south ? -1 : 1);
@@ -2800,6 +3445,188 @@ ${border}
 </svg>`;
 }
 
+// src/pet/homes.ts
+var px = (grid, palette, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
+var BAMBOO = ["g.", "gl", "gg", "Gg", "gg", "gl", "gg", "Gg", "gg", "gl", "gg", "Gg"];
+var BAMBOO_LEAF = ["..ll", "lll.", "l..."];
+var YUZU = outlined([".l.", "yyy", "yYy", ".y."]);
+var LOG = outlined(["bbbbbbbbbbbrr", "bBbbbbBbbbbRr", "bbbbbbbbbbbrr"]);
+var MUSHROOM = outlined(["..rrrr..", ".rwrrwr.", "rrrrrwrr", "rwrrrrrr", "..ssss..", "..ssss..", "..ssss.."]);
+var MUSHROOM_SMALL = outlined([".rr.", "rwrr", ".ss.", ".ss."]);
+var CORAL = [
+  "c...c...",
+  "c.c.c.c.",
+  "ccc.ccc.",
+  ".c...c..",
+  ".cc.cc..",
+  "..ccc...",
+  "...c....",
+  "...c...."
+];
+var CLAM = outlined([".pppp.", "pPpPpp", "pppppp"]);
+var BIG_LEAF = outlined(["...gg..", "..gGgg.", ".ggGggg", "ggGgggg", "gGggggg", ".gggg..", "..s....", "..s...."]);
+var TULIP = ["r.r.r", "rrrrr", ".rrr.", "..g..", ".gg..", "..g..", "..gg.", "..g.."];
+var PINE = outlined(["...g...", "..ggg..", ".gGggg.", "..ggg..", ".ggggg.", "gggGggg", "..ggg..", ".ggggg.", "ggggggg", "...b...", "...b..."]);
+var STUMP = outlined(["wwwww", "bbbbb", "bBbbb", "bbbbb"]);
+var BIRDHOUSE = outlined(["..rr..", ".rrrr.", "rrrrrr", "wwwwww", "wwkkww", "wwkkww", "wwwwww", "..bb..", "..bb..", "..bb..", "..bb..", "..bb.."]);
+var TREE = outlined([
+  "....gggggg....",
+  "..ggGGggggg...",
+  ".gGGggggGggg..",
+  "gggggggggGggg.",
+  "ggGggggggggggg",
+  "gggggGgggGgggg",
+  ".gggggggggggg.",
+  "..gggggbgggg..",
+  "....g.bb.g....",
+  "......bb......",
+  "......bbb.....",
+  "......bb......",
+  "......bb......",
+  ".....bbbb....."
+]);
+function homeProps(home, area) {
+  const g = area.ground;
+  const left = area.x;
+  const right = area.x + area.w;
+  const b = new RectBatch();
+  let art = "";
+  switch (home) {
+    case "onsen": {
+      art += px(BAMBOO, { g: "#5aa35a", G: "#2f7a3a", l: "#8fd18f" }, left + 6, g - 36, 3);
+      art += px(BAMBOO, { g: "#5aa35a", G: "#2f7a3a", l: "#8fd18f" }, left + 16, g - 28, 3);
+      art += px(BAMBOO_LEAF, { l: "#6fbf6a" }, left + 12, g - 40, 3);
+      const px0 = right - 62;
+      b.add("#8a9099", px0, g + 3, 56, 18).add("#8a9099", px0 + 4, g + 1, 48, 22);
+      b.add("#7fd3d8", px0 + 5, g + 5, 46, 14).add("#b6ecee", px0 + 10, g + 7, 16, 2).add("#b6ecee", px0 + 30, g + 12, 12, 2);
+      for (const [dx, dy] of [[0, 4], [10, 0], [22, 1], [34, 0], [46, 3], [52, 12], [44, 20], [28, 21], [12, 20], [2, 14]]) {
+        b.add("#b0b6bf", px0 + dx, g + dy, 6, 4).add("#6b717a", px0 + dx, g + dy + 3, 6, 1);
+      }
+      break;
+    }
+    case "forest": {
+      art += px(LOG, { b: "#8a5a33", B: "#6b4226", r: "#d9a066", R: "#b07d4a", o: "#3b2616" }, left + 2, g - 9, 3);
+      art += px(MUSHROOM, { r: "#e03131", w: "#ffffff", s: "#f1e3c6", o: "#4a1a0c" }, right - 30, g - 24, 3);
+      art += px(MUSHROOM_SMALL, { r: "#e03131", w: "#ffffff", s: "#f1e3c6", o: "#4a1a0c" }, right - 44, g - 14, 2);
+      for (const [x, y, c] of [[left + 50, g + 12, "#d9822b"], [left + 90, g + 20, "#b5651d"], [right - 70, g + 14, "#e8a45a"], [left + 30, g + 22, "#b5651d"]]) {
+        b.add(c, x, y, 4, 2).add(c, x + 1, y - 1, 2, 1);
+      }
+      break;
+    }
+    case "reef": {
+      art += `<rect class="pf-amb-water" x="${left}" y="${area.y}" width="${area.w}" height="${g - area.y}" fill="#1c7fc4"/>`;
+      art += `<g class="pf-amb-rays" fill="#ffffff">${[20, 70, 130].map((x) => `<path d="M${left + x} ${area.y}h14l-40 ${g - area.y}h-14z"/>`).join("")}</g>`;
+      art += px(CORAL, { c: "#ff7f9e" }, left + 4, g - 24, 3);
+      art += px(CORAL, { c: "#ffb35c" }, left + 22, g - 16, 2);
+      art += px(CLAM, { p: "#f7c6d9", P: "#e39bb6", o: "#8a4a64" }, right - 44, g + 8, 2);
+      break;
+    }
+    case "garden": {
+      art += px(BIG_LEAF, { g: "#5cb85c", G: "#8fd18f", s: "#3f8f4f", o: "#2c6b3a" }, left + 2, g - 36, 4);
+      art += px(TULIP, { r: "#ff6b6b", g: "#3f8f4f" }, right - 36, g - 22, 3);
+      art += px(TULIP, { r: "#ffd43b", g: "#3f8f4f" }, right - 20, g - 18, 3);
+      b.add("#9fd0ec", left + 60, g + 12, 30, 5).add("#9fd0ec", left + 64, g + 11, 22, 1).add("#d0ebff", left + 66, g + 13, 8, 1);
+      break;
+    }
+    case "pinewood": {
+      const pine = { g: "#2f6b3a", G: "#4f9a55", b: "#6b4226", o: "#173a20" };
+      art += px(PINE, pine, left - 4, g - 36, 3) + px(PINE, pine, left + 18, g - 26, 2) + px(PINE, pine, right - 26, g - 36, 3);
+      art += px(STUMP, { w: "#e9c89a", b: "#8a5a33", B: "#6b4226", o: "#3b2616" }, right - 52, g - 10, 2);
+      break;
+    }
+    case "deepsea": {
+      art += `<rect class="pf-amb-deep" x="${left}" y="${area.y}" width="${area.w}" height="${g - area.y}" fill="#0a3a82"/>`;
+      for (const [x, y] of [[20, 30], [60, 18], [150, 40], [180, 22], [110, 60], [36, 76], [170, 84], [90, 34]]) {
+        art += `<rect class="pf-twinkle" style="animation-delay:-${x % 7 / 3}s" x="${left + x}" y="${area.y + y}" width="2" height="2" fill="#8ff0ff"/>`;
+      }
+      b.add("#3b4a5c", left + 6, g - 8, 22, 10).add("#4f6275", left + 10, g - 12, 12, 4).add("#3b4a5c", right - 30, g - 6, 18, 8);
+      break;
+    }
+    case "river": {
+      b.add("#4ea8de", left, g + 8, area.w, 14).add("#7cc4f2", left, g + 8, area.w, 2);
+      for (const [x, y] of [[8, 5], [34, 4], [150, 5], [184, 3]]) b.add("#8a9099", left + x, g + y, 10, 5).add("#b0b6bf", left + x + 2, g + y, 5, 2);
+      for (const x of [right - 14, right - 10, right - 6]) b.add("#3f8f4f", x, g - 18, 2, 22).add("#8a5a33", x, g - 22, 2, 5);
+      break;
+    }
+    case "treetop": {
+      art += px(TREE, { g: "#4f9a55", G: "#7fc27a", b: "#7a4a24", o: "#24502b" }, left - 14, g - 46, 3);
+      art += px(BIRDHOUSE, { r: "#c92a2a", w: "#e9c89a", k: "#3b2616", b: "#8a5a33", o: "#3b2616" }, right - 28, g - 42, 3);
+      break;
+    }
+  }
+  return `${b}${art}`;
+}
+var LADYBUG = outlined(["rkr", "rrr"]);
+var FISH = outlined(["y..yy.", "yyyyky", "y..yy."]);
+var MOUSE = outlined(["m.m.", "mmmm", "mkmm", "mmmn"]);
+var FEATHER = [".f", "ff", "f.", "f."];
+function homeAmbient(home, area) {
+  const g = area.ground;
+  const left = area.x;
+  const right = area.x + area.w;
+  switch (home) {
+    case "onsen": {
+      const steam = [0, 1.2, 2.4].map((d, i) => `<g class="pf-amb-steam" style="animation-delay:-${d}s">${px(["x.", ".x", "x.", ".x", "x."], { x: "#d6e2ee" }, right - 50 + i * 16, g - 8, 3)}</g>`).join("");
+      const yuzu = `<g class="pf-amb-bob2">${px(YUZU, { y: "#fcc419", Y: "#ffe066", l: "#51cf66", o: "#8a6a00" }, right - 30, g + 6, 2)}</g>`;
+      return {
+        svg: steam + yuzu,
+        css: `.pf-amb-steam{opacity:0;animation:pf-amb-steam 3.6s ease-out infinite}@keyframes pf-amb-steam{0%{transform:translate(0,0);opacity:0}25%{opacity:.7}100%{transform:translate(4px,-30px);opacity:0}}
+.pf-amb-bob2{animation:pf-amb-bob2 2.4s ease-in-out infinite}@keyframes pf-amb-bob2{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px) rotate(8deg)}}`
+      };
+    }
+    case "forest":
+      return {
+        svg: `<g class="pf-amb-crawl">${px(LADYBUG, { r: "#e03131", k: "#1a1a1a", o: "#1a1a1a" }, left + 6, g - 13, 2)}</g>`,
+        css: `.pf-amb-crawl{animation:pf-amb-crawl 12s ease-in-out infinite alternate}@keyframes pf-amb-crawl{0%,10%{transform:translateX(0)}90%,100%{transform:translateX(26px)}}`
+      };
+    case "reef": {
+      const bubbles = [0, 1.1, 2.3, 3.2].map((d, i) => `<rect class="pf-amb-rise" style="animation-delay:-${d}s" x="${[left + 30, right - 30, left + 60, right - 60][i]}" y="${g}" width="3" height="3" rx="1.5" fill="none" stroke="#d0ebff" stroke-width="1"/>`).join("");
+      const fish = `<g class="pf-amb-swim">${px(FISH, { y: "#ffd43b", k: "#1a1a1a", o: "#8a6a00" }, 0, area.y + 38, 2)}</g>`;
+      const weed = [0, 0.8].map((d, i) => `<g class="pf-amb-sway" style="animation-delay:-${d}s">${px(["g", "gg", ".g", "gg", "g.", "gg", ".g", "g", "g"], { g: "#2f9e44" }, right - 22 + i * 8, g - 26 + i * 6, 3)}</g>`).join("");
+      return {
+        svg: weed + bubbles + fish,
+        css: `.pf-amb-water{opacity:calc(.28 + var(--pf-stars) * .12)}.pf-amb-rays{opacity:calc(.1 - var(--pf-stars) * .08)}
+.pf-amb-rise{animation:pf-amb-rise 4.4s linear infinite}@keyframes pf-amb-rise{0%{transform:translate(0,0);opacity:0}10%{opacity:1}100%{transform:translate(4px,-110px);opacity:0}}
+.pf-amb-swim{animation:pf-amb-swim 14s linear infinite}@keyframes pf-amb-swim{0%{transform:translate(${left - 20}px,0)}50%{transform:translate(${left + area.w / 2}px,-6px)}100%{transform:translate(${right + 10}px,2px)}}
+.pf-amb-sway{transform-box:fill-box;transform-origin:50% 100%;animation:pf-amb-sway 3s ease-in-out infinite alternate}@keyframes pf-amb-sway{from{transform:rotate(-8deg)}to{transform:rotate(8deg)}}`
+      };
+    }
+    case "garden":
+      return {
+        svg: `<rect class="pf-amb-drip" x="${left + 10}" y="${g - 18}" width="3" height="4" rx="1.5" fill="#7cc4f2"/>`,
+        css: `.pf-amb-drip{animation:pf-amb-drip 3.2s ease-in infinite}@keyframes pf-amb-drip{0%,55%{transform:translateY(0);opacity:1}80%{transform:translateY(18px);opacity:1}81%,100%{transform:translateY(18px);opacity:0}}`
+      };
+    case "pinewood": {
+      const hx = right - 70;
+      return {
+        svg: `<clipPath id="pf-amb-burrow"><rect x="${hx - 2}" y="${g}" width="16" height="12"/></clipPath><rect x="${hx}" y="${g + 10}" width="12" height="3" rx="1" fill="#3b2616"/><g clip-path="url(#pf-amb-burrow)"><g class="pf-amb-peek">${px(MOUSE, { m: "#b8a898", k: "#1a1a1a", n: "#ff8fa3", o: "#5b4636" }, hx + 1, g + 10, 2)}</g></g>`,
+        css: `.pf-amb-peek{animation:pf-amb-peek 8s ease-in-out infinite}@keyframes pf-amb-peek{0%,50%,100%{transform:none}58%,78%{transform:translateY(-9px)}}`
+      };
+    }
+    case "deepsea": {
+      const jelly = outlined([".jjj.", "jJjjj", "jjjjj", "j.j.j", "j.j.j"]);
+      return {
+        svg: `<g class="pf-amb-jelly">${px(jelly, { j: "#f3a6ff", J: "#ffffff", o: "#9b4fb3" }, right - 46, area.y + 40, 2)}</g>`,
+        css: `.pf-amb-deep{opacity:calc(.62 + var(--pf-stars) * .13)}
+.pf-amb-jelly{animation:pf-amb-jelly 5s ease-in-out infinite}@keyframes pf-amb-jelly{0%,100%{transform:translate(0,0) scale(1,1)}25%{transform:translate(-4px,-10px) scale(1.1,.85)}50%{transform:translate(-6px,-18px) scale(.95,1.08)}75%{transform:translate(-2px,-8px)}}`
+      };
+    }
+    case "river": {
+      const ripples = [0, 1, 2].map((i) => `<rect class="pf-amb-flow" style="animation-delay:-${i * 1.7}s" x="${left}" y="${g + 13 + i % 2 * 4}" width="10" height="1" fill="#d0ebff"/>`).join("");
+      const leaf2 = `<g class="pf-amb-flow" style="animation-duration:9s;animation-delay:-3s">${px(["..gg", ".ggg", "ggg.", "g..."], { g: "#51cf66" }, left, g + 9, 2)}</g>`;
+      return {
+        svg: ripples + leaf2,
+        css: `.pf-amb-flow{animation:pf-amb-flow 5s linear infinite}@keyframes pf-amb-flow{from{transform:translateX(-12px)}to{transform:translateX(${area.w}px)}}`
+      };
+    }
+    case "treetop":
+      return {
+        svg: `<g class="pf-amb-feather">${px(FEATHER, { f: "#ffffff" }, left + 24, area.y + 30, 2)}</g>`,
+        css: `.pf-amb-feather{animation:pf-amb-feather 9s ease-in-out infinite}@keyframes pf-amb-feather{0%{transform:translate(0,0);opacity:0}10%{opacity:1}30%{transform:translate(12px,26px)}55%{transform:translate(-2px,54px)}80%{transform:translate(10px,82px);opacity:1}95%,100%{transform:translate(4px,96px);opacity:0}}`
+      };
+  }
+}
+
 // src/pet/scenery.ts
 var TERRAIN = {
   crab: "beach",
@@ -2807,7 +3634,15 @@ var TERRAIN = {
   snake: "jungle",
   elephant: "savanna",
   chick: "farm",
-  turtle: "pond"
+  turtle: "pond",
+  capybara: "onsen",
+  hedgehog: "forest",
+  octopus: "reef",
+  snail: "garden",
+  fox: "pinewood",
+  swift: "treetop",
+  squid: "deepsea",
+  otter: "river"
 };
 var terrainFor = (species) => Object.hasOwn(TERRAIN, species) ? TERRAIN[species] : "beach";
 var TINT = {
@@ -2816,7 +3651,15 @@ var TINT = {
   jungle: "#4f9a55",
   savanna: "#cfb25e",
   farm: "#86b862",
-  pond: "#79b865"
+  pond: "#79b865",
+  onsen: "#8cbf73",
+  forest: "#6fa55a",
+  reef: null,
+  garden: "#7cc36a",
+  pinewood: "#6f9e5c",
+  treetop: "#7fb366",
+  deepsea: null,
+  river: "#7fb366"
 };
 var SCENERY_CSS = `.pf-tint{opacity:calc(.75 - var(--pf-stars) * .4)}`;
 var GREEN = "#3f8f4f";
@@ -2868,6 +3711,8 @@ function props(species, area) {
       b.add("#3f8f4f", right - 36, g + 10, 10, 5).add("#ff8fa3", right - 33, g + 9, 3, 2);
       for (const x of [right - 12, right - 8]) b.add(DARK_GREEN, x, g - 16, 2, 22).add(WOOD, x, g - 20, 2, 5);
       break;
+    default:
+      return homeProps(terrainFor(species), area);
   }
   return b.toString();
 }
@@ -2889,12 +3734,12 @@ function fern(b, x, ground) {
   }
   b.add(DARK_GREEN, x - 1, ground - 4, 3, 4);
 }
-var px = (grid, palette, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
+var px2 = (grid, palette, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
 var BEE = [".ww.", "ykyk", ".yk."];
 var PARROT = [".rr.", "rrwk", "rrry", ".gr.", ".gg.", ".bb."];
 var BIRD = [".kk.", "kkkw", "kkk.", ".y.."];
 var WORM = [".p", "pp", "p.", "pp", ".p"];
-var FISH = ["..oo..", "oooooo", ".oo.oo"];
+var FISH2 = ["..oo..", "oooooo", ".oo.oo"];
 function ambient(species, area) {
   const g = area.ground;
   const left = area.x;
@@ -2911,7 +3756,7 @@ function ambient(species, area) {
       };
     }
     case "meadow": {
-      const bee = `<g class="pf-amb-bee"><g class="pf-fa" style="animation-duration:.2s">${px(BEE, { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.2s">${px(BEE.slice(1), { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 2, 2)}</g></g>`;
+      const bee = `<g class="pf-amb-bee"><g class="pf-fa" style="animation-duration:.2s">${px2(BEE, { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.2s">${px2(BEE.slice(1), { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 2, 2)}</g></g>`;
       return {
         svg: `<g transform="translate(${right - 40} ${g - 26})">${bee}</g>`,
         css: `.pf-amb-bee{animation:pf-amb-bee 7s ease-in-out infinite}@keyframes pf-amb-bee{0%,100%{transform:translate(0,0)}20%{transform:translate(-14px,-8px)}40%{transform:translate(-4px,-16px)}60%{transform:translate(12px,-6px)}80%{transform:translate(4px,4px)}}`
@@ -2919,17 +3764,17 @@ function ambient(species, area) {
     }
     case "jungle":
       return {
-        svg: `<g transform="translate(${right - 22} ${g - 40})"><g class="pf-amb-bob">${px(PARROT, { r: "#e03131", w: "#ffffff", k: "#1f2328", y: "#ffd43b", g: "#2f9e44", b: "#1c7ed6" }, 0, 0, 3)}</g></g>`,
+        svg: `<g transform="translate(${right - 22} ${g - 40})"><g class="pf-amb-bob">${px2(PARROT, { r: "#e03131", w: "#ffffff", k: "#1f2328", y: "#ffd43b", g: "#2f9e44", b: "#1c7ed6" }, 0, 0, 3)}</g></g>`,
         css: `.pf-amb-bob{transform-box:fill-box;transform-origin:50% 100%;animation:pf-amb-bob 5s steps(1) infinite}@keyframes pf-amb-bob{0%,60%{transform:none}64%{transform:rotate(-12deg)}72%{transform:none}76%{transform:rotate(-12deg)}84%,100%{transform:none}}`
       };
     case "savanna":
       return {
-        svg: `<g transform="translate(${right - 44} ${g - 64})"><g class="pf-amb-hop">${px(BIRD, { k: "#5c3d2e", w: "#ffffff", y: "#f59f00" }, 0, 0, 2)}</g></g>`,
+        svg: `<g transform="translate(${right - 44} ${g - 64})"><g class="pf-amb-hop">${px2(BIRD, { k: "#5c3d2e", w: "#ffffff", y: "#f59f00" }, 0, 0, 2)}</g></g>`,
         css: `.pf-amb-hop{animation:pf-amb-hop 6s ease-in-out infinite}@keyframes pf-amb-hop{0%,30%{transform:none}35%{transform:translate(6px,-4px)}40%,65%{transform:translate(12px,0)}70%{transform:translate(6px,-4px)}75%,100%{transform:none}}`
       };
     case "farm":
       return {
-        svg: `<clipPath id="pf-amb-soil"><rect x="${left + 50}" y="${g}" width="12" height="16"/></clipPath><rect x="${left + 52}" y="${g + 14}" width="8" height="2" fill="#6b4226"/><g clip-path="url(#pf-amb-soil)"><g class="pf-amb-worm">${px(WORM, { p: "#f783ac" }, left + 54, g + 14, 2)}</g></g>`,
+        svg: `<clipPath id="pf-amb-soil"><rect x="${left + 50}" y="${g}" width="12" height="16"/></clipPath><rect x="${left + 52}" y="${g + 14}" width="8" height="2" fill="#6b4226"/><g clip-path="url(#pf-amb-soil)"><g class="pf-amb-worm">${px2(WORM, { p: "#f783ac" }, left + 54, g + 14, 2)}</g></g>`,
         css: `.pf-amb-worm{transform-box:fill-box;transform-origin:50% 100%;animation:pf-amb-worm 9s ease-in-out infinite}@keyframes pf-amb-worm{0%,55%,100%{transform:none}62%,80%{transform:translateY(-10px)}70%{transform:translateY(-10px) rotate(8deg)}}`
       };
     case "pond": {
@@ -2937,11 +3782,13 @@ function ambient(species, area) {
       const cy = g + 13;
       const ripple = (d) => `<ellipse class="pf-amb-ripple" style="animation-delay:-${d}s" cx="${cx}" cy="${cy}" rx="8" ry="2.5" fill="none" stroke="#d0ebff" stroke-width="1"/>`;
       return {
-        svg: `${ripple(0)}${ripple(1.5)}<g class="pf-amb-fish">${px(FISH, { o: "#ff922b" }, cx - 6, cy - 2, 2)}</g>`,
+        svg: `${ripple(0)}${ripple(1.5)}<g class="pf-amb-fish">${px2(FISH2, { o: "#ff922b" }, cx - 6, cy - 2, 2)}</g>`,
         css: `.pf-amb-ripple{transform-box:fill-box;transform-origin:center;animation:pf-amb-ripple 3s ease-out infinite}@keyframes pf-amb-ripple{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.6);opacity:0}}
 .pf-amb-fish{opacity:0;transform-box:fill-box;transform-origin:center;animation:pf-amb-fish 8s ease-in-out infinite}@keyframes pf-amb-fish{0%,70%{opacity:0;transform:translate(-8px,4px) rotate(-40deg)}72%{opacity:1}80%{transform:translate(0,-14px) rotate(0)}88%{opacity:1;transform:translate(8px,2px) rotate(40deg)}90%,100%{opacity:0;transform:translate(8px,4px) rotate(40deg)}}`
       };
     }
+    default:
+      return homeAmbient(terrainFor(species), area);
   }
 }
 
@@ -3051,7 +3898,16 @@ var TREATS = {
   snake: { grid: [".w.", "www", "www", ".w."], colors: { w: "#f1e3c6" } },
   elephant: { grid: [".p.", "ppp", ".p.", "ppp", ".p."], colors: { p: "#c68b59" } },
   chick: { grid: [".y.", "yyy", "yyy", "yyy", ".g."], colors: { y: "#fcc419", g: "#2f9e44" } },
-  turtle: { grid: ["..gg", ".ggg", "ggg.", "g..."], colors: { g: "#51cf66" } }
+  turtle: { grid: ["..gg", ".ggg", "ggg.", "g..."], colors: { g: "#51cf66" } },
+  capybara: { grid: [".l.", "yyy", "yyy", ".y."], colors: { y: "#fcc419", l: "#51cf66" } },
+  hedgehog: { grid: ["..l", ".rr", "rrr", "rrr", ".r."], colors: { r: "#e03131", l: "#51cf66" } },
+  octopus: { grid: ["pp..", ".ppp", "..pp", "..p."], colors: { p: "#ff8787" } },
+  snail: { grid: [".gg.", "rrrr", "rwrr", ".rr."], colors: { r: "#fa5252", w: "#ffe3e3", g: "#51cf66" } },
+  // The fox and the grapes, finally within reach.
+  fox: { grid: ["..g", "ppp", ".pp", ".p."], colors: { p: "#845ef7", g: "#51cf66" } },
+  swift: { grid: ["pp..", ".p..", ".pp.", "..pp"], colors: { p: "#f783ac" } },
+  squid: { grid: [".bb.b", "bbbbb", ".bb.b"], colors: { b: "#74c0fc" } },
+  otter: { grid: [".ss.", "sSss", "ssss"], colors: { s: "#c5a3d9", S: "#f3e8fa" } }
 };
 var TUB = outlined([
   ".hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh.",
@@ -3079,12 +3935,12 @@ var BALL_B = outlined([".yyyy.", "ywyyyy", "yywyyy", "yyyywy", "yyyyyw", ".yyyy.
 var BALL_COLORS = { y: "#c6e33a", w: "#ffffff", o: "#5f7a12" };
 var HAND = outlined(["..ssss....", ".sssssss..", "sssssssccc", "sssssssccc", ".ssssss.cc", "..sss....."]);
 var HAND_COLORS = { s: "#f2c29b", c: "#4c6ef5", o: "#8a5a3c" };
-var px2 = (grid, colors, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], colors, { x, y, scale });
+var px3 = (grid, colors, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], colors, { x, y, scale });
 function shadow(x, y, w) {
   return `<rect x="${x}" y="${y}" width="${w}" height="6" rx="3" opacity=".3" style="fill:var(--pf-ground-dark)"/>`;
 }
-var bowl = (x, ground, heap = 0) => (heap === null ? "" : px2(HEAPS[heap], KIBBLE, x + 3, ground - 26, 3)) + px2(BOWL, BOWL_COLORS, x, ground - 21, 3);
-var ball = (x, ground) => px2(BALL_A, BALL_COLORS, x, ground - 16, 2);
+var bowl = (x, ground, heap = 0) => (heap === null ? "" : px3(HEAPS[heap], KIBBLE, x + 3, ground - 26, 3)) + px3(BOWL, BOWL_COLORS, x, ground - 21, 3);
+var ball = (x, ground) => px3(BALL_A, BALL_COLORS, x, ground - 16, 2);
 var MEAL = 6;
 function feed(sprite, w, h, scale, stage, species) {
   const pct3 = (t) => `${+(t / MEAL * 100).toFixed(2)}%`;
@@ -3097,7 +3953,7 @@ function feed(sprite, w, h, scale, stage, species) {
   const bagX = bowlX + bowlW - 14;
   const bagY = stage.ground - 92;
   const treat = TREATS[species.id] ?? TREATS.crab;
-  const bag = `<g class="pf-bag"><g transform="translate(${bagX} ${bagY})">${px2(BAG, BAG_COLORS, 0, 0, 3)}${px2(treat.grid, treat.colors, 18 - treat.grid[0].length * 3 / 2, 18 - treat.grid.length * 3 / 2 + 3, 3)}</g></g>`;
+  const bag = `<g class="pf-bag"><g transform="translate(${bagX} ${bagY})">${px3(BAG, BAG_COLORS, 0, 0, 3)}${px3(treat.grid, treat.colors, 18 - treat.grid[0].length * 3 / 2, 18 - treat.grid.length * 3 / 2 + 3, 3)}</g></g>`;
   const spout = { x: bagX - 2, y: bagY + 20 };
   const kibble = Array.from({ length: 10 }, (_, i) => {
     const t = 0.55 + i * 0.09;
@@ -3106,7 +3962,7 @@ function feed(sprite, w, h, scale, stage, species) {
     return `<rect class="pf-kib" style="--dx:${dx}px;--dy:${dy}px;animation-delay:${t}s" x="${spout.x}" y="${spout.y}" width="3" height="3" fill="${i % 2 ? KIBBLE.K : KIBBLE.k}"/>`;
   }).join("");
   const heapShown = (level, from, to) => `.pf-heap${level}{opacity:0;animation:pf-heap${level} ${MEAL}s steps(1) infinite}@keyframes pf-heap${level}{0%{opacity:0}${pct3(from)}{opacity:1}${pct3(to)}{opacity:0}100%{opacity:0}}`;
-  const heaps = HEAPS.map((heap, i) => `<g class="pf-heap${i}">${px2(heap, KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`).reverse().join("");
+  const heaps = HEAPS.map((heap, i) => `<g class="pf-heap${i}">${px3(heap, KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`).reverse().join("");
   const bites = [2.1, 2.6, 3.1, 3.6, 4.1];
   const dip = side ? "translateY(4px) rotate(10deg)" : "rotate(14deg) translateY(3px)";
   const chompFrames = ["0%{transform:none}", ...bites.flatMap((b) => [`${pct3(b)}{transform:none}`, `${pct3(b + 0.2)}{transform:${dip}}`, `${pct3(b + 0.4)}{transform:none}`]), "100%{transform:none}"].join("");
@@ -3118,7 +3974,7 @@ function feed(sprite, w, h, scale, stage, species) {
   const tongue = `<rect class="pf-lick" x="${mouth.x - scale}" y="${mouth.y - scale / 2}" width="${2 * scale}" height="${1.5 * scale}" rx="${scale / 2}" fill="#ff6b8b"/>`;
   const excited = emoteBubble("bang", w - 6, -4, "pf-want-food");
   const nom = bubble(pixelText("NOM"), w - 6, -4, "pf-nom");
-  const heart = `<g class="pf-yum">${px2(HEART, FX_PALETTE, w / 2 - 5, -10, 2)}</g>`;
+  const heart = `<g class="pf-yum">${px3(HEART, FX_PALETTE, w / 2 - 5, -10, 2)}</g>`;
   const css = [
     `.pf-bag{transform-box:fill-box;transform-origin:50% 50%;animation:pf-bag ${MEAL}s ease-in-out infinite}@keyframes pf-bag{0%{transform:translate(50px,-40px)}${pct3(0.35)}{transform:translate(0,0)}${pct3(0.55)},${pct3(1.45)}{transform:rotate(-65deg)}${pct3(1.6)}{transform:rotate(-10deg)}${pct3(1.9)},100%{transform:translate(50px,-40px)}}`,
     `.pf-kib{opacity:0;animation:pf-kib ${MEAL}s cubic-bezier(.4,0,1,1) infinite}@keyframes pf-kib{0%{opacity:1;transform:translate(0,0)}7%{opacity:1;transform:translate(var(--dx),var(--dy))}7.1%,100%{opacity:0}}`,
@@ -3138,9 +3994,9 @@ function feed(sprite, w, h, scale, stage, species) {
     `.pf-yum{opacity:0;animation:pf-yum ${MEAL}s ease-out infinite}@keyframes pf-yum{0%,${pct3(4.7)}{opacity:0;transform:translate(0,0)}${pct3(4.8)}{opacity:1}${pct3(5.8)},100%{opacity:0;transform:translate(4px,-24px)}}`
   ].join("\n");
   const pet2 = `<g class="pf-meal-walk">${shadow(box.x + w * 0.1, box.y + h - 2, w * 0.8)}<g transform="translate(${box.x} ${box.y})"><g class="pf-meal-bounce"><g class="pf-chomp">${sprite}${tongue}</g></g>${excited}${nom}${heart}</g></g>`;
-  const eaten = `<g class="pf-heap1b">${px2(HEAPS[1], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g><g class="pf-heap2b">${px2(HEAPS[2], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`;
+  const eaten = `<g class="pf-heap1b">${px3(HEAPS[1], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g><g class="pf-heap2b">${px3(HEAPS[2], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`;
   return {
-    svg: `${pet2}${heaps}${eaten}${px2(BOWL, BOWL_COLORS, bowlX, stage.ground - 21, 3)}${crumbs}${kibble}${bag}`,
+    svg: `${pet2}${heaps}${eaten}${px3(BOWL, BOWL_COLORS, bowlX, stage.ground - 21, 3)}${crumbs}${kibble}${bag}`,
     box,
     css
   };
@@ -3152,12 +4008,12 @@ function bath(sprite, w, h, scale, stage, species, asleep) {
   const tubY = stage.ground - tubH + 3;
   const box = { x: stage.cx - w / 2, y: Math.round(tubY + 4 - h * 0.7), w, h };
   const crown = { x: box.x + species.crownAnchor.x * scale, y: box.y + species.crownAnchor.y * scale };
-  const headSuds = `<g class="pf-suds">${px2(SUDS, SUDS_COLORS, crown.x - 11, crown.y - 13, 2)}</g>`;
-  const rimSuds = [-50, -30, 18, 40].map((dx, i) => `<g class="pf-suds" style="animation-delay:-${i * 0.4}s">${px2(SUDS, SUDS_COLORS, stage.cx + dx - 9, tubY - 9 + i % 2 * 2, 2)}</g>`).join("");
+  const headSuds = `<g class="pf-suds">${px3(SUDS, SUDS_COLORS, crown.x - 11, crown.y - 13, 2)}</g>`;
+  const rimSuds = [-50, -30, 18, 40].map((dx, i) => `<g class="pf-suds" style="animation-delay:-${i * 0.4}s">${px3(SUDS, SUDS_COLORS, stage.cx + dx - 9, tubY - 9 + i % 2 * 2, 2)}</g>`).join("");
   const pipeX = tubX + tubW - 12;
   const headY = Math.max(stage.ground - 128, box.y - 50);
   const pipe = `<rect x="${pipeX}" y="${headY + 2}" width="4" height="${tubY - headY}" fill="#e0a800"/><rect x="${stage.cx + 6}" y="${headY}" width="${pipeX - stage.cx - 2}" height="4" fill="#e0a800"/><rect x="${pipeX + 4}" y="${headY + 2}" width="1" height="${tubY - headY}" fill="#8a6a00"/>`;
-  const head = px2(SHOWER_HEAD, SHOWER_COLORS, stage.cx - 12, headY + 1, 3);
+  const head = px3(SHOWER_HEAD, SHOWER_COLORS, stage.cx - 12, headY + 1, 3);
   const fall = box.y - headY - 26;
   const drops = [-9, -4, 1, 6, 11].map((dx, i) => `<rect class="pf-drop" style="--fall:${fall}px;animation-delay:-${i * 0.29 % 0.7}s" x="${stage.cx + dx}" y="${headY + 16}" width="2" height="4" fill="#7cc4f2"/>`).join("");
   const bubbles = [
@@ -3167,13 +4023,13 @@ function bath(sprite, w, h, scale, stage, species, asleep) {
     [48, -4, 0.5],
     [-42, 3, 2.3]
   ].map(
-    ([x, dx, delay]) => `<g class="pf-bubble" style="--dx:${dx}px;animation-delay:-${delay}s">${px2(outlined([".b.", "bhb", ".b."]), { b: "#dff1ff", h: "#ffffff", o: "#8ec5ea" }, stage.cx + x - 4, tubY - 6, 2)}</g>`
+    ([x, dx, delay]) => `<g class="pf-bubble" style="--dx:${dx}px;animation-delay:-${delay}s">${px3(outlined([".b.", "bhb", ".b."]), { b: "#dff1ff", h: "#ffffff", o: "#8ec5ea" }, stage.cx + x - 4, tubY - 6, 2)}</g>`
   ).join("");
-  const steam = [-40, -24, 32].map((x, i) => `<g class="pf-steam" style="animation-delay:-${i * 1.3}s">${px2(["x.", ".x", "x.", ".x"], { x: "#ffffff" }, stage.cx + x, tubY - 16, 2)}</g>`).join("");
-  const duck = `<g class="pf-duck">${px2(DUCK, DUCK_COLORS, stage.cx + 24, tubY - 12, 2)}</g>`;
+  const steam = [-40, -24, 32].map((x, i) => `<g class="pf-steam" style="animation-delay:-${i * 1.3}s">${px3(["x.", ".x", "x.", ".x"], { x: "#ffffff" }, stage.cx + x, tubY - 16, 2)}</g>`).join("");
+  const duck = `<g class="pf-duck">${px3(DUCK, DUCK_COLORS, stage.cx + 24, tubY - 12, 2)}</g>`;
   const pet2 = asleep ? sprite : `<g class="pf-scrub">${sprite}</g>`;
   return {
-    svg: `${shadow(tubX + 8, stage.ground + 1, tubW - 16)}${pipe}${head}${steam}<g transform="translate(${box.x} ${box.y})">${pet2}</g>${headSuds}${asleep ? "" : drops}${px2(TUB, TUB_COLORS, tubX, tubY, 3)}${rimSuds}${duck}${bubbles}`,
+    svg: `${shadow(tubX + 8, stage.ground + 1, tubW - 16)}${pipe}${head}${steam}<g transform="translate(${box.x} ${box.y})">${pet2}</g>${headSuds}${asleep ? "" : drops}${px3(TUB, TUB_COLORS, tubX, tubY, 3)}${rimSuds}${duck}${bubbles}`,
     box
   };
 }
@@ -3258,13 +4114,13 @@ function play(sprite, w, h, scale, stage, species) {
   const box = { x: stage.cx - w / 2, y: stage.ground - h + scale, w, h };
   const ballSize = BALL_A[0].length * 2;
   const ballAt = { x: stage.cx - ballSize / 2, y: stage.ground - ballSize };
-  const ballSvg = `<g class="pf-fetch-ball"><g class="pf-ball-a">${px2(BALL_A, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g><g class="pf-ball-b">${px2(BALL_B, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g></g>`;
+  const ballSvg = `<g class="pf-fetch-ball"><g class="pf-ball-a">${px3(BALL_A, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g><g class="pf-ball-b">${px3(BALL_B, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g></g>`;
   const ballShadow = `<g class="pf-fetch-shadow"><rect x="${stage.cx - 6}" y="${stage.ground + 2}" width="12" height="4" rx="2" style="fill:var(--pf-ground-dark)"/></g>`;
-  const hand = `<g class="pf-hand">${px2(HAND, HAND_COLORS, stage.cx + 86, stage.ground - 72, 2)}</g>`;
+  const hand = `<g class="pf-hand">${px3(HAND, HAND_COLORS, stage.cx + 86, stage.ground - 72, 2)}</g>`;
   const dust = [1.1, 1.5, 1.9, 3.4, 3.8, 4.2].map((t) => {
     const p = CHOREOGRAPHY.pet(t);
     const behind = t < 3 ? w / 2 : -w / 2;
-    return `<g class="pf-dust" style="animation-delay:${t - FETCH}s">${px2(outlined([".dd.", "dddd", ".dd."]), { d: "#e9e3d5", o: "#b9ad93" }, stage.cx + p.x + behind - 4, stage.ground - 6, 2)}</g>`;
+    return `<g class="pf-dust" style="animation-delay:${t - FETCH}s">${px3(outlined([".dd.", "dddd", ".dd."]), { d: "#e9e3d5", o: "#b9ad93" }, stage.cx + p.x + behind - 4, stage.ground - 6, 2)}</g>`;
   }).join("");
   const catchBubble = emoteBubble("bang", w - 6, -4, "pf-catch");
   const body = side ? `<g class="pf-fetch-face">${sprite}</g>` : sprite;
@@ -3423,7 +4279,29 @@ var SIGNATURE_MOVE = {
   snake: () => ({ transform: ["rotate(-9deg)", "rotate(9deg)", "rotate(-9deg)", "rotate(9deg)", "rotate(-6deg)", "rotate(4deg)"] }),
   elephant: (s, w, h) => ({ transform: ["translateY(-2px)", "none", "translateY(-2px)", "none"], particles: spray(w, h, s) }),
   chick: () => ({ transform: ["translateY(-8px)", "translateY(-18px)", "translateY(-14px)", "translateY(-20px)", "translateY(-10px)", "none"] }),
-  turtle: () => ({ transform: ["rotate(90deg) scale(.9)", "rotate(180deg) scale(.9)", "rotate(270deg) scale(.9)", "rotate(360deg) scale(.9)"] })
+  turtle: () => ({ transform: ["rotate(90deg) scale(.9)", "rotate(180deg) scale(.9)", "rotate(270deg) scale(.9)", "rotate(360deg) scale(.9)"] }),
+  // Shakes off like it just got out of the hot spring.
+  capybara: (s, w, h) => ({
+    transform: ["rotate(-4deg) translateX(-2px)", "rotate(4deg) translateX(2px)", "rotate(-4deg) translateX(-2px)", "rotate(4deg) translateX(2px)", "rotate(-2deg)", "none"],
+    particles: droplets(w, h, s)
+  }),
+  // Curls into a ball and rolls about.
+  hedgehog: () => ({ transform: ["scale(.85,.75)", "rotate(-180deg) scale(.8)", "rotate(-360deg) scale(.8)", "rotate(-540deg) scale(.8)", "rotate(-720deg) scale(.85)", "none"] }),
+  // Squirts ink and jets backwards.
+  octopus: (s, w, h) => ({ transform: ["scale(1.1,.85)", "translate(-14px,-16px) scale(.9,1.1)", "translate(-18px,-10px)", "translate(-10px,-4px)", "none"], particles: ink(w, h, s) }),
+  // Inches along: stretch, then scrunch up.
+  snail: () => ({ transform: ["scaleX(1.18)", "scaleX(.9)", "scaleX(1.18)", "scaleX(.9)", "none"] }),
+  // Leaps up and dives nose-first, like a fox hunting mice under the snow.
+  fox: (s, w, h) => ({
+    transform: ["translateY(3px) scale(1.06,.9)", "translate(8px,-28px) rotate(25deg)", "translate(14px,-14px) rotate(70deg)", "translate(16px,2px) rotate(90deg) scale(1,.8)", "none"],
+    particles: dirt(w, h, s)
+  }),
+  // Jets straight up, the way squid do, and sinks back down.
+  squid: () => ({ transform: ["scale(1.1,.85)", "translateY(-30px) scale(.85,1.2)", "translateY(-26px)", "translateY(-10px)", "none"] }),
+  // Rolls onto its back, like floating down a river.
+  otter: () => ({ transform: ["rotate(-90deg)", "rotate(-180deg) translateY(4px)", "rotate(-180deg) translateY(2px)", "rotate(-270deg)", "rotate(-360deg)"] }),
+  // A loop-the-loop.
+  swift: () => ({ transform: ["translateY(-10px)", "translate(-8px,-26px) rotate(-120deg)", "translate(-2px,-30px) rotate(-240deg)", "translate(4px,-14px) rotate(-360deg)", "none"] })
 };
 function particles(color, from, size, moves, name) {
   return moves.map(
@@ -3431,6 +4309,8 @@ function particles(color, from, size, moves, name) {
   ).join("");
 }
 var dirt = (w, h, s) => particles("#7a5230", { x: w / 2, y: h - s }, s, [[-26, -14], [-14, -22], [0, -26], [14, -22], [26, -14], [-20, -8], [20, -8]], "pf-life-burst");
+var droplets = (w, h, s) => particles("#7cc4f2", { x: w / 2, y: h / 2 }, s, [[-34, -10], [-26, -22], [-12, -28], [12, -28], [26, -22], [34, -10], [0, -30]], "pf-life-burst");
+var ink = (w, h, s) => particles("#2b2140", { x: w / 2, y: h - s }, s * 1.5, [[6, 10], [16, 6], [26, 12], [10, 18], [22, 20], [30, 4]], "pf-life-burst");
 var spray = (w, h, s) => particles("#4ea8de", { x: w / 2, y: h - 2 * s }, s, [[-30, -56], [-14, -70], [0, -78], [14, -70], [30, -56], [-8, -62], [8, -62]], "pf-life-burst");
 var DREAMS = [
   COMMIT,
@@ -3474,7 +4354,7 @@ function lifeFor(mood, species, scale, w, h, date, login, { crossed = [] } = {})
   if (s.rolls) body("roll", beatKeyframes("X", s.rolls, ["scale(1.1,.8) scaleX(-1)", "scaleX(-1)"]));
   if (s.act) {
     const move = (SIGNATURE_MOVE[species.id] ?? SIGNATURE_MOVE.crab)(scale, w, h);
-    const origin = species.id === "turtle" ? "center" : "50% 100%";
+    const origin = ["turtle", "hedgehog", "swift", "otter"].includes(species.id) ? "center" : "50% 100%";
     const name = `pf-b-act-${id}`;
     css.push(beatKeyframes(name, [s.act], move.transform));
     css.push(`.${name}{transform-box:fill-box;transform-origin:${origin};animation:${name} ${CYCLE}s ease-in-out var(--pf-t0,0s) infinite}`);
@@ -3502,10 +4382,10 @@ function lifeFor(mood, species, scale, w, h, date, login, { crossed = [] } = {})
     alts.push({ cls: name, kind: "crossed" });
     css.push(showKeyframes(name, crossed), `.${name}{opacity:0;animation:${name} ${CYCLE}s steps(1) var(--pf-t0,0s) infinite}`);
   }
-  let eyes4 = null;
+  let eyes6 = null;
   if (alts.length) {
-    eyes4 = { hide: `pf-yh-${id}`, alts };
-    css.push(hideKeyframes(eyes4.hide, [...yawns ?? [], ...crossed].sort((p, q) => p[0] - q[0])), `.${eyes4.hide}{animation:${eyes4.hide} ${CYCLE}s steps(1) var(--pf-t0,0s) infinite}`);
+    eyes6 = { hide: `pf-yh-${id}`, alts };
+    css.push(hideKeyframes(eyes6.hide, [...yawns ?? [], ...crossed].sort((p, q) => p[0] - q[0])), `.${eyes6.hide}{animation:${eyes6.hide} ${CYCLE}s steps(1) var(--pf-t0,0s) infinite}`);
   }
   const chatter = seeded(`chat:${login}:${date}`);
   const talkative = mood === "idle" || mood === "happy";
@@ -3540,32 +4420,32 @@ function lifeFor(mood, species, scale, w, h, date, login, { crossed = [] } = {})
       `<g class="${name}"><rect x="${bx - 8}" y="${by + 26}" width="4" height="4" rx="2" fill="#ffffff" opacity=".9"/><rect x="${bx - 3}" y="${by + 19}" width="6" height="6" rx="3" fill="#ffffff" opacity=".9"/><g opacity=".92">${cloud2}</g>${renderPixels([{ x: 0, y: 0, grid: dream }], DREAM_COLORS, { x: bx + 6, y: by + 4, scale: 3 })}</g>`
     );
   }
-  return { css: css.join("\n"), pathClass: pathName, faceClass: species.facing === "right" ? faceName : "", bodyClasses, overlay: overlay.join(""), eyes: eyes4 };
+  return { css: css.join("\n"), pathClass: pathName, faceClass: species.facing === "right" ? faceName : "", bodyClasses, overlay: overlay.join(""), eyes: eyes6 };
 }
 var emptyBowl = (x, ground) => bowl(x, ground, null);
 
 // src/pet/surprises/kit.ts
 var round = (n) => Math.round(n * 100) / 100;
-function px3(grid, palette, x, y, scale) {
+function px4(grid, palette, x, y, scale) {
   return renderPixels([{ x: 0, y: 0, grid }], palette, { x: round(x), y: round(y), scale });
 }
 function text(value, x, y, scale, color, shadow3) {
   const grid = pixelText(value);
-  return (shadow3 ? px3(grid, { x: shadow3 }, x + scale / 2, y + scale / 2, scale) : "") + px3(grid, { x: color }, x, y, scale);
+  return (shadow3 ? px4(grid, { x: shadow3 }, x + scale / 2, y + scale / 2, scale) : "") + px4(grid, { x: color }, x, y, scale);
 }
 var textSize = (value, scale) => ({ w: textWidth(value) * scale, h: 5 * scale });
-function banner({ text: value, color, shade, ink = "#ffffff" }, scene2) {
+function banner({ text: value, color, shade, ink: ink2 = "#ffffff" }, scene2) {
   const s = 2;
   const t = textSize(value, s);
   const w = t.w + 16;
   const h = 16;
   const x = round(scene2.x + (scene2.w - w) / 2);
   const y = scene2.y + 7;
-  const tail = (tx, dir) => {
+  const tail2 = (tx, dir) => {
     const outer = tx - dir * 10;
     return `<path d="M${tx} ${y + 4}H${outer}L${outer + dir * 4} ${y + 12}L${outer} ${y + 20}H${tx}Z" fill="${shade}"/>`;
   };
-  return `<g class="pf-s-banner">` + tail(x + 6, 1) + tail(x + w - 6, -1) + `<path d="M${x} ${y + h}l6 4v-4zM${x + w} ${y + h}l-6 4v-4z" fill="#000" opacity=".35"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}"/><rect x="${x}" y="${y}" width="${w}" height="2" fill="#fff" opacity=".35"/><clipPath id="pf-s-ribbon"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath><g clip-path="url(#pf-s-ribbon)"><rect class="pf-s-sheen" style="--w:${w + 30}px" x="${x - 20}" y="${y}" width="8" height="${h}" fill="#fff" opacity=".45" transform="skewX(-20)"/></g>` + text(value, x + 8, y + 3, s, ink, shade) + `</g>`;
+  return `<g class="pf-s-banner">` + tail2(x + 6, 1) + tail2(x + w - 6, -1) + `<path d="M${x} ${y + h}l6 4v-4zM${x + w} ${y + h}l-6 4v-4z" fill="#000" opacity=".35"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}"/><rect x="${x}" y="${y}" width="${w}" height="2" fill="#fff" opacity=".35"/><clipPath id="pf-s-ribbon"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath><g clip-path="url(#pf-s-ribbon)"><rect class="pf-s-sheen" style="--w:${w + 30}px" x="${x - 20}" y="${y}" width="8" height="${h}" fill="#fff" opacity=".45" transform="skewX(-20)"/></g>` + text(value, x + 8, y + 3, s, ink2, shade) + `</g>`;
 }
 function drift(rng, scene2, count2, draw, { fall = scene2.h + 20, sway = 10, seconds = [5, 9], from = scene2.y - 10 } = {}) {
   let out = "";
@@ -3686,12 +4566,12 @@ var PARTY_HAT = {
   sink: 1
 };
 function glasses(species, scale, look) {
-  const eyes4 = eyeBoxes(species);
-  if (!eyes4.length) return "";
+  const eyes6 = eyeBoxes(species);
+  if (!eyes6.length) return "";
   const s = scale;
   const out = [];
   const frame = look === "shades" ? "#111418" : "#1f2328";
-  const lenses = eyes4.map((e) => ({ x: (e.x - 0.5) * s, y: (e.y - 0.25) * s, w: (e.w + 1) * s, h: (e.h + 0.5) * s }));
+  const lenses = eyes6.map((e) => ({ x: (e.x - 0.5) * s, y: (e.y - 0.25) * s, w: (e.w + 1) * s, h: (e.h + 0.5) * s }));
   const lw = Math.max(1, s / 2);
   for (const l of lenses) {
     if (look === "shades") {
@@ -3731,7 +4611,7 @@ function heldAt(species, scale, grid, palette, cls = "") {
   const h = grid.length * s;
   const x = species.width * scale - w / 2;
   const y = species.height * scale - h - scale;
-  const svg = `<g${cls ? ` class="${cls}"` : ""}>${px3(grid, palette, x, y, s)}</g>`;
+  const svg = `<g${cls ? ` class="${cls}"` : ""}>${px4(grid, palette, x, y, s)}</g>`;
   return { svg, x, y, w, h };
 }
 var RED_ENVELOPE = ["rrrrr", "rdddr", "rrdrr", "ryyyr", "rryrr", "rrrrr", "rrrrr"];
@@ -3742,7 +4622,7 @@ var COFFEE = ["cccc..", "bbbbb.", "bbbb.b", "bwbbb.", "bbbb..", ".bb..."];
 var COFFEE_PALETTE = { c: "#6f4e37", b: "#2f81f7", w: "#ffffff" };
 
 // src/pet/surprises/holidays.ts
-var TREE = [
+var TREE2 = [
   ".....g.....",
   "....ggg....",
   "...gggGg...",
@@ -3765,12 +4645,12 @@ function christmas(c) {
   const { scene: sc } = c;
   const s = 4;
   const tx = sc.x + 6;
-  const ty = sc.ground - TREE.length * s + 2;
+  const ty = sc.ground - TREE2.length * s + 2;
   const lights = LIGHTS.map(
     ([col, row], i) => `<rect class="${i % 2 ? "pf-s-blink" : "pf-s-blink2"}" x="${tx + col * s}" y="${ty + row * s}" width="${s - 1}" height="${s - 1}" fill="${XMAS2[i % XMAS2.length]}"/>`
   ).join("");
-  const star = `<g class="pf-s-twinkle">${px3(STAR, { y: "#ffd23f" }, tx + 5.5 * s - 7.5, ty - 4 * 3 + 2, 3)}</g>`;
-  const back = px3(TREE, { g: "#2b8a3e", G: "#51cf66", b: "#7a4a24" }, tx, ty, s) + lights + star + px3(GIFT_RED, { r: "#e03131", y: "#ffd166" }, tx + 40, sc.ground - 17, 3) + px3(GIFT_BLUE, { b: "#4c6ef5", w: "#ffffff" }, tx + 22, sc.ground - 13, 3);
+  const star = `<g class="pf-s-twinkle">${px4(STAR, { y: "#ffd23f" }, tx + 5.5 * s - 7.5, ty - 4 * 3 + 2, 3)}</g>`;
+  const back = px4(TREE2, { g: "#2b8a3e", G: "#51cf66", b: "#7a4a24" }, tx, ty, s) + lights + star + px4(GIFT_RED, { r: "#e03131", y: "#ffd166" }, tx + 40, sc.ground - 17, 3) + px4(GIFT_BLUE, { b: "#4c6ef5", w: "#ffffff" }, tx + 22, sc.ground - 13, 3);
   const snow = drift(c.rng, sc, 12, () => `<rect width="2" height="2" fill="#ffffff" opacity=".9"/>`, { seconds: [7, 11], sway: 8 });
   return {
     back,
@@ -3792,8 +4672,8 @@ function halloween(c) {
   const bat = (x, y, d) => `<g transform="translate(${x} ${y})"><path class="pf-fa" style="animation-duration:.5s;animation-delay:-${d}s" d="${BAT_UP}"/><path class="pf-fb" style="animation-duration:.5s;animation-delay:-${d}s" d="${BAT_DOWN}"/></g>`;
   const bats2 = `<g class="pf-s-bats" fill="#1a0f24">${bat(0, sc.y + 40, 0)}${bat(16, sc.y + 50, 0.2)}${bat(30, sc.y + 36, 0.1)}${bat(48, sc.y + 46, 0.3)}</g>`;
   const px0 = sc.x + sc.w - 40;
-  const pumpkin2 = px3(PUMPKIN, { o: "#f28c28", O: "#c9621a", g: "#3f7d3a" }, px0, g - 22, 3) + `<g class="pf-s-flicker">${px3(PUMPKIN_FACE, { y: "#ffe066" }, px0, g - 22, 3)}</g>`;
-  const ghost = `<g class="pf-s-ghost" opacity="0">${px3(GHOST, { w: "#f8f9fa", k: "#343a40" }, sc.x + 14, g - 50, 3)}</g>`;
+  const pumpkin2 = px4(PUMPKIN, { o: "#f28c28", O: "#c9621a", g: "#3f7d3a" }, px0, g - 22, 3) + `<g class="pf-s-flicker">${px4(PUMPKIN_FACE, { y: "#ffe066" }, px0, g - 22, 3)}</g>`;
+  const ghost = `<g class="pf-s-ghost" opacity="0">${px4(GHOST, { w: "#f8f9fa", k: "#343a40" }, sc.x + 14, g - 50, 3)}</g>`;
   const held = heldAt(c.species, c.scale, CANDY_PAIL, CANDY_PAIL_PALETTE);
   return {
     css: `.pf-s-bats{animation:pf-s-bats 13s linear infinite}
@@ -3840,14 +4720,14 @@ var CRACKER = ["y", "r", "r", "r", "y"];
 function lunarNewYear(c) {
   const { scene: sc } = c;
   const animal = zodiacFor(c.state.date);
-  const lantern2 = (x, string, delay) => `<g class="pf-s-swing" style="animation-delay:-${delay}s"><rect x="${x + 11}" y="${sc.y}" width="1" height="${string}" fill="#5b4636"/>${px3(LANTERN, LANTERN_PALETTE, x, sc.y + string, 3)}</g>`;
+  const lantern2 = (x, string, delay) => `<g class="pf-s-swing" style="animation-delay:-${delay}s"><rect x="${x + 11}" y="${sc.y}" width="1" height="${string}" fill="#5b4636"/>${px4(LANTERN, LANTERN_PALETTE, x, sc.y + string, 3)}</g>`;
   const crackers = new RectBatch();
   const cx = sc.x + 8;
   const cy = sc.ground + 8;
   for (let i = 0; i < 7; i++) crackers.add("#8a5a33", cx + i * 5, cy + i % 2, 5, 1);
   let pops = "";
   for (let i = 0; i < 7; i++) {
-    pops += px3(CRACKER, { y: "#ffd166", r: "#e03131" }, cx + i * 5 + 1, cy - 4 + i % 2, 2);
+    pops += px4(CRACKER, { y: "#ffd166", r: "#e03131" }, cx + i * 5 + 1, cy - 4 + i % 2, 2);
     if (i % 2 === 0) {
       const d = round(i * 0.35);
       for (const [dx, dy] of [[-6, -8], [0, -12], [6, -8], [-4, -3], [4, -3]]) {
@@ -3855,7 +4735,7 @@ function lunarNewYear(c) {
       }
     }
   }
-  const coins = drift(c.rng, sc, 8, () => px3(COIN, { y: "#ffd23f", Y: "#e0a800" }, 0, 0, 1.6), { seconds: [6, 10], sway: 6 });
+  const coins = drift(c.rng, sc, 8, () => px4(COIN, { y: "#ffd23f", Y: "#e0a800" }, 0, 0, 1.6), { seconds: [6, 10], sway: 6 });
   return {
     back: lantern2(sc.x + 6, 34, 0) + lantern2(sc.x + sc.w - 30, 40, 1.2) + crackers + pops,
     front: coins,
@@ -3871,9 +4751,9 @@ function midAutumn(c) {
   const { scene: sc } = c;
   const mx = sc.x + sc.w - 38;
   const my = sc.y + 60;
-  const moon = `<circle cx="${mx}" cy="${my}" r="30" fill="#fff4c2" opacity=".12"/><circle cx="${mx}" cy="${my}" r="25" fill="#fff4c2" opacity=".22"/><circle cx="${mx}" cy="${my}" r="20" fill="#fff1b8"/><circle cx="${mx - 9}" cy="${my - 8}" r="3" fill="#f5e08f"/><circle cx="${mx + 10}" cy="${my + 6}" r="4" fill="#f5e08f"/>` + px3(RABBIT, { x: "#e3c86b" }, mx - 6, my - 3, 2);
-  const lantern2 = (x, y, d) => `<g class="pf-s-swing" style="animation-delay:-${d}s"><rect x="${x + 5}" y="${sc.y}" width="1" height="${y - sc.y}" fill="#5b4636"/><g class="pf-s-flicker" style="animation-delay:-${d}s">${px3(ROUND_LANTERN, { o: "#ff922b", O: "#ffc078", y: "#ffd43b" }, x, y, 2)}</g></g>`;
-  const cake2 = px3(MOONCAKE, { c: "#d99a4e", C: "#a8652a", d: "#c07f3a", w: "#f1f3f5" }, sc.x + 12, sc.ground - 12, 2);
+  const moon = `<circle cx="${mx}" cy="${my}" r="30" fill="#fff4c2" opacity=".12"/><circle cx="${mx}" cy="${my}" r="25" fill="#fff4c2" opacity=".22"/><circle cx="${mx}" cy="${my}" r="20" fill="#fff1b8"/><circle cx="${mx - 9}" cy="${my - 8}" r="3" fill="#f5e08f"/><circle cx="${mx + 10}" cy="${my + 6}" r="4" fill="#f5e08f"/>` + px4(RABBIT, { x: "#e3c86b" }, mx - 6, my - 3, 2);
+  const lantern2 = (x, y, d) => `<g class="pf-s-swing" style="animation-delay:-${d}s"><rect x="${x + 5}" y="${sc.y}" width="1" height="${y - sc.y}" fill="#5b4636"/><g class="pf-s-flicker" style="animation-delay:-${d}s">${px4(ROUND_LANTERN, { o: "#ff922b", O: "#ffc078", y: "#ffd43b" }, x, y, 2)}</g></g>`;
+  const cake2 = px4(MOONCAKE, { c: "#d99a4e", C: "#a8652a", d: "#c07f3a", w: "#f1f3f5" }, sc.x + 12, sc.ground - 12, 2);
   return {
     back: moon + lantern2(sc.x + 10, sc.y + 40, 0) + lantern2(sc.x + 30, sc.y + 50, 0.8) + cake2,
     banner: { text: "HAPPY MID-AUTUMN", color: "#e8590c", shade: "#6b2500", ink: "#fff3bf" },
@@ -3888,8 +4768,8 @@ function valentines(c) {
   const hand = { x: w - scale, y: h * 0.55 };
   const bx = w + 2;
   const by = -30;
-  const balloon = `<g class="pf-s-float"><path d="M${hand.x} ${hand.y}Q${w + 10} ${h * 0.2} ${bx + 10} ${by + 18}" fill="none" stroke="#8d96a0" stroke-width="1"/>` + px3(BALLOON, { r: "#ff4d6d", h: "#ff9fb2" }, bx, by, 3) + `</g>`;
-  const hearts = drift(c.rng, sc, 9, () => px3(HEART, { p: "#ff8fab" }, 0, 0, 2), { from: sc.ground + 8, fall: -(sc.h - 10), seconds: [6, 10], sway: 10 });
+  const balloon = `<g class="pf-s-float"><path d="M${hand.x} ${hand.y}Q${w + 10} ${h * 0.2} ${bx + 10} ${by + 18}" fill="none" stroke="#8d96a0" stroke-width="1"/>` + px4(BALLOON, { r: "#ff4d6d", h: "#ff9fb2" }, bx, by, 3) + `</g>`;
+  const hearts = drift(c.rng, sc, 9, () => px4(HEART, { p: "#ff8fab" }, 0, 0, 2), { from: sc.ground + 8, fall: -(sc.h - 10), seconds: [6, 10], sway: 10 });
   return {
     back: `<rect x="${sc.x}" y="${sc.y}" width="${sc.w}" height="${sc.ground - sc.y}" fill="#ff8fab" opacity=".12"/>`,
     front: hearts,
@@ -3907,11 +4787,11 @@ function piDay(c) {
   const ticker = `<g opacity=".35"><g class="pf-s-ticker" style="--w:${-t.w - 12}px">${text(DIGITS, sc.x + 4, sc.y + 36, s, "#ffffff")}${text(DIGITS, sc.x + 16 + t.w, sc.y + 36, s, "#ffffff")}</g></g>`;
   const x = sc.x + 10;
   const y = sc.ground - 12;
-  const flag = `<rect x="${x + 25}" y="${y - 20}" width="1" height="20" fill="#8a5a33"/><rect x="${x + 26}" y="${y - 20}" width="15" height="11" fill="#ffffff"/>${px3(pixelText("\u03C0"), { x: "#7048e8" }, x + 27.75, y - 18.25, 1.5)}`;
+  const flag = `<rect x="${x + 25}" y="${y - 20}" width="1" height="20" fill="#8a5a33"/><rect x="${x + 26}" y="${y - 20}" width="15" height="11" fill="#ffffff"/>${px4(pixelText("\u03C0"), { x: "#7048e8" }, x + 27.75, y - 18.25, 1.5)}`;
   const steam = [0, 0.8, 1.6].map((d, i) => `<rect class="pf-s-steam" style="animation-delay:-${d}s" x="${x + 8 + i * 8}" y="${y - 5}" width="2" height="3" fill="#ffffff"/>`).join("");
   return {
     css: `.pf-s-ticker{animation:pf-s-ticker 26s linear infinite}@keyframes pf-s-ticker{to{transform:translateX(var(--w))}}`,
-    back: ticker + steam + px3(PIE, { c: "#f4a259", C: "#c8553d", d: "#adb5bd" }, x, y, 3) + flag,
+    back: ticker + steam + px4(PIE, { c: "#f4a259", C: "#c8553d", d: "#adb5bd" }, x, y, 3) + flag,
     banner: { text: "HAPPY \u03C0 DAY", color: "#7048e8", shade: "#2b1470" },
     line: "Happy \u03C0 day \xB7 3.14159\u2026"
   };
@@ -3934,7 +4814,7 @@ function programmersDay(c) {
   const span = 20 * 7 * bs;
   const patterns = [0, 1].map((i) => {
     const bits = Array.from({ length: 20 }, () => rng() < 0.5 ? "0" : "1").join("");
-    return `<g id="pf-s-bits${i}">${px3(binaryColumn(bits), { x: "#3fb950" }, 0, 0, bs)}</g>`;
+    return `<g id="pf-s-bits${i}">${px4(binaryColumn(bits), { x: "#3fb950" }, 0, 0, bs)}</g>`;
   }).join("");
   let rain2 = `<defs>${patterns}</defs>`;
   for (let x = sc.x + 4, i = 0; x < sc.x + sc.w - 4; x += 16, i++) {
@@ -3993,7 +4873,7 @@ function birthday(c) {
   const { cake: body, flames } = cake(years);
   const cx = sc.x + 6;
   const cy = sc.ground - body.length * 3 + 3;
-  const cakeSvg = px3(body, { c: "#74c0fc", p: "#ffc9de", b: "#c68b59", s: "#ff6b6b", d: "#dee2e6" }, cx, cy, 3) + `<g class="pf-s-flicker">${px3(flames, { f: "#ffd43b" }, cx, cy, 3)}</g>`;
+  const cakeSvg = px4(body, { c: "#74c0fc", p: "#ffc9de", b: "#c68b59", s: "#ff6b6b", d: "#dee2e6" }, cx, cy, 3) + `<g class="pf-s-flicker">${px4(flames, { f: "#ffd43b" }, cx, cy, 3)}</g>`;
   let bunting = `<path d="M${sc.x} ${sc.y + 44}Q${sc.x + sc.w / 2} ${sc.y + 60} ${sc.x + sc.w} ${sc.y + 44}" fill="none" stroke="#8d96a0" stroke-width="1"/>`;
   for (let i = 0; i < 11; i++) {
     const x = sc.x + 6 + i * 18;
@@ -4008,7 +4888,7 @@ function birthday(c) {
   ];
   let air = "";
   for (const [x, y, b, h, d] of balloons) {
-    air += `<g class="pf-s-float" style="animation-delay:-${d}s"><path d="M${x + 5} ${y + 12}q-3 12 1 ${sc.ground - y - 12}" fill="none" stroke="#8d96a0" stroke-width="1"/>${px3(BALLOON2, { b, h }, x, y, 2)}</g>`;
+    air += `<g class="pf-s-float" style="animation-delay:-${d}s"><path d="M${x + 5} ${y + 12}q-3 12 1 ${sc.ground - y - 12}" fill="none" stroke="#8d96a0" stroke-width="1"/>${px4(BALLOON2, { b, h }, x, y, 2)}</g>`;
   }
   return {
     back: bunting + air + cakeSvg,
@@ -4035,7 +4915,7 @@ function levelUp(c) {
   for (let i = 0; i < 6; i++) {
     const x = round(px0 + 4 + c.rng() * (pw - 12));
     const t2 = round(2.2 + c.rng() * 1.6);
-    sparkles += `<g class="pf-s-fall" style="--t:${t2}s;--fy:-${bottom - sc.y - 20}px;--sx:0px;animation-delay:-${round(c.rng() * t2)}s">${px3(SPARKLE, { s: "#fff3a0" }, x, bottom - 12, 1.5)}</g>`;
+    sparkles += `<g class="pf-s-fall" style="--t:${t2}s;--fy:-${bottom - sc.y - 20}px;--sx:0px;animation-delay:-${round(c.rng() * t2)}s">${px4(SPARKLE, { s: "#fff3a0" }, x, bottom - 12, 1.5)}</g>`;
   }
   const label = `LV ${state.level}`;
   const t = textSize(label, 2);
@@ -4095,7 +4975,7 @@ var PLACES = [
     ink: "#1971c2",
     draw: (x, y, pet2) => {
       const b = new RectBatch().add("#8fd3ff", x, y, 128, 36).add("#3a86c8", x, y + 36, 128, 20).add("#9fd4ff", x + 10, y + 42, 10, 1).add("#9fd4ff", x + 96, y + 46, 14, 1).add("#9fd4ff", x + 50, y + 51, 12, 1).add("#f4d58d", x + 30, y + 32, 60, 6).add("#f4d58d", x + 36, y + 30, 48, 2).add("#8a5a33", x + 14, y + 22, 2, 12).add("#ffffff", x + 6, y + 16, 19, 8);
-      return b + `<circle cx="${x + 112}" cy="${y + 12}" r="7" fill="#ffe066"/>` + text("0,0", x + 9, y + 17.5, 1, "#1f2328") + px3(PALM, { g: "#2f9e44", b: "#8a5a33" }, x + 76, y + 8, 3) + at(pet2, x + 32, y + 32 - pet2.height + 2);
+      return b + `<circle cx="${x + 112}" cy="${y + 12}" r="7" fill="#ffe066"/>` + text("0,0", x + 9, y + 17.5, 1, "#1f2328") + px4(PALM, { g: "#2f9e44", b: "#8a5a33" }, x + 76, y + 8, 3) + at(pet2, x + 32, y + 32 - pet2.height + 2);
     }
   },
   {
@@ -4146,7 +5026,7 @@ var PLACES = [
     draw: (x, y, pet2) => {
       const b = new RectBatch().add("#3b1f5c", x, y, 128, 46).add("#5c3d2e", x, y + 46, 128, 10);
       for (const [sx, sy] of [[8, 8], [30, 20], [52, 6], [112, 14], [120, 34], [60, 30]]) b.add("#ffffff", x + sx, y + sy, 1, 1);
-      return b + px3(KERNEL, { y: "#ffd43b", h: "#fff3bf", o: "#f59f00", w: "#fff9db" }, x + 76, y + 5, 3) + at(pet2, x + 30, y + 46 - pet2.height + 2);
+      return b + px4(KERNEL, { y: "#ffd43b", h: "#fff3bf", o: "#f59f00", w: "#fff9db" }, x + 76, y + 5, 3) + at(pet2, x + 30, y + 46 - pet2.height + 2);
     }
   }
 ];
@@ -4165,7 +5045,7 @@ function postcard(c) {
   const photo = { x: x + 6, y: y + 6 };
   const greet = text("GREETINGS FROM", x + 8, y + 67, 1, "#8a6d4b");
   const name = text(place.name, x + 8, y + 76, 2, place.ink, "#e9dfcc");
-  const stamp = `<g transform="rotate(6 ${x + W3 - 16} ${y + 14})"><rect x="${x + W3 - 28}" y="${y}" width="22" height="26" fill="#ffffff" stroke="#adb5bd" stroke-width="1" stroke-dasharray="2 1"/><rect x="${x + W3 - 25}" y="${y + 3}" width="16" height="20" fill="#ffe3e3"/>${px3(HEART, { p: "#e03131" }, x + W3 - 22, y + 9, 2)}</g><g fill="none" stroke="#495057" stroke-width="1" opacity=".55"><circle cx="${x + W3 - 34}" cy="${y + 20}" r="9"/><circle cx="${x + W3 - 34}" cy="${y + 20}" r="6"/><path d="M${x + W3 - 72} ${y + 16}q4 -3 8 0t8 0t8 0t8 0M${x + W3 - 72} ${y + 22}q4 -3 8 0t8 0t8 0t8 0"/></g>`;
+  const stamp = `<g transform="rotate(6 ${x + W3 - 16} ${y + 14})"><rect x="${x + W3 - 28}" y="${y}" width="22" height="26" fill="#ffffff" stroke="#adb5bd" stroke-width="1" stroke-dasharray="2 1"/><rect x="${x + W3 - 25}" y="${y + 3}" width="16" height="20" fill="#ffe3e3"/>${px4(HEART, { p: "#e03131" }, x + W3 - 22, y + 9, 2)}</g><g fill="none" stroke="#495057" stroke-width="1" opacity=".55"><circle cx="${x + W3 - 34}" cy="${y + 20}" r="9"/><circle cx="${x + W3 - 34}" cy="${y + 20}" r="6"/><path d="M${x + W3 - 72} ${y + 16}q4 -3 8 0t8 0t8 0t8 0M${x + W3 - 72} ${y + 22}q4 -3 8 0t8 0t8 0t8 0"/></g>`;
   const card = `<rect x="${x + 3}" y="${y + 3}" width="${W3}" height="${H3}" fill="#000000" opacity=".2"/><rect x="${x}" y="${y}" width="${W3}" height="${H3}" fill="#fffaf0" stroke="#d9cbb0" stroke-width="1"/><clipPath id="pf-s-photo"><rect x="${photo.x}" y="${photo.y}" width="128" height="56"/></clipPath><g clip-path="url(#pf-s-photo)">${place.draw(photo.x, photo.y, pet2)}</g>` + greet + name + stamp;
   const line = `<path d="M${sc.x} ${y - 8}Q${sc.x + sc.w / 2} ${y - 2} ${sc.x + sc.w} ${y - 8}" fill="none" stroke="#8d96a0" stroke-width="1"/>`;
   const peg = `<rect x="${x + W3 / 2 - 3}" y="${y - 9}" width="6" height="13" rx="1" fill="#d9a066"/><rect x="${x + W3 / 2 - 1}" y="${y - 9}" width="2" height="13" fill="#b07d4a"/>`;
@@ -4203,7 +5083,7 @@ function ufo(c) {
   const under = uy + SAUCER.length * s;
   const rise = Math.round(box.y + box.h / 2 - under - 4);
   const beam = `<path class="pf-s-beam" d="M${ux + uw / 2 - 8} ${under}h16L${round(box.x + box.w + 6)} ${box.y + box.h}H${round(box.x - 6)}Z" fill="#b2f2bb" opacity="0"/>`;
-  const saucer = `<g class="pf-s-ufo">${px3(SAUCER, { c: "#99e9f2", C: "#66d9e8", w: "#ffffff", s: "#adb5bd", S: "#868e96", d: "#495057" }, ux, uy, s)}<g class="pf-s-blink">${px3(SAUCER_LIGHTS, { y: "#ffe066", r: "#ff6b6b", g: "#69db7c" }, ux, uy, s)}</g></g>`;
+  const saucer = `<g class="pf-s-ufo">${px4(SAUCER, { c: "#99e9f2", C: "#66d9e8", w: "#ffffff", s: "#adb5bd", S: "#868e96", d: "#495057" }, ux, uy, s)}<g class="pf-s-blink">${px4(SAUCER_LIGHTS, { y: "#ffe066", r: "#ff6b6b", g: "#69db7c" }, ux, uy, s)}</g></g>`;
   const top = anchors(c.species).top * c.scale;
   const huh = bubble(pixelText("?!"), box.w - 6, top - 2, "pf-s-huh");
   return {
@@ -4232,7 +5112,7 @@ function friend(c) {
   const y = sc.ground - fh - 4 + s;
   const flip = buddy.facing === "right" ? ` transform="translate(${fw} 0) scale(-1 1)"` : "";
   const hello = bubble(pixelText("HI!"), fw - 4, 0, "pf-s-hi");
-  const love = `<g class="pf-s-love">${px3(HEART, { p: "#ff5c7a" }, fw / 2 - 5, -12, 2)}</g>`;
+  const love = `<g class="pf-s-love">${px4(HEART, { p: "#ff5c7a" }, fw / 2 - 5, -12, 2)}</g>`;
   return {
     css: `.pf-s-friend{animation:pf-s-friend ${CYCLE2}s linear infinite}
 @keyframes pf-s-friend{0%{transform:translateX(${sc.x + sc.w + 4}px)}${pct2(4.6)}{transform:translateX(${meet}px)}${pct2(11)}{transform:translateX(${meet}px)}${pct2(20.5)},100%{transform:translateX(${sc.x - fw - 8}px)}}
@@ -4255,7 +5135,7 @@ function butterfly(c) {
   const bx = round(nose.x * scale - 7);
   const by = round(nose.y * scale - 9);
   const palette = { p: "#ffa94d", P: "#fff3bf", k: "#343a40" };
-  const wings2 = `<g class="pf-fa" style="animation-duration:.3s">${px3(WINGS_OPEN, palette, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.3s">${px3(WINGS_SHUT, palette, 0, 0, 2)}</g>`;
+  const wings2 = `<g class="pf-fa" style="animation-duration:.3s">${px4(WINGS_OPEN, palette, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.3s">${px4(WINGS_SHUT, palette, 0, 0, 2)}</g>`;
   return {
     css: `.pf-s-fly{animation:pf-s-fly ${CYCLE2}s ease-in-out infinite}
 @keyframes pf-s-fly{0%{transform:translate(-60px,-70px);opacity:0}3%{opacity:1}14%{transform:translate(50px,-50px)}26%{transform:translate(-24px,-44px)}38%{transform:translate(18px,-30px)}${pct2(10.8)}{transform:translate(0,-8px)}${pct2(11.3)},${pct2(16.3)}{transform:translate(0,0);opacity:1}${pct2(17.4)}{transform:translate(26px,-26px)}${pct2(19.4)}{transform:translate(80px,-80px);opacity:1}${pct2(19.5)},100%{transform:translate(-60px,-70px);opacity:0}}`,
@@ -4405,7 +5285,7 @@ function scene(state, world2) {
     [x + 150, GROUND_Y + 20],
     [x + 96, GROUND_Y + 24],
     [x + 176, GROUND_Y + 10]
-  ].map(([px4, py]) => `<rect x="${px4}" y="${py}" width="6" height="4" style="fill:var(--pf-ground-dark)"/>`).join("");
+  ].map(([px5, py]) => `<rect x="${px5}" y="${py}" width="6" height="4" style="fill:var(--pf-ground-dark)"/>`).join("");
   const overcast2 = world2.weather === "clear" ? "" : `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#1b2033" opacity=".28"/><g opacity=".85" fill="#6f7689"><rect x="${x + 6}" y="${y + 22}" width="66" height="12"/><rect x="${x + 20}" y="${y + 14}" width="30" height="10"/><rect x="${x + 110}" y="${y + 34}" width="80" height="12"/><rect x="${x + 128}" y="${y + 26}" width="36" height="10"/></g>`;
   return `
 <defs>

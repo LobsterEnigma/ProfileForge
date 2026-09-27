@@ -21,6 +21,14 @@ describe("scenery", () => {
     expect(terrainFor("elephant")).toBe("savanna");
     expect(terrainFor("chick")).toBe("farm");
     expect(terrainFor("turtle")).toBe("pond");
+    expect(terrainFor("capybara")).toBe("onsen");
+    expect(terrainFor("hedgehog")).toBe("forest");
+    expect(terrainFor("octopus")).toBe("reef");
+    expect(terrainFor("snail")).toBe("garden");
+    expect(terrainFor("fox")).toBe("pinewood");
+    expect(terrainFor("swift")).toBe("treetop");
+    expect(terrainFor("squid")).toBe("deepsea");
+    expect(terrainFor("otter")).toBe("river");
     expect(terrainFor("dragon")).toBe("beach");
   });
 

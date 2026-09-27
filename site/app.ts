@@ -23,6 +23,14 @@ const LANGUAGE_COLORS: Record<string, string> = {
   PHP: "#4F5D95",
   JavaScript: "#f1e05a",
   TypeScript: "#3178c6",
+  Java: "#b07219",
+  Kotlin: "#A97BFF",
+  "C#": "#178600",
+  C: "#555555",
+  "C++": "#f34b7d",
+  Shell: "#89e051",
+  Ruby: "#701516",
+  Swift: "#F05138",
 };
 
 const form = document.getElementById("form") as HTMLFormElement;
@@ -137,7 +145,7 @@ function renderPreviews(c: Config): void {
       ...base,
       ...ACTIVITY[c.activity],
       date: Object.hasOwn(HOLIDAY_DATES, c.surprise) ? HOLIDAY_DATES[c.surprise as keyof typeof HOLIDAY_DATES] : base.date,
-      topLanguage: { name: c.language, color: LANGUAGE_COLORS[c.language] ?? null, bytes: 1 },
+      topLanguage: { name: c.language, color: Object.hasOwn(LANGUAGE_COLORS, c.language) ? LANGUAGE_COLORS[c.language]! : null, bytes: 1 },
       pet: c.cityPet ? pet : null,
     };
     show(document.getElementById("city-img") as HTMLImageElement, renderCityCard(city, style));

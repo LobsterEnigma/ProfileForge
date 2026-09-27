@@ -208,6 +208,28 @@ const SIGNATURE_MOVE: Record<string, (s: number, w: number, h: number) => { tran
   elephant: (s, w, h) => ({ transform: ["translateY(-2px)", "none", "translateY(-2px)", "none"], particles: spray(w, h, s) }),
   chick: () => ({ transform: ["translateY(-8px)", "translateY(-18px)", "translateY(-14px)", "translateY(-20px)", "translateY(-10px)", "none"] }),
   turtle: () => ({ transform: ["rotate(90deg) scale(.9)", "rotate(180deg) scale(.9)", "rotate(270deg) scale(.9)", "rotate(360deg) scale(.9)"] }),
+  // Shakes off like it just got out of the hot spring.
+  capybara: (s, w, h) => ({
+    transform: ["rotate(-4deg) translateX(-2px)", "rotate(4deg) translateX(2px)", "rotate(-4deg) translateX(-2px)", "rotate(4deg) translateX(2px)", "rotate(-2deg)", "none"],
+    particles: droplets(w, h, s),
+  }),
+  // Curls into a ball and rolls about.
+  hedgehog: () => ({ transform: ["scale(.85,.75)", "rotate(-180deg) scale(.8)", "rotate(-360deg) scale(.8)", "rotate(-540deg) scale(.8)", "rotate(-720deg) scale(.85)", "none"] }),
+  // Squirts ink and jets backwards.
+  octopus: (s, w, h) => ({ transform: ["scale(1.1,.85)", "translate(-14px,-16px) scale(.9,1.1)", "translate(-18px,-10px)", "translate(-10px,-4px)", "none"], particles: ink(w, h, s) }),
+  // Inches along: stretch, then scrunch up.
+  snail: () => ({ transform: ["scaleX(1.18)", "scaleX(.9)", "scaleX(1.18)", "scaleX(.9)", "none"] }),
+  // Leaps up and dives nose-first, like a fox hunting mice under the snow.
+  fox: (s, w, h) => ({
+    transform: ["translateY(3px) scale(1.06,.9)", "translate(8px,-28px) rotate(25deg)", "translate(14px,-14px) rotate(70deg)", "translate(16px,2px) rotate(90deg) scale(1,.8)", "none"],
+    particles: dirt(w, h, s),
+  }),
+  // Jets straight up, the way squid do, and sinks back down.
+  squid: () => ({ transform: ["scale(1.1,.85)", "translateY(-30px) scale(.85,1.2)", "translateY(-26px)", "translateY(-10px)", "none"] }),
+  // Rolls onto its back, like floating down a river.
+  otter: () => ({ transform: ["rotate(-90deg)", "rotate(-180deg) translateY(4px)", "rotate(-180deg) translateY(2px)", "rotate(-270deg)", "rotate(-360deg)"] }),
+  // A loop-the-loop.
+  swift: () => ({ transform: ["translateY(-10px)", "translate(-8px,-26px) rotate(-120deg)", "translate(-2px,-30px) rotate(-240deg)", "translate(4px,-14px) rotate(-360deg)", "none"] }),
 };
 
 function particles(color: string, from: { x: number; y: number }, size: number, moves: [number, number][], name: string): string {
@@ -221,6 +243,10 @@ function particles(color: string, from: { x: number; y: number }, size: number, 
 
 const dirt = (w: number, h: number, s: number) =>
   particles("#7a5230", { x: w / 2, y: h - s }, s, [[-26, -14], [-14, -22], [0, -26], [14, -22], [26, -14], [-20, -8], [20, -8]], "pf-life-burst");
+const droplets = (w: number, h: number, s: number) =>
+  particles("#7cc4f2", { x: w / 2, y: h / 2 }, s, [[-34, -10], [-26, -22], [-12, -28], [12, -28], [26, -22], [34, -10], [0, -30]], "pf-life-burst");
+const ink = (w: number, h: number, s: number) =>
+  particles("#2b2140", { x: w / 2, y: h - s }, s * 1.5, [[6, 10], [16, 6], [26, 12], [10, 18], [22, 20], [30, 4]], "pf-life-burst");
 const spray = (w: number, h: number, s: number) =>
   particles("#4ea8de", { x: w / 2, y: h - 2 * s }, s, [[-30, -56], [-14, -70], [0, -78], [14, -70], [30, -56], [-8, -62], [8, -62]], "pf-life-burst");
 
@@ -281,7 +307,7 @@ export function lifeFor(
   // The species' own move.
   if (s.act) {
     const move = (SIGNATURE_MOVE[species.id] ?? SIGNATURE_MOVE.crab!)(scale, w, h);
-    const origin = species.id === "turtle" ? "center" : "50% 100%";
+    const origin = ["turtle", "hedgehog", "swift", "otter"].includes(species.id) ? "center" : "50% 100%";
     const name = `pf-b-act-${id}`;
     css.push(beatKeyframes(name, [s.act], move.transform));
     css.push(`.${name}{transform-box:fill-box;transform-origin:${origin};animation:${name} ${CYCLE}s ease-in-out var(--pf-t0,0s) infinite}`);

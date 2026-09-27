@@ -37,27 +37,36 @@ function fillAttr(color: string): string {
  * merged, which keeps a 20×13 sprite to a few hundred bytes.
  */
 export function renderPixels(layers: readonly Layer[], palette: Palette, { x = 0, y = 0, scale }: PixelOptions): string {
-  const paths = new Map<string, string[]>();
-
+  // Composite first, so a later layer covers an earlier one even when their colors repeat
+  // (merging by color alone would lose which layer is on top).
+  const rows = new Map<number, Map<number, string>>();
   for (const l of layers) {
     l.grid.forEach((row, ry) => {
-      let cx = 0;
-      while (cx < row.length) {
-        const ch = row[cx]!;
-        let run = 1;
-        while (row[cx + run] === ch) run++;
-        if (ch !== "." && ch !== " ") {
-          const color = palette[ch];
-          if (color === undefined) throw new Error(`Pixel "${ch}" has no palette entry`);
-          const px = x + (l.x + cx) * scale;
-          const py = y + (l.y + ry) * scale;
-          const segs = paths.get(color) ?? [];
-          segs.push(`M${px} ${py}h${run * scale}v${scale}h${-run * scale}z`);
-          paths.set(color, segs);
-        }
-        cx += run;
-      }
+      const cy = l.y + ry;
+      [...row].forEach((ch, rx) => {
+        if (ch === "." || ch === " ") return;
+        if (palette[ch] === undefined) throw new Error(`Pixel "${ch}" has no palette entry`);
+        let cells = rows.get(cy);
+        if (!cells) rows.set(cy, (cells = new Map()));
+        cells.set(l.x + rx, ch);
+      });
     });
+  }
+
+  const paths = new Map<string, string[]>();
+  for (const cy of [...rows.keys()].sort((a, b) => a - b)) {
+    const cells = rows.get(cy)!;
+    const xs = [...cells.keys()].sort((a, b) => a - b);
+    for (let i = 0; i < xs.length; ) {
+      const ch = cells.get(xs[i]!)!;
+      let run = 1;
+      while (i + run < xs.length && xs[i + run] === xs[i]! + run && cells.get(xs[i + run]!) === ch) run++;
+      const color = palette[ch]!;
+      const segs = paths.get(color) ?? [];
+      segs.push(`M${x + xs[i]! * scale} ${y + cy * scale}h${run * scale}v${scale}h${-run * scale}z`);
+      paths.set(color, segs);
+      i += run;
+    }
   }
 
   return [...paths].map(([color, segs]) => `<path ${fillAttr(color)} d="${segs.join("")}"/>`).join("");

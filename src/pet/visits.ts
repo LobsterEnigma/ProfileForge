@@ -99,6 +99,15 @@ const TREATS: Record<string, { grid: Grid; colors: Record<string, string> }> = {
   elephant: { grid: [".p.", "ppp", ".p.", "ppp", ".p."], colors: { p: "#c68b59" } },
   chick: { grid: [".y.", "yyy", "yyy", "yyy", ".g."], colors: { y: "#fcc419", g: "#2f9e44" } },
   turtle: { grid: ["..gg", ".ggg", "ggg.", "g..."], colors: { g: "#51cf66" } },
+  capybara: { grid: [".l.", "yyy", "yyy", ".y."], colors: { y: "#fcc419", l: "#51cf66" } },
+  hedgehog: { grid: ["..l", ".rr", "rrr", "rrr", ".r."], colors: { r: "#e03131", l: "#51cf66" } },
+  octopus: { grid: ["pp..", ".ppp", "..pp", "..p."], colors: { p: "#ff8787" } },
+  snail: { grid: [".gg.", "rrrr", "rwrr", ".rr."], colors: { r: "#fa5252", w: "#ffe3e3", g: "#51cf66" } },
+  // The fox and the grapes, finally within reach.
+  fox: { grid: ["..g", "ppp", ".pp", ".p."], colors: { p: "#845ef7", g: "#51cf66" } },
+  swift: { grid: ["pp..", ".p..", ".pp.", "..pp"], colors: { p: "#f783ac" } },
+  squid: { grid: [".bb.b", "bbbbb", ".bb.b"], colors: { b: "#74c0fc" } },
+  otter: { grid: [".ss.", "sSss", "ssss"], colors: { s: "#c5a3d9", S: "#f3e8fa" } },
 };
 
 /** A white clawfoot tub, seen from the side, with gold feet. */

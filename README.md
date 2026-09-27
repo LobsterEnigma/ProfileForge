@@ -112,8 +112,11 @@ Your top language picks the species (pin one with `species=`):
 |---|---|---|
 | <img src="examples/species-crab.svg" width="260"><br>🦀 **crab** · Rust & everyone else | <img src="examples/species-gopher.svg" width="260"><br>🐹 **gopher** · Go | <img src="examples/species-snake.svg" width="260"><br>🐍 **snake** · Python |
 | <img src="examples/species-elephant.svg" width="260"><br>🐘 **elephant** · PHP | <img src="examples/species-chick.svg" width="260"><br>🐥 **chick** · JavaScript | <img src="examples/species-turtle.svg" width="260"><br>🐢 **turtle** · TypeScript |
+| <img src="examples/species-capybara.svg" width="260"><br>🦫 **capybara** · Java, Scala | <img src="examples/species-otter.svg" width="260"><br>🦦 **otter** · Kotlin | <img src="examples/species-hedgehog.svg" width="260"><br>🦔 **hedgehog** · C# (all spikes) |
+| <img src="examples/species-octopus.svg" width="260"><br>🐙 **octopus** · C (a hand per pointer) | <img src="examples/species-squid.svg" width="260"><br>🦑 **squid** · C++ (eight arms, plus two) | <img src="examples/species-snail.svg" width="260"><br>🐌 **snail** · Shell (carries its own) |
+| <img src="examples/species-fox.svg" width="260"><br>🦊 **fox** · Ruby | <img src="examples/species-swift.svg" width="260"><br>🐦 **swift** · Swift | |
 
-Each one lives somewhere that suits it (a beach, a meadow with a burrow, a jungle, the savanna, a farm, a pond) and shares the city's world: the same season, and the same weather, so a hungry pet sits in the rain and a sleeping one in the fog.
+Each one lives somewhere that suits it (a beach, a meadow with a burrow, a jungle, the savanna, a farm, a pond, a hot spring, a forest floor, a coral reef, a garden after rain, a pine wood, a tree with a birdhouse, the deep sea, a river), with a little neighbour of its own, and shares the city's world: the same season, and the same weather, so a hungry pet sits in the rain and a sleeping one in the fog.
 
 ### It has moods
 
@@ -140,7 +143,7 @@ XP = lifetime contributions + 2 × stars + 3 × followers, so **levels never go 
 ### It has a life of its own
 
 - It follows **a routine that changes from day to day**: walking, sniffing around, sitting, yawning, hopping, doing laps, and the odd nap.
-- It **looks around**, says the odd word (`LGTM`, `WIP`, `404`…) and performs **four tricks a day**, taking turns, from 19: dancing, twirling, a backflip, a moonwalk, juggling, blowing a kiss, spinning until it's dizzy, hiccups, a magic trick, jump rope, a selfie, hunting down a bug, holding up a commit like treasure, bubblegum, singing, heart eyes, a sneeze, sticking its tongue out, or its species' signature move (crab bubbles, gopher digging, snake hissing, elephant spraying, chick pecking, turtle zoomies). Tomorrow brings a different four.
+- It **looks around**, says the odd word (`LGTM`, `WIP`, `404`…) and performs **four tricks a day**, taking turns, from 19: dancing, twirling, a backflip, a moonwalk, juggling, blowing a kiss, spinning until it's dizzy, hiccups, a magic trick, jump rope, a selfie, hunting down a bug, holding up a commit like treasure, bubblegum, singing, heart eyes, a sneeze, sticking its tongue out, or its species' signature move (crab bubbles, gopher digging, snake hissing, elephant spraying, chick pecking, turtle zoomies, a yuzu balanced on the capybara's head, a hedgehog roll, an octopus ink jet, a snail's slime trail, a fox's snow dive, a swift's loop-the-loop, a squid's jet, an otter floating on its back with a pebble). Tomorrow brings a different four.
 - After **30 days without contributions it runs away**, leaving a note and a trail of footprints. Your next commit brings it home. Not your thing? Add `runaway=false`.
 
 ### Every day could be special
@@ -280,8 +283,8 @@ Light themes paint it at sunset, dark themes at night. Seasons follow the date, 
 |---|---|---|
 | `user` | *required* | API only: whose widget to render. `demo` renders sample data. (The Action uses the repo owner.) |
 | `widget` | `pet` | `pet` or `city`. Only needed in the Action; the API uses `/api/pet` and `/api/city`. |
-| `name` | the species' | Your pet's name (max 16 chars). Defaults to Pinchy 🦀, Gogo 🐹, Monty 🐍, Ellie 🐘, Chirpy 🐥 or Shelly 🐢. |
-| `species` | from your language | `crab` · `gopher` · `snake` · `elephant` · `chick` · `turtle` |
+| `name` | the species' | Your pet's name (max 16 chars). Defaults to Pinchy 🦀, Gogo 🐹, Monty 🐍, Ellie 🐘, Chirpy 🐥, Shelly 🐢, Mocha 🦫, Spike 🦔, Inky 🐙, Bash 🐌, Ember 🦊, Zippy 🐦, Plus 🦑 or Kody 🦦. |
+| `species` | from your language | `crab` · `gopher` · `snake` · `elephant` · `chick` · `turtle` · `capybara` · `hedgehog` · `octopus` · `snail` · `fox` · `swift` · `squid` · `otter` |
 | `pet` | `true` | City only: `false` keeps your pet off the streets. |
 | `runaway` | `true` | `false` keeps your pet home after a month without contributions (it just sleeps). |
 | `theme` | `auto` | `auto` · `light` · `dark` · `dracula` · `gameboy` · `sakura` |
@@ -370,16 +373,16 @@ GitHub strips JavaScript from README images, so everything is plain SVG + CSS:
 - Randomness (window lights, rooftops, trees) is seeded from your login and the week's date, so the same data always renders byte-identical SVG and the Action never commits noise.
 - `prefers-reduced-motion` freezes everything.
 
-### Add a species 🦀🐹🐍🐘🐥🐢
+### Add a species 🦀🐹🐍🐘🐥🐢🦫🦦🦔🐙🦑🐌🦊🐦
 
 Every pet is one file of ASCII art. Copy [`src/pet/species/crab.ts`](src/pet/species/crab.ts), redraw the grids
 (body, four eye styles, three mouths, two limb frames per mood), register it in `index.ts`, and check it at `/zoom`.
-Then map your language to it in `BY_LANGUAGE` and give it a home in `pet/scenery.ts`. A Java cup, a Ruby gem, a Kotlin something: all very welcome.
+Then map your language to it in `BY_LANGUAGE`, give it a home in `pet/homes.ts`, a signature move in `pet/life.ts` and `pet/behavior.ts`, and a favourite food in `pet/visits.ts`. A Haskell sloth, a Lua moon rabbit, an R pirate parrot: all very welcome.
 
 ## Roadmap
 
-- [x] Species picked from your top language (crab, gopher, snake, elephant, chick, turtle)
-- [ ] More species: Java, Ruby, C#, Kotlin, …
+- [x] Species picked from your top language: fourteen so far, covering Rust, Go, Python, PHP, JavaScript, TypeScript, Java, Kotlin, C#, C, C++, Shell, Ruby and Swift
+- [ ] More species: Haskell, Lua, R, Dart, …
 - [x] GitHub Action mode (generate the SVG in your own repo, no shared rate limits)
 - [x] 🌃 Pixel city: your contribution graph as a skyline
 - [x] Web configurator: build your card and copy the Markdown

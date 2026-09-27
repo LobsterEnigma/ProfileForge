@@ -5,7 +5,7 @@
  */
 import { seeded } from "../random.js";
 import { RectBatch } from "../svg/batch.js";
-import { renderPixels, type Grid, type Layer } from "../svg/pixel.js";
+import { outlined, renderPixels, type Grid, type Layer } from "../svg/pixel.js";
 import type { Mood, Trick } from "../types.js";
 import type { Species } from "./species/types.js";
 import { COMMIT, FX_PALETTE, HEART } from "./sprites.js";
@@ -136,13 +136,21 @@ export const TRICKS: Trick[] = [
 ];
 
 /** Each species' own move. */
-const SIGNATURE: Record<string, "bubbles" | "dig" | "hiss" | "spray" | "peck" | "zoomies"> = {
+const SIGNATURE: Record<string, "bubbles" | "dig" | "hiss" | "spray" | "peck" | "zoomies" | "yuzu" | "roll" | "ink" | "slime" | "pounce" | "loop" | "jetup" | "float"> = {
   crab: "bubbles",
   gopher: "dig",
   snake: "hiss",
   elephant: "spray",
   chick: "peck",
   turtle: "zoomies",
+  capybara: "yuzu",
+  hedgehog: "roll",
+  octopus: "ink",
+  snail: "slime",
+  fox: "pounce",
+  swift: "loop",
+  squid: "jetup",
+  otter: "float",
 };
 
 /**
@@ -224,6 +232,13 @@ const ANIMS = {
   gum: { props: "opacity:0;transform-box:fill-box;transform-origin:0 50%", timing: "ease-in", frames: "0%,71.9%{opacity:0;transform:scale(0)}72%{opacity:1;transform:scale(.2)}82%{opacity:1;transform:scale(1.6)}83%{opacity:1;transform:scale(1.8)}83.1%,100%{opacity:0;transform:scale(1.8)}" },
   pop: { props: "opacity:0", timing: "ease-out", frames: "0%,83%{opacity:0;transform:translate(0,0)}83.2%{opacity:1}88%{opacity:0;transform:translate(var(--dx),var(--dy))}100%{opacity:0}" },
   sway: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}74%,82%{transform:rotate(-5deg)}78%,86%{transform:rotate(5deg)}" },
+  roll: { props: "transform-box:fill-box;transform-origin:center", timing: "linear", frames: "0%,70%,88%,100%{transform:none}72%{transform:scale(.85,.75)}76%{transform:translateX(-10px) rotate(-180deg) scale(.8)}80%{transform:translateX(-20px) rotate(-360deg) scale(.8)}84%{transform:translateX(-10px) rotate(-540deg) scale(.8)}87%{transform:rotate(-720deg) scale(.85)}" },
+  jet: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-out", frames: "0%,70%,88%,100%{transform:none}72%{transform:scale(1.1,.85)}75%{transform:translate(-16px,-18px) scale(.9,1.1)}81%{transform:translate(-20px,-10px)}86%{transform:translate(-8px,-2px)}" },
+  inch: { props: "transform-box:fill-box;transform-origin:0 100%", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}73%,79%,85%{transform:scaleX(1.18)}76%,82%{transform:scaleX(.9)}" },
+  pounce2: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}72%{transform:translateY(3px) scale(1.06,.9)}76%{transform:translate(8px,-30px) rotate(25deg)}80%{transform:translate(14px,-14px) rotate(70deg)}83%{transform:translate(16px,2px) rotate(90deg) scale(1,.8)}86%{transform:translate(8px,0) rotate(20deg)}" },
+  loop: { props: "transform-box:fill-box;transform-origin:center", timing: "linear", frames: "0%,70%,88%,100%{transform:none}73%{transform:translateY(-12px)}77%{transform:translate(-8px,-28px) rotate(-120deg)}81%{transform:translate(-2px,-32px) rotate(-240deg)}85%{transform:translate(4px,-14px) rotate(-360deg)}" },
+  jetup: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-out", frames: "0%,70%,88%,100%{transform:none}72%{transform:scale(1.1,.85)}75%{transform:translateY(-32px) scale(.85,1.2)}80%{transform:translateY(-28px)}85%{transform:translateY(-8px)}" },
+  belly: { props: "transform-box:fill-box;transform-origin:center", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}73%,85%{transform:rotate(180deg) scaleX(-1) translateY(-2px)}79%{transform:rotate(180deg) scaleX(-1) translateY(-5px)}" },
   note: { props: "opacity:0", timing: "ease-out", frames: "0%,70%{opacity:0;transform:translate(0,0)}72%{opacity:1}88%{opacity:0;transform:translate(var(--dx),-30px)}100%{opacity:0}" },
 } satisfies Record<string, { props: string; timing: string; frames: string }>;
 
@@ -418,6 +433,32 @@ export function trickLayers(trick: Trick, species: Species, scale: number, slot 
         for (const dx of [-3, 2, 6]) seeds.add("#e9c46a", w / 2 + dx * scale, h - scale / 2, scale / 2 + 1, scale / 2 + 1);
         const body = k("peck");
         return layers(body, `<g class="${k("show")}">${seeds}</g>`);
+      }
+      case "yuzu": {
+        // A yuzu balanced on its head, the picture of calm.
+        const yuzu = px(outlined([".l.", "yyy", "yYy", ".y."]), { y: "#fcc419", Y: "#ffe066", l: "#51cf66", o: "#8a6a00" }, (species.crownAnchor.x - 2.5) * scale, (species.crownAnchor.y - 5) * scale, scale);
+        return layers("", `<g class="${k("lift")}">${yuzu}</g>`);
+      }
+      case "roll":
+        return layers(k("roll"));
+      case "ink":
+        return layers(k("jet"), "", "", burst({ x: w / 2, y: h - scale }, "#2b2140", scale * 1.5, fan(6, 44, 4)));
+      case "slime": {
+        // A glistening trail behind it as it inches along.
+        const trail = new RectBatch();
+        for (let i = 0; i < 5; i++) trail.add(i % 2 ? "#e7f5ff" : "#b6e0f5", -i * 3 * scale - 2 * scale, h - scale, 2 * scale, scale / 2 + 1);
+        return layers(k("inch"), "", `<g class="${k("show")}">${trail}</g>`);
+      }
+      case "pounce":
+        return layers(k("pounce2"), "", "", burst({ x: w / 2 + 14, y: h - scale }, "#e9e3d5", scale, fan(6, 50, 12)));
+      case "loop":
+        return layers(k("loop"));
+      case "jetup":
+        return layers(k("jetup"), "", "", burst({ x: w / 2, y: h }, "#d0ebff", scale, fan(5, 30, -6)));
+      case "float": {
+        // On its back, a pebble on its tummy, like an otter floating downstream.
+        const pebble = px(outlined(["ss", "sS"]), { s: "#adb5bd", S: "#dee2e6", o: "#495057" }, w / 2 - 2 * scale, -2 * scale, scale);
+        return layers(k("belly"), "", "", `<g class="${k("show")}">${pebble}</g>`);
       }
       case "zoomies": {
         const lines = new RectBatch();

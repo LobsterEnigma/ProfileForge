@@ -27,6 +27,14 @@ const DEMO_LANGUAGE: Record<string, string> = {
   elephant: "PHP",
   chick: "JavaScript",
   turtle: "TypeScript",
+  capybara: "Java",
+  hedgehog: "C#",
+  octopus: "C",
+  squid: "C++",
+  otter: "Kotlin",
+  snail: "Shell",
+  fox: "Ruby",
+  swift: "Swift",
 };
 
 /** A made-up pet for docs, the gallery and `?user=demo`. */
