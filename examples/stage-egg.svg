@@ -116,6 +116,14 @@
 .pf-catch{opacity:0;transform-box:fill-box;transform-origin:0 100%;animation:pf-catch 6s steps(1) infinite}
 .pf-dust{opacity:0;transform-box:fill-box;transform-origin:center;animation:pf-dust 6s ease-out infinite}
 
+
+.pf-glow{animation:pf-glow 2.8s ease-in-out infinite}
+@keyframes pf-glow{0%,100%{opacity:.85}45%{opacity:1}55%{opacity:.7}}
+.pf-firefly{animation:pf-firefly 4s ease-in-out infinite}
+@keyframes pf-firefly{0%,100%{opacity:.2;transform:translate(0,0)}50%{opacity:1;transform:translate(6px,-8px)}}
+.pf-snooze{opacity:0;animation:pf-snooze 3.3s ease-out infinite}
+@keyframes pf-snooze{0%{opacity:0;transform:translate(0,4px)}20%{opacity:1}100%{opacity:0;transform:translate(10px,-22px)}}
+
 @media (prefers-reduced-motion:reduce){.pf *{animation:none!important}}
 .pf-amb-sea{opacity:calc(.9 - var(--pf-stars) * .35)}
 .pf-amb-foam{animation:pf-amb-foam 3.9s ease-in-out infinite}@keyframes pf-amb-foam{0%,100%{transform:translateX(0);opacity:.9}50%{transform:translateX(6px);opacity:.3}}
@@ -143,6 +151,8 @@
   <rect x="34" y="158" width="6" height="4" style="fill:var(--pf-ground-dark)"/><rect x="162" y="164" width="6" height="4" style="fill:var(--pf-ground-dark)"/><rect x="108" y="168" width="6" height="4" style="fill:var(--pf-ground-dark)"/><rect x="188" y="154" width="6" height="4" style="fill:var(--pf-ground-dark)"/>
   <path fill="#f4845f" d="M32 156h6v2h-6zM34 154h2v6h-2zM31 159h2v2h-2zM37 159h2v2h-2z"/><path fill="#f7c6d9" d="M182 160h8v3h-8zM184 158h4v2h-4z"/><path fill="#e39bb6" d="M183 161h1v2h-1zM187 161h1v2h-1z"/>
   <g class="pf-amb-sea"><rect x="12" y="135" width="200" height="7" fill="#4ea8de"/><rect x="12" y="135" width="200" height="1" fill="#9fd4ff"/></g><rect class="pf-amb-foam" style="animation-delay:-0s" x="32" y="141" width="22" height="2" fill="#ffffff"/><rect class="pf-amb-foam" style="animation-delay:-1.3s" x="94" y="141" width="19" height="2" fill="#ffffff"/><rect class="pf-amb-foam" style="animation-delay:-2.6s" x="156" y="141" width="16" height="2" fill="#ffffff"/><g transform="translate(0 42)"><g class="pf-amb-gull"><path class="pf-fa" style="animation-duration:.8s" d="M0 2L3 0L5 2L7 0L10 2" fill="none" stroke="#5b6472" stroke-width="1.4"/><path class="pf-fb" style="animation-duration:.8s" d="M0 0L3 2L5 1L7 2L10 0" fill="none" stroke="#5b6472" stroke-width="1.4"/></g></g>
+  
+  
   
   <g>
   <rect class="pf-shadow" x="96" y="146" width="32" height="6" rx="3" opacity=".35" style="fill:var(--pf-ground-dark)"/><g transform="translate(92 100)"><g class="pf-wobble"><path fill="#5b4636" d="M12 0h16v4h-16zM8 4h4v4h-4zM28 4h4v4h-4zM4 8h4v4h-4zM32 8h4v4h-4zM4 12h4v4h-4zM32 12h4v4h-4zM0 16h4v4h-4zM36 16h4v4h-4zM0 20h4v4h-4zM8 20h4v4h-4zM16 20h4v4h-4zM36 20h4v4h-4zM0 24h4v4h-4zM12 24h4v4h-4zM20 24h4v4h-4zM28 24h4v4h-4zM36 24h4v4h-4zM0 28h4v4h-4zM36 28h4v4h-4zM0 32h4v4h-4zM36 32h4v4h-4zM4 36h4v4h-4zM32 36h4v4h-4zM8 40h4v4h-4zM28 40h4v4h-4zM12 44h16v4h-16z"/><path fill="#fbf3e4" d="M12 4h16v4h-16zM8 8h8v4h-8zM24 8h8v4h-8zM8 12h24v4h-24zM4 16h28v4h-28zM4 20h4v4h-4zM12 20h4v4h-4zM20 20h16v4h-16zM4 24h4v4h-4zM16 24h4v4h-4zM24 24h4v4h-4zM32 24h4v4h-4zM4 28h4v4h-4zM16 28h16v4h-16zM8 32h28v4h-28zM12 36h20v4h-20z"/><path fill="#7fc8a9" d="M16 8h8v4h-8zM32 16h4v4h-4zM8 24h4v4h-4zM8 28h8v4h-8z"/><path fill="#e0cfb1" d="M32 28h4v4h-4zM4 32h4v4h-4zM8 36h4v4h-4zM12 40h16v4h-16z"/></g></g>

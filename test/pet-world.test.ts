@@ -51,8 +51,19 @@ describe("the pet's weather matches its mood", () => {
     expect(svg).not.toContain('class="pf-star"');
   });
 
-  it("gets foggy when the pet is asleep", () => {
-    expect(valid(renderPetCard(demoState("sleeping")))).toContain('class="pf-fog"');
+  it("tucks a sleeping pet in on a cosy night instead of fog", () => {
+    const svg = valid(renderPetCard(demoState("sleeping")));
+    expect(svg).not.toContain('class="pf-fog"');
+    expect(svg).toContain("pf-night"); // the night sky
+    expect(svg).toContain("#fff4e6"); // the quilt's hem
+    expect(svg).toContain("#6c7fd8"); // the nightcap
+    expect(svg).toContain("pf-snooze");
+  });
+
+  it("keeps a holiday hat on at bedtime instead of the nightcap", () => {
+    const svg = renderPetCard(demoState("sleeping", "adult", undefined, "crab", { surprise: "christmas" }));
+    expect(svg).toContain("#e03131");
+    expect(svg).not.toContain("#6c7fd8");
   });
 
   it("stays clear when the pet is happy", () => {

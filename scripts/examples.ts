@@ -25,7 +25,12 @@ const surprises = [
   ["postcard", "turtle"],
   ["birthday", "elephant"],
 ] as const;
-for (const [surprise, species] of surprises) write(`surprise-${surprise}.svg`, renderPetCard(demoState("idle", "adult", undefined, species, { surprise })));
+// A date whose weekend trip went to Kyoto, so the README shows a trip abroad.
+const TRIP_DATE: Record<string, string> = { postcard: "2026-09-12" };
+for (const [surprise, species] of surprises) {
+  const state = demoState("idle", "adult", undefined, species, { surprise });
+  write(`surprise-${surprise}.svg`, renderPetCard({ ...state, date: TRIP_DATE[surprise] ?? state.date }));
+}
 
 const city = computeCityState(demoProfile());
 write("city.svg", renderCityCard(city));

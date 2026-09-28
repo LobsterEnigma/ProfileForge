@@ -83,6 +83,8 @@ export interface Moments {
   levelUp?: number;
   /** Days of silence before a fresh return. */
   welcomeBack?: number;
+  /** Yesterday's date, if the pet spent it on a weekend trip (it's back with a souvenir). */
+  backFrom?: string;
 }
 
 export const SURPRISES = [
@@ -91,6 +93,7 @@ export const SURPRISES = [
   "level-up",
   "welcome-back",
   "postcard",
+  "souvenir",
   "ufo",
   "friend",
   "butterfly",

@@ -3,8 +3,9 @@ import { demoState, HOLIDAY_DATES } from "../src/demo.js";
 import { renderPetCard } from "../src/pet/render.js";
 import { SPECIES } from "../src/pet/species/index.js";
 import { computePetState, momentsFor } from "../src/pet/state.js";
-import { disguiseFor, surpriseFor } from "../src/pet/surprises/index.js";
-import { postcardPlace } from "../src/pet/surprises/postcard.js";
+import { disguiseFor, surpriseFor, tripRoll } from "../src/pet/surprises/index.js";
+import { PLACE_COUNT, PLACES, placePhoto, placeTitle, postcardPlace, tripFor } from "../src/pet/surprises/postcard.js";
+import { textWidth } from "../src/svg/pixelfont.js";
 import { SURPRISES, type PetState } from "../src/types.js";
 import { dayOfYear, holidayFor, HOLIDAYS, newYearFor, zodiacFor } from "../src/world/calendar.js";
 import { calendar, profile } from "./helpers.js";
@@ -173,7 +174,7 @@ describe("drawing surprises", () => {
   it("swaps the pet for a postcard from somewhere a programmer would go", () => {
     const svg = card("postcard");
     expect(svg).toContain("pf-s-photo");
-    expect(svg).toContain("postcard from");
+    expect(svg).toMatch(/Weekend trip · /);
     expect(postcardPlace("demo", "2026-09-24")).toEqual(postcardPlace("demo", "2026-09-24"));
   });
 
@@ -187,3 +188,63 @@ describe("drawing surprises", () => {
     for (const surprise of SURPRISES) expect(card(surprise)).toBe(card(surprise));
   });
 });
+
+describe("weekend trips", () => {
+  const days = Array.from({ length: 400 }, (_, i) => new Date(Date.UTC(2026, 0, 3) + i * 86_400_000).toISOString().slice(0, 10));
+
+  it("travels the whole world, sometimes with a friend, at night or with a golden stamp", () => {
+    const days = Array.from({ length: 2000 }, (_, i) => new Date(Date.UTC(2026, 0, 3) + i * 86_400_000).toISOString().slice(0, 10));
+    const trips = days.map((d) => tripFor("octocat", d));
+    expect(PLACE_COUNT).toBeGreaterThanOrEqual(50);
+    expect(new Set(trips.map((t) => t.place.name)).size).toBe(PLACE_COUNT);
+    for (const kind of ["golden", "night", "friend"] as const) {
+      const n = trips.filter((t) => t[kind]).length;
+      expect(n, kind).toBeGreaterThan(0);
+      expect(n, kind).toBeLessThan(trips.length / 2);
+    }
+  });
+
+  it("gives every place a photo, a stamp and a souvenir that fit", () => {
+    expect(new Set(PLACES.map((p) => p.name)).size).toBe(PLACES.length);
+    for (const place of PLACES) {
+      const svg = placePhoto(place, "fox", demoState("happy"));
+      expect(svg, place.name).not.toMatch(/NaN|undefined/);
+      // The caption fits the card, the status line fits the panel.
+      expect(textWidth(place.name) * 2, place.name).toBeLessThanOrEqual(140);
+      expect(`Weekend trip · ${placeTitle(place.name)}`.length, place.name).toBeLessThanOrEqual(36);
+      expect(`Back home · brought ${place.souvenir.name}`.length, place.souvenir.name).toBeLessThanOrEqual(36);
+      // The stamp's picture fits inside its 20 × 24 frame.
+      expect(Math.max(...place.stamp.grid.map((r) => r.length)) * 2, place.name).toBeLessThanOrEqual(20);
+      expect(place.stamp.grid.length * 2, place.name).toBeLessThanOrEqual(24);
+      for (const icon of [place.stamp, place.souvenir]) {
+        for (const ch of icon.grid.join("").replace(/\./g, "")) expect(icon.colors, `${place.name} ${ch}`).toHaveProperty(ch);
+      }
+    }
+  });
+
+  it("brings a souvenir home the day after a trip", () => {
+    // 2026-09-19 is a Saturday; find a login whose Saturday rolled a trip.
+    const login = Array.from({ length: 50 }, (_, i) => `u${i}`).find((l) => tripRoll(l, "2026-09-19"))!;
+    const cal = calendar([...Array(300).fill(1), 0, 2]); // quiet Saturday, back on Sunday
+    const p = profile({ login, calendar: cal.map((d, i) => ({ ...d, date: new Date(Date.UTC(2026, 8, 20) - (cal.length - 1 - i) * 86_400_000).toISOString().slice(0, 10) })) });
+    const pet = computePetState(p);
+    expect(pet.moments?.backFrom).toBe("2026-09-19");
+    expect(surpriseFor({ ...pet, mood: "idle" }, "autumn")).toBe("souvenir");
+    const svg = renderPetCard({ ...pet, mood: "idle", surprise: "souvenir" });
+    expect(svg).toContain(`Back home · brought ${postcardPlace(login, "2026-09-19").souvenir.name}`);
+  });
+
+  it("only brings a souvenir home when yesterday's card really showed a trip", () => {
+    const login = Array.from({ length: 50 }, (_, i) => `u${i}`).find((l) => tripRoll(l, "2026-09-19"))!;
+    const dated = (counts: number[]) => {
+      const cal = calendar(counts);
+      return cal.map((d, i) => ({ ...d, date: new Date(Date.UTC(2026, 8, 20) - (cal.length - 1 - i) * 86_400_000).toISOString().slice(0, 10) }));
+    };
+    // Quiet since Tuesday: on Saturday it was hungry and stayed home, so Sunday brings nothing back.
+    const hungry = computePetState(profile({ login, calendar: dated([...Array(300).fill(1), 0, 0, 0, 0, 0, 3]) }));
+    expect(hungry.mood).toBe("idle");
+    expect(hungry.moments?.backFrom).toBeUndefined();
+    expect(surpriseFor(hungry, "autumn")).not.toBe("souvenir");
+  });
+});
+

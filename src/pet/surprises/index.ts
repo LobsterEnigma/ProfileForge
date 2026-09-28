@@ -14,12 +14,15 @@ import { SPECIES } from "../species/index.js";
 import { HOLIDAY_ART } from "./holidays.js";
 import { banner, KIT_CSS, type Art, type Ctx } from "./kit.js";
 import { MOMENT_ART } from "./moments.js";
-import { postcard } from "./postcard.js";
+import { postcard, souvenir } from "./postcard.js";
 import { RARE_ART } from "./rare.js";
 
 export type { Art, Ctx, Scene, Box } from "./kit.js";
 
 const isHoliday = (s: Surprise): s is Holiday => (HOLIDAYS as readonly string[]).includes(s);
+
+/** Whether a quiet weekend day turns into a trip (half the time). Shared with the souvenir check. */
+export const tripRoll = (login: string, date: string) => seeded(`surprise:${login}:${date}`)() < 0.5;
 
 /** Today's surprise, or null for an ordinary day. */
 export function surpriseFor(state: PetState, season: Season): Surprise | null {
@@ -38,7 +41,9 @@ export function surpriseFor(state: PetState, season: Season): Surprise | null {
   const weekday = new Date(`${state.date}T00:00:00Z`).getUTCDay();
   const weekend = weekday === 0 || weekday === 6;
   // No commits yet today on a weekend: half the time, it's gone travelling.
-  if (calm && weekend && state.daysSinceLastContribution >= 1 && r < 0.5) return "postcard";
+  if (calm && weekend && state.daysSinceLastContribution >= 1 && tripRoll(state.login, state.date)) return "postcard";
+  // Back from yesterday's trip, with a souvenir.
+  if (calm && m.backFrom) return "souvenir";
   if (state.mood !== "sleeping" && r >= 0.95) return "ufo";
   if (calm && r >= 0.87 && r < 0.95) return "friend";
   if (calm && season === "spring" && r >= 0.6 && r < 0.87) return "butterfly";
@@ -68,6 +73,8 @@ export function showSurprise(surprise: Surprise, ctx: Ctx, where: "pet" | "egg" 
     ? HOLIDAY_ART[surprise]
     : surprise === "postcard"
       ? postcard
+      : surprise === "souvenir"
+        ? souvenir
       : surprise in MOMENT_ART
         ? MOMENT_ART[surprise as keyof typeof MOMENT_ART]
         : RARE_ART[surprise as keyof typeof RARE_ART];

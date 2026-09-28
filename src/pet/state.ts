@@ -1,6 +1,7 @@
 import type { ContributionDay, GitHubProfile, Moments, Mood, PetState, PetStats, Stage } from "../types.js";
 import { classForLanguage } from "./classes.js";
 import { getSpecies, speciesForLanguage } from "./species/index.js";
+import { surpriseFor } from "./surprises/index.js";
 
 export const MAX_LEVEL = 99;
 
@@ -106,6 +107,19 @@ export interface PetOptions {
 }
 
 export function computePetState(profile: GitHubProfile, options: PetOptions = {}): PetState {
+  const state = stateFor(profile, options);
+  // Back from a weekend trip? Only if yesterday's card really showed one: rebuild yesterday
+  // from the calendar without today and ask it, so the two can never disagree.
+  const cal = profile.calendar;
+  if (cal.length >= 2) {
+    const yesterday = stateFor({ ...profile, calendar: cal.slice(0, -1), lifetimeContributions: profile.lifetimeContributions - cal.at(-1)!.count }, options);
+    // The season only matters for rarer treats, never for a trip.
+    if (surpriseFor(yesterday, "autumn") === "postcard") state.moments = { ...state.moments, backFrom: yesterday.date };
+  }
+  return state;
+}
+
+function stateFor(profile: GitHubProfile, options: PetOptions): PetState {
   const xp = profile.lifetimeContributions + profile.totalStars * 2 + profile.followers * 3;
   const level = levelForXp(xp);
   const topLanguage = profile.languages[0]?.name ?? null;

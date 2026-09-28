@@ -6,11 +6,13 @@ import { renderPixels, type Grid } from "../svg/pixel.js";
 import { themeCss, themeFilter } from "../themes.js";
 import { getSpecies } from "./species/index.js";
 import { renderPetSprite, SPRITE_CSS } from "./sprite.js";
+import { anchors } from "./behavior.js";
 import { COMMIT, FX_PALETTE, HEART, SPARKLE, ZED } from "./sprites.js";
 import { ambient, groundCover, props, SCENERY_CSS, terrainFor } from "./scenery.js";
 import { CARE_CSS, careOverlay, lineFor, visitorLine } from "./care-fx.js";
 import { activeVisit, activeVisits, ball, bowl, turnCss, VISIT_CSS, visitScene } from "./visits.js";
 import { emptyBowl, lifeFor } from "./life.js";
+import { bedtimeZs, cushion, lanternAndFireflies, NIGHT_CSS, NIGHTCAP, nightShade, nightSky, quilt } from "./night.js";
 import { disguiseFor, showSurprise, surpriseFor, type Art, type Shown } from "./surprises/index.js";
 import { EGG } from "./sprites.js";
 import { HOLIDAYS } from "../world/calendar.js";
@@ -68,6 +70,7 @@ ${WEATHER_CSS}
 ${SCENERY_CSS}
 ${CARE_CSS}
 ${VISIT_CSS}
+${NIGHT_CSS}
 @media (prefers-reduced-motion:reduce){.pf *{animation:none!important}}
 `;
 
@@ -96,6 +99,8 @@ interface Box {
 interface World {
   season: Season;
   weather: Weather;
+  /** Bedtime: a sleeping pet gets a cosy night instead of fog. */
+  night: boolean;
 }
 
 const STARS: [number, number, number][] = [
@@ -157,13 +162,14 @@ function scene(state: PetState, world: World): string {
 </defs>
 <g clip-path="url(#pf-clip)">
   <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#pf-sky)"/>
-  ${world.weather === "clear" ? `<g class="pf-star">${stars}</g>${skyLife()}` : overcast}
+  ${world.night ? nightSky({ ...SCENE, ground: GROUND_Y }) : world.weather === "clear" ? `<g class="pf-star">${stars}</g>${skyLife()}` : overcast}
   <rect x="${x}" y="${GROUND_Y}" width="${w}" height="${y + h - GROUND_Y}" style="fill:var(--pf-ground)"/>
   <path d="${bumps}" style="fill:var(--pf-ground)"/>
   ${groundCover(state.species, AREA, y + h, LOOKS[world.season].snow)}
   ${beach ? pebbles : ""}
   ${props(state.species, AREA)}
-  ${ambient(state.species, AREA).svg}`;
+  ${ambient(state.species, AREA).svg}
+  ${world.night ? nightShade({ ...SCENE, ground: GROUND_Y }) : ""}`;
 }
 
 /** Weather and seasons drift in front of the pet. */
@@ -171,7 +177,7 @@ function foreground(world: World, rng: Rng): string {
   const look = LOOKS[world.season];
   const particles = world.weather === "rain" && world.season !== "winter" ? rain(rng, AREA) : fallingParticles(look, rng, AREA);
   return [
-    world.weather === "clear" ? fireflies(look, rng, AREA) : "",
+    world.weather === "clear" && !world.night ? fireflies(look, rng, AREA) : "",
     particles,
     world.weather === "fog" ? fog(AREA) : "",
   ].join("");
@@ -263,8 +269,10 @@ function pet(state: PetState, art: Art = {}): { svg: string; box: Box; css?: str
   const w = species.width * scale;
   const h = species.height * scale;
   const life = lifeFor(state.mood, species, scale, w, h, state.date, state.login, { crossed: art.crossed });
-  const sprite = renderPetSprite(state, scale, { emote: false, eyes: life.eyes, hat: art.hat, face: art.face });
-  let body = sprite.svg + careOverlay(state.care, w, h, scale) + (art.held ?? "");
+  // Bedtime: tucked under a quilt with a nightcap on (unless it's wearing a holiday hat).
+  const asleep = state.mood === "sleeping";
+  const sprite = renderPetSprite(state, scale, { emote: false, eyes: life.eyes, hat: art.hat ?? (asleep ? NIGHTCAP : undefined), face: art.face });
+  let body = sprite.svg + careOverlay(state.care, w, h, scale) + (asleep ? quilt(w, h, scale, anchors(species).mouth.y) : "") + (art.held ?? "");
   if (life.faceClass) body = `<g class="${life.faceClass}">${body}</g>`;
   for (const cls of life.bodyClasses) body = `<g class="${cls}">${body}</g>`;
   if (art.bodyClass) body = `<g class="${art.bodyClass}">${body}</g>`;
@@ -273,7 +281,7 @@ function pet(state: PetState, art: Art = {}): { svg: string; box: Box; css?: str
   const sparkles = state.stage === "legendary" ? legendarySparkles({ x: 0, y: 0, w, h }) : "";
   const props = state.mood === "hungry" ? emptyBowl(box.x + w + 12, GROUND_Y) : "";
   return {
-    svg: `${props}<g class="${life.pathClass}">${art.follow ?? ""}${shadow(box, state.mood)}<g transform="translate(${box.x} ${box.y})"><g class="${inner}">${body}</g>${life.overlay}${art.over ?? ""}${sparkles}</g></g>`,
+    svg: `${props}<g class="${life.pathClass}">${art.follow ?? ""}${asleep ? cushion(box.x, GROUND_Y + scale, w) : shadow(box, state.mood)}<g transform="translate(${box.x} ${box.y})"><g class="${inner}">${body}</g>${life.overlay}${art.over ?? ""}${sparkles}</g></g>`,
     box,
     css: life.css + (sprite.css ?? ""),
   };
@@ -316,7 +324,7 @@ function effects(state: PetState, box: Box): string {
   if (activeVisit(state) && state.mood !== "sleeping") return state.stage === "legendary" ? legendarySparkles(box) : "";
   // Hatched pets follow their daily script, which carries its own hearts, bubbles and sparkles.
   if (state.stage !== "egg") {
-    if (state.mood === "sleeping") out.push(zzz(box));
+    if (state.mood === "sleeping") out.push(bedtimeZs(box));
     return out.join("");
   }
   switch (state.mood) {
@@ -471,7 +479,8 @@ function surprise(state: PetState, season: Season): { shown: Shown; state: PetSt
 export function renderPetCard(original: PetState, options: RenderOptions = {}): string {
   const world: World = {
     season: options.season ?? seasonFor(original.date, options.hemisphere),
-    weather: weatherFor(original.daysSinceLastContribution),
+    weather: original.mood === "sleeping" && !original.ranAway ? "clear" : weatherFor(original.daysSinceLastContribution),
+    night: original.mood === "sleeping" && !original.ranAway,
   };
   const today = surprise(original, world.season);
   const state = today?.state ?? original;
@@ -521,6 +530,7 @@ ${filter.defs}
 <rect width="${W}" height="${H}" rx="10" style="fill:var(--pf-bg)"/>
 ${border}
 ${scene(original, world)}
+  ${world.night ? lanternAndFireflies({ ...SCENE, ground: GROUND_Y }) : ""}
   ${art.back ?? ""}
   <g${filter.attr}>
   ${creature.svg}

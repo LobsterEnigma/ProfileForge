@@ -78,10 +78,11 @@ export const pixelSize = (grid: Grid) => ({
 });
 
 /**
- * Adds a one-pixel outline (`o`) around a grid's shape, growing it by a pixel on every side.
+ * Adds a one-pixel outline (`ink`, "o" by default) around a grid's shape, growing it by a pixel on
+ * every side.
  * Outlines are what make small pixel art read clearly on any background.
  */
-export function outlined(grid: Grid): Grid {
+export function outlined(grid: Grid, ink = "o"): Grid {
   const w = Math.max(...grid.map((r) => r.length)) + 2;
   const padded = ["", ...grid, ""].map((row) => `.${row}`.padEnd(w, "."));
   const solid = (x: number, y: number) => {
@@ -89,6 +90,6 @@ export function outlined(grid: Grid): Grid {
     return c !== undefined && c !== "." && c !== " ";
   };
   return padded.map((row, y) =>
-    [...row].map((c, x) => (c === "." && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1)) ? "o" : c)).join(""),
+    [...row].map((c, x) => (c === "." && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1)) ? ink : c)).join(""),
   );
 }

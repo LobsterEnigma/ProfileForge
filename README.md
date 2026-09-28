@@ -127,7 +127,7 @@ Your pet reacts to your recent contribution calendar:
 | **Happy** | 3+ day streak, or 15+ contributions this week | <img src="examples/mood-happy.svg" width="300"> |
 | **Idle** | Contributed in the last 3 days | <img src="examples/mood-idle.svg" width="300"> |
 | **Hungry** | 4–13 days without contributions: it dreams of green squares | <img src="examples/mood-hungry.svg" width="300"> |
-| **Sleeping** | 14+ quiet days | <img src="examples/mood-sleeping.svg" width="300"> |
+| **Sleeping** | 14+ quiet days: tucked in under a quilt with a nightcap, on a starry night | <img src="examples/mood-sleeping.svg" width="300"> |
 
 ### It evolves
 
@@ -157,7 +157,7 @@ Like a little frog that sends postcards from its travels, your pet has days wort
 
 - **Holidays**, each with its own outfit and decorations: New Year 🎆, Lunar New Year 🧧 (with the year's zodiac), Valentine's Day 💝, π Day 🥧 (March 14), April Fools' 🙃 (your pet shows up as another species, in a fake-nose disguise), Programmer's Day 💻 (the 256th day of the year), Mid-Autumn 🥮, Halloween 🎃 and Christmas 🎄.
 - **Milestones**: your account's **GitHub birthday**, a fresh **level-up** (and hatching, growing up, turning legendary), and a **welcome back** rainbow when you return after a week or more away.
-- **Weekend trips**: on a quiet weekend day your pet may be off travelling, and pins up a postcard from Localhost, The Cloud, Null Island, Stack Overflow, Port 8080 or The Kernel.
+- **Weekend trips**: like a travelling frog, on a quiet weekend day your pet may be off somewhere, pinning up a postcard with itself in the photo. It has **58 destinations**: 45 around the world (Beijing, Kyoto, Paris, Venice, Iceland, Giza, the Serengeti, New York, Machu Picchu, Sydney, Antarctica and more) and 13 only programmers have heard of (Localhost, The Cloud, Null Island, Stack Overflow, /dev/null, Rubber Duck Pond…). Each has its own stamp; now and then a friend jumps into the photo, it's a night shot, or the stamp is a rare golden one. The next day it's back home with a souvenir from the trip: hawthorn candy, a lucky cat, a croissant, a matryoshka, a llama plush, a penguin plush…
 - **Rare days**: a UFO beams it up (and brings it back), a pet from another language drops by to say hi, a butterfly lands on its nose in spring, or it wears shades in summer.
 
 Everything is decided by the date and your data, so it needs no setup, and a card rendered twice on the same day is identical. Preview any of them with `surprise=` (e.g. `/api/pet?user=demo&surprise=christmas`) or in the [configurator](https://lobsterenigma.github.io/ProfileForge/).

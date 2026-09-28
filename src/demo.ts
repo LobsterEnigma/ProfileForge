@@ -121,7 +121,7 @@ export function demoState(
     trick,
     // Previews show an ordinary day unless they ask for a surprise.
     surprise: surprise ?? null,
-    ...(surprise ? { moments: { ...DEMO_MOMENTS, levelUp: level - 1 } } : {}),
+    ...(surprise ? { moments: { ...DEMO_MOMENTS, levelUp: level - 1, backFrom: "2026-09-19" } } : {}),
     ...(visit || dirt !== undefined
       ? {
           care: demoCare(visit, dirt),

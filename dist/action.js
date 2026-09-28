@@ -234,15 +234,15 @@ function renderPixels(layers, palette, { x = 0, y = 0, scale }) {
   }
   return [...paths].map(([color, segs]) => `<path ${fillAttr(color)} d="${segs.join("")}"/>`).join("");
 }
-function outlined(grid) {
-  const w = Math.max(...grid.map((r) => r.length)) + 2;
+function outlined(grid, ink2 = "o") {
+  const w = Math.max(...grid.map((r2) => r2.length)) + 2;
   const padded = ["", ...grid, ""].map((row) => `.${row}`.padEnd(w, "."));
   const solid = (x, y) => {
     const c = padded[y]?.[x];
     return c !== void 0 && c !== "." && c !== " ";
   };
   return padded.map(
-    (row, y) => [...row].map((c, x) => c === "." && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1)) ? "o" : c).join("")
+    (row, y) => [...row].map((c, x) => c === "." && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1)) ? ink2 : c).join("")
   );
 }
 
@@ -1343,130 +1343,74 @@ function getSpecies(id) {
   return isSpecies(id) ? SPECIES[id] : crab;
 }
 
-// src/pet/state.ts
-var MAX_LEVEL = 99;
-var RUN_AWAY_DAYS = 30;
-function xpForLevel(level) {
-  return 5 * (level - 1) ** 2;
-}
-function levelForXp(xp) {
-  return Math.min(MAX_LEVEL, Math.floor(1 + Math.sqrt(Math.max(0, xp) / 5)));
-}
-function stageForLevel(level) {
-  if (level < 3) return "egg";
-  if (level < 15) return "baby";
-  if (level < 50) return "adult";
-  return "legendary";
-}
-function currentStreak(calendar) {
-  let i = calendar.length - 1;
-  if (i >= 0 && calendar[i].count === 0) i--;
-  let streak = 0;
-  for (; i >= 0 && calendar[i].count > 0; i--) streak++;
-  return streak;
-}
-function daysSinceLastContribution(calendar) {
-  for (let i = calendar.length - 1; i >= 0; i--) {
-    if (calendar[i].count > 0) return calendar.length - 1 - i;
-  }
-  return calendar.length;
-}
-function lastDays(calendar, n) {
-  return calendar.slice(Math.max(0, calendar.length - n));
-}
-function moodFor(calendar) {
-  const idle = daysSinceLastContribution(calendar);
-  if (idle >= 14) return "sleeping";
-  if (idle >= 4) return "hungry";
-  const week = lastDays(calendar, 7).reduce((sum, d) => sum + d.count, 0);
-  if (currentStreak(calendar) >= 3 || week >= 15) return "happy";
-  return "idle";
-}
-function statFor(value) {
-  return Math.max(1, Math.min(99, Math.round(25 * Math.log10(Math.max(0, value) + 1))));
-}
-var WELCOME_BACK_DAYS = 7;
-function momentsFor(profile, xp, level, date) {
-  const moments = {};
-  const cal = profile.calendar;
-  if (profile.createdAt) {
-    const born = profile.createdAt.slice(0, 10);
-    const years = Number(date.slice(0, 4)) - Number(born.slice(0, 4));
-    const leap = (y) => y % 4 === 0 && y % 100 !== 0 || y % 400 === 0;
-    const md = born.slice(5) === "02-29" && !leap(Number(date.slice(0, 4))) ? "02-28" : born.slice(5);
-    if (years >= 1 && date.slice(5) === md) moments.birthday = years;
-  }
-  const recent = cal.slice(-2).reduce((sum, d) => sum + d.count, 0);
-  const before = levelForXp(xp - recent);
-  if (recent > 0 && before < level) moments.levelUp = before;
-  let i = cal.length - 1;
-  while (i >= 0 && cal[i].count === 0) i--;
-  if (i >= cal.length - 2) {
-    let gap = 0;
-    for (let j = i - 1; j >= 0 && cal[j].count === 0; j--) gap++;
-    if (gap >= WELCOME_BACK_DAYS && i - 1 - gap >= 0) moments.welcomeBack = gap;
-  }
-  return moments;
-}
-function computePetState(profile, options = {}) {
-  const xp = profile.lifetimeContributions + profile.totalStars * 2 + profile.followers * 3;
-  const level = levelForXp(xp);
-  const topLanguage = profile.languages[0]?.name ?? null;
-  const species = getSpecies(options.species ?? speciesForLanguage(topLanguage));
-  const stats = {
-    str: statFor(profile.commits),
-    int: statFor(profile.pullRequests + profile.reviews),
-    cha: statFor(profile.totalStars + profile.followers),
-    dex: statFor(profile.issues)
-  };
-  const date = profile.calendar.at(-1)?.date ?? (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-  return {
-    login: profile.login,
-    date,
-    petName: options.petName ?? species.defaultName,
-    species: species.id,
-    level,
-    stage: stageForLevel(level),
-    className: classForLanguage(topLanguage),
-    topLanguage,
-    mood: moodFor(profile.calendar),
-    xp,
-    xpLevelStart: xpForLevel(level),
-    xpNextLevel: xpForLevel(Math.min(level + 1, MAX_LEVEL)),
-    activeDays14: lastDays(profile.calendar, 14).filter((d) => d.count > 0).length,
-    streak: currentStreak(profile.calendar),
-    daysSinceLastContribution: daysSinceLastContribution(profile.calendar),
-    stats,
-    ranAway: options.runaway !== false && level >= 3 && daysSinceLastContribution(profile.calendar) >= RUN_AWAY_DAYS,
-    moments: momentsFor(profile, xp, level, date)
-  };
-}
-
-// src/demo.ts
-var MOODS = ["happy", "idle", "hungry", "sleeping"];
-var STAGES = ["egg", "baby", "adult", "legendary"];
-
-// src/care/commands.ts
-var CARE_ACTIONS = ["feed", "bath", "play"];
-var TITLE_PREFIX = "ProfileForge:";
-var SYNONYMS = {
-  feed: "feed",
-  food: "feed",
-  eat: "feed",
-  bath: "bath",
-  wash: "bath",
-  clean: "bath",
-  play: "play",
-  ball: "play"
+// src/world/calendar.ts
+var HOLIDAYS = [
+  "new-year",
+  "lunar-new-year",
+  "valentines",
+  "pi-day",
+  "april-fools",
+  "programmers-day",
+  "mid-autumn",
+  "halloween",
+  "christmas"
+];
+var LUNAR_NEW_YEAR = {
+  2026: ["02-17", "horse"],
+  2027: ["02-06", "goat"],
+  2028: ["01-26", "monkey"],
+  2029: ["02-13", "rooster"],
+  2030: ["02-03", "dog"],
+  2031: ["01-23", "pig"],
+  2032: ["02-11", "rat"],
+  2033: ["01-31", "ox"],
+  2034: ["02-19", "tiger"],
+  2035: ["02-08", "rabbit"]
 };
-function parseCommand(body) {
-  if (body.length > 2e3) return null;
-  const match = /^[^\p{L}\p{N}]*([a-z]+)/iu.exec(body);
-  const word = (match?.[1] ?? "").toLowerCase();
-  return Object.hasOwn(SYNONYMS, word) ? SYNONYMS[word] : null;
+var MID_AUTUMN = {
+  2026: "09-25",
+  2027: "09-15",
+  2028: "10-03",
+  2029: "09-22",
+  2030: "09-12",
+  2031: "10-01",
+  2032: "09-19",
+  2033: "09-08",
+  2034: "09-27",
+  2035: "09-16"
+};
+var DAY = 864e5;
+var utc = (date) => Date.parse(`${date}T00:00:00Z`);
+var daysBetween = (a, b) => Math.round((utc(a) - utc(b)) / DAY);
+function dayOfYear(date) {
+  return daysBetween(date, `${date.slice(0, 4)}-01-01`) + 1;
 }
-function houseLink(repo, issue) {
-  return `https://github.com/${repo}/issues/${issue}`;
+function near(date, table, before, after) {
+  const md = table[Number(date.slice(0, 4))];
+  if (!md) return false;
+  const d = daysBetween(date, `${date.slice(0, 4)}-${md}`);
+  return d >= -before && d <= after;
+}
+function holidayFor(date) {
+  const md = date.slice(5);
+  if (md === "12-31" || md === "01-01") return "new-year";
+  if (md >= "10-25" && md <= "10-31") return "halloween";
+  if (md >= "12-18" && md <= "12-26") return "christmas";
+  if (md === "02-14") return "valentines";
+  if (md === "03-14") return "pi-day";
+  if (md === "04-01") return "april-fools";
+  if (dayOfYear(date) === 256) return "programmers-day";
+  const lny = Object.fromEntries(Object.entries(LUNAR_NEW_YEAR).map(([y, [d]]) => [y, d]));
+  if (near(date, lny, 3, 3)) return "lunar-new-year";
+  if (near(date, MID_AUTUMN, 1, 1)) return "mid-autumn";
+  return null;
+}
+function zodiacFor(date) {
+  return LUNAR_NEW_YEAR[Number(date.slice(0, 4))]?.[1] ?? "dragon";
+}
+function newYearFor(date) {
+  const year = Number(date.slice(0, 4));
+  return date.slice(5) === "12-31" ? year + 1 : year;
 }
 
 // src/svg/batch.ts
@@ -1484,59 +1428,6 @@ var RectBatch = class {
       return `<path ${attr} d="${segs.join("")}"/>`;
     }).join("");
   }
-};
-
-// src/pet/sprites.ts
-var EGG = [
-  "...oooo...",
-  "..occcco..",
-  ".occsscco.",
-  ".occcccco.",
-  "occcccccso",
-  "occcccccco",
-  "ocssccccco",
-  "ocsscccceo",
-  "oeccccccco",
-  ".oeccccco.",
-  "..oeeeeo..",
-  "...oooo..."
-];
-var EGG_CRACK = [
-  "..........",
-  "..........",
-  "..........",
-  "..........",
-  "..........",
-  "..x.x.....",
-  "...x.x.x..",
-  ".........."
-];
-var EGG_PALETTE = {
-  o: "#5b4636",
-  c: "#fbf3e4",
-  e: "#e0cfb1",
-  s: "#7fc8a9",
-  x: "#5b4636"
-};
-var CROWN = [
-  "y..y..y",
-  "yy.y.yy",
-  "yyyyyyy",
-  "ygyyygy",
-  "YYYYYYY"
-];
-var HEART = ["pp.pp", "ppppp", ".ppp.", "..p.."];
-var ZED = ["zzz", "..z", ".z.", "z..", "zzz"];
-var SPARKLE = ["..s..", "..s..", "sssss", "..s..", "..s.."];
-var COMMIT = ["gggg", "gGGg", "gGGg", "gggg"];
-var FX_PALETTE = {
-  y: "#ffd54a",
-  Y: "#c99a1a",
-  g: "#216e39",
-  G: "#40c463",
-  p: "#ff5c7a",
-  s: "#fff3a0",
-  z: "var(--pf-muted)"
 };
 
 // src/svg/pixelfont.ts
@@ -1600,15 +1491,152 @@ function pixelText(text2) {
 }
 var textWidth = (text2) => pixelText(text2)[0].length;
 
+// src/pet/sprites.ts
+var EGG = [
+  "...oooo...",
+  "..occcco..",
+  ".occsscco.",
+  ".occcccco.",
+  "occcccccso",
+  "occcccccco",
+  "ocssccccco",
+  "ocsscccceo",
+  "oeccccccco",
+  ".oeccccco.",
+  "..oeeeeo..",
+  "...oooo..."
+];
+var EGG_CRACK = [
+  "..........",
+  "..........",
+  "..........",
+  "..........",
+  "..........",
+  "..x.x.....",
+  "...x.x.x..",
+  ".........."
+];
+var EGG_PALETTE = {
+  o: "#5b4636",
+  c: "#fbf3e4",
+  e: "#e0cfb1",
+  s: "#7fc8a9",
+  x: "#5b4636"
+};
+var CROWN = [
+  "y..y..y",
+  "yy.y.yy",
+  "yyyyyyy",
+  "ygyyygy",
+  "YYYYYYY"
+];
+var HEART = ["pp.pp", "ppppp", ".ppp.", "..p.."];
+var ZED = ["zzz", "..z", ".z.", "z..", "zzz"];
+var SPARKLE = ["..s..", "..s..", "sssss", "..s..", "..s.."];
+var COMMIT = ["gggg", "gGGg", "gGGg", "gggg"];
+var FX_PALETTE = {
+  y: "#ffd54a",
+  Y: "#c99a1a",
+  g: "#216e39",
+  G: "#40c463",
+  p: "#ff5c7a",
+  s: "#fff3a0",
+  z: "var(--pf-muted)"
+};
+
+// src/pet/surprises/kit.ts
+var round = (n) => Math.round(n * 100) / 100;
+function px(grid, palette, x, y, scale) {
+  return renderPixels([{ x: 0, y: 0, grid }], palette, { x: round(x), y: round(y), scale });
+}
+function text(value, x, y, scale, color, shadow3) {
+  const grid = pixelText(value);
+  return (shadow3 ? px(grid, { x: shadow3 }, x + scale / 2, y + scale / 2, scale) : "") + px(grid, { x: color }, x, y, scale);
+}
+var textSize = (value, scale) => ({ w: textWidth(value) * scale, h: 5 * scale });
+function banner({ text: value, color, shade, ink: ink2 = "#ffffff" }, scene2) {
+  const s = 2;
+  const t = textSize(value, s);
+  const w = t.w + 16;
+  const h = 16;
+  const x = round(scene2.x + (scene2.w - w) / 2);
+  const y = scene2.y + 7;
+  const tail2 = (tx, dir) => {
+    const outer = tx - dir * 10;
+    return `<path d="M${tx} ${y + 4}H${outer}L${outer + dir * 4} ${y + 12}L${outer} ${y + 20}H${tx}Z" fill="${shade}"/>`;
+  };
+  return `<g class="pf-s-banner">` + tail2(x + 6, 1) + tail2(x + w - 6, -1) + `<path d="M${x} ${y + h}l6 4v-4zM${x + w} ${y + h}l-6 4v-4z" fill="#000" opacity=".35"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}"/><rect x="${x}" y="${y}" width="${w}" height="2" fill="#fff" opacity=".35"/><clipPath id="pf-s-ribbon"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath><g clip-path="url(#pf-s-ribbon)"><rect class="pf-s-sheen" style="--w:${w + 30}px" x="${x - 20}" y="${y}" width="8" height="${h}" fill="#fff" opacity=".45" transform="skewX(-20)"/></g>` + text(value, x + 8, y + 3, s, ink2, shade) + `</g>`;
+}
+function drift(rng, scene2, count2, draw, { fall = scene2.h + 20, sway = 10, seconds = [5, 9], from = scene2.y - 10 } = {}) {
+  let out = "";
+  for (let i = 0; i < count2; i++) {
+    const x = round(scene2.x + 4 + rng() * (scene2.w - 12));
+    const t = round(seconds[0] + rng() * (seconds[1] - seconds[0]));
+    const delay = round(rng() * t);
+    const sx = Math.round((rng() - 0.5) * 2 * sway);
+    out += `<g class="pf-s-fall" style="--t:${t}s;--fy:${fall}px;--sx:${sx}px;animation-delay:-${delay}s"><g transform="translate(${x} ${from})">${draw(i)}</g></g>`;
+  }
+  return out;
+}
+var KIT_CSS = `
+.pf-s-banner{animation:pf-s-banner 3.2s ease-in-out infinite}
+@keyframes pf-s-banner{0%,100%{transform:none}50%{transform:translateY(1.5px)}}
+.pf-s-sheen{animation:pf-s-sheen 6s ease-in-out infinite}
+@keyframes pf-s-sheen{0%,55%{transform:translateX(0) skewX(-20deg)}100%{transform:translateX(var(--w)) skewX(-20deg)}}
+.pf-s-fall{animation:pf-s-fall var(--t) linear infinite}
+@keyframes pf-s-fall{0%{transform:translate(0,0)}50%{transform:translate(var(--sx),calc(var(--fy)/2))}100%{transform:translate(0,var(--fy))}}
+.pf-s-flip{transform-box:fill-box;transform-origin:center;animation:pf-s-flip .9s ease-in-out infinite}
+@keyframes pf-s-flip{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.15)}}
+.pf-s-blink{animation:pf-s-blink 1.2s steps(1) infinite}
+.pf-s-blink2{animation:pf-s-blink 1.2s steps(1) infinite;animation-delay:-.6s}
+@keyframes pf-s-blink{0%{opacity:1}50%{opacity:.2}}
+.pf-s-swing{transform-box:fill-box;transform-origin:50% 0;animation:pf-s-swing 2.8s ease-in-out infinite alternate}
+@keyframes pf-s-swing{from{transform:rotate(-6deg)}to{transform:rotate(6deg)}}
+.pf-s-float{animation:pf-s-float 2.6s ease-in-out infinite alternate}
+@keyframes pf-s-float{to{transform:translateY(-5px)}}
+.pf-s-flicker{animation:pf-s-flicker 1.6s steps(1) infinite}
+@keyframes pf-s-flicker{0%{opacity:1}20%{opacity:.6}24%{opacity:1}61%{opacity:.75}66%{opacity:1}}
+.pf-s-twinkle{transform-box:fill-box;transform-origin:center;animation:pf-s-twinkle 1.8s ease-in-out infinite}
+@keyframes pf-s-twinkle{0%,100%{opacity:.2;transform:scale(.5)}50%{opacity:1;transform:scale(1)}}
+.pf-s-spark{opacity:0;animation:pf-s-spark 3.6s ease-out infinite}
+@keyframes pf-s-spark{0%,8%{transform:translate(0,0);opacity:0}10%{opacity:1}60%{opacity:.9}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
+.pf-s-steam{animation:pf-s-steam 2.4s ease-out infinite}
+@keyframes pf-s-steam{0%{transform:translate(0,0);opacity:0}20%{opacity:.8}100%{transform:translate(3px,-14px);opacity:0}}
+`;
+function fireworks(rng, scene2, colors, count2 = 3) {
+  let out = "";
+  for (let b = 0; b < count2; b++) {
+    const cx = Math.round(scene2.x + 30 + (scene2.w - 60) * (b + rng() * 0.6) / count2);
+    const cy = Math.round(scene2.y + 34 + rng() * 26);
+    const color = colors[b % colors.length];
+    const delay = `animation-delay:-${round(b * 1.2 + rng() * 0.4)}s`;
+    for (let i = 0; i < 12; i++) {
+      const angle = i / 12 * Math.PI * 2;
+      const r2 = 14 + rng() * 8;
+      const dx = Math.round(Math.cos(angle) * r2);
+      const dy = Math.round(Math.sin(angle) * r2 + 6);
+      out += `<rect class="pf-s-spark" style="${delay};--dx:${dx}px;--dy:${dy}px" x="${cx}" y="${cy}" width="2" height="2" fill="${i % 3 ? color : "#fff"}"/>`;
+    }
+  }
+  return out;
+}
+var CONFETTI = ["#ff5c7a", "#ffd166", "#4cc9f0", "#7dff9b", "#c3a6ff", "#ff9f43"];
+function confetti(rng, scene2, count2, colors = CONFETTI) {
+  return drift(rng, scene2, count2, (i) => `<rect class="pf-s-flip" style="animation-delay:-${round(rng())}s" width="3" height="4" fill="${colors[i % colors.length]}"/>`, {
+    seconds: [4, 7],
+    sway: 14
+  });
+}
+
 // src/pet/behavior.ts
 function shiftPupils(grid, dir) {
   return grid.map((row) => {
-    const px5 = [...row];
-    const order = dir === -1 ? px5.keys() : [...px5.keys()].reverse();
+    const px6 = [...row];
+    const order = dir === -1 ? px6.keys() : [...px6.keys()].reverse();
     for (const i of order) {
-      if (px5[i] === "k" && px5[i + dir] === "w") [px5[i], px5[i + dir]] = [px5[i + dir], px5[i]];
+      if (px6[i] === "k" && px6[i + dir] === "w") [px6[i], px6[i + dir]] = [px6[i + dir], px6[i]];
     }
-    return px5.join("");
+    return px6.join("");
   });
 }
 function glance(eyes6) {
@@ -1625,7 +1653,7 @@ function crossEyes(eyes6, spriteWidth) {
     return { ...l, grid: shiftPupils(l.grid, centre < spriteWidth / 2 || eyes6.length === 1 ? 1 : -1) };
   });
 }
-var width = (l) => Math.max(...l.grid.map((r) => r.length));
+var width = (l) => Math.max(...l.grid.map((r2) => r2.length));
 function eyeBoxes(species) {
   const boxes = [];
   for (const l of species.eyes.open) {
@@ -1796,7 +1824,7 @@ function trickLayers(trick, species, scale, slot = 0) {
   const burst = (from, color, size, particles2, round3 = false, anim = "burst") => particles2.map(
     (p) => `<rect class="${k(anim)}" style="--dx:${p.dx}px;--dy:${p.dy}px;animation-delay:calc(var(--pf-t0,0s) + ${p.delay}s)" x="${from.x - size / 2}" y="${from.y - size / 2}" width="${size}" height="${size}"${round3 ? ` rx="${size / 2}" fill="none" stroke="${color}" stroke-width="1"` : ` fill="${color}"`}/>`
   ).join("");
-  const px5 = (grid, palette, x, y, s) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale: s });
+  const px6 = (grid, palette, x, y, s) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale: s });
   const a = anchors(species);
   const at2 = (p) => ({ x: p.x * scale, y: p.y * scale });
   const mouth = at2(a.mouth);
@@ -1814,7 +1842,7 @@ function trickLayers(trick, species, scale, slot = 0) {
       return layers(k("twirl"));
     case "heart-eyes": {
       const hs = Math.max(1, Math.round(scale * 0.75));
-      const hearts = a.eyes.map((e) => at2(e)).map((e) => px5(HEART, FX_PALETTE, e.x - 5 * hs / 2, e.y - 2 * hs, hs)).join("");
+      const hearts = a.eyes.map((e) => at2(e)).map((e) => px6(HEART, FX_PALETTE, e.x - 5 * hs / 2, e.y - 2 * hs, hs)).join("");
       return layers("", `<g class="${k("show")}">${hearts}</g>`);
     }
     case "sneeze": {
@@ -1833,14 +1861,14 @@ function trickLayers(trick, species, scale, slot = 0) {
       const star = ["..y..", ".yyy.", "..y.."];
       const stars = [0, 1, 2].map((i) => {
         const angle = i / 3 * Math.PI * 2;
-        return px5(star, { y: "#ffd43b" }, w / 2 + Math.cos(angle) * 16 - 7.5, top - 6 + Math.sin(angle) * 5 - 4.5, 3);
+        return px6(star, { y: "#ffd43b" }, w / 2 + Math.cos(angle) * 16 - 7.5, top - 6 + Math.sin(angle) * 5 - 4.5, 3);
       }).join("");
       const body = k("dizzy");
       return layers(body, `<g class="${k("late")}"><g class="pf-stars">${stars}</g></g>`);
     }
     case "kiss": {
       const body = k("pucker");
-      return layers(body, `<g class="${k("kiss")}">${px5(HEART, FX_PALETTE, mouth.x - 5, mouth.y - 6, 2)}</g>`);
+      return layers(body, `<g class="${k("kiss")}">${px6(HEART, FX_PALETTE, mouth.x - 5, mouth.y - 6, 2)}</g>`);
     }
     case "juggle": {
       const balls = ["#ff6b6b", "#ffd43b", "#4dabf7"].map((color, i) => {
@@ -1855,7 +1883,7 @@ function trickLayers(trick, species, scale, slot = 0) {
     }
     case "magic": {
       const body = k("vanish");
-      const puffs = [[0.5, 0.5, 7], [0.2, 0.35, 5], [0.8, 0.35, 5], [0.3, 0.8, 5], [0.7, 0.8, 5]].map(([fx2, fy, r]) => `<circle class="${k("poof")}" cx="${w * fx2}" cy="${h * fy}" r="${r * (scale / 2)}" fill="#e9ecef" stroke="#adb5bd" stroke-width="1"/>`).join("");
+      const puffs = [[0.5, 0.5, 7], [0.2, 0.35, 5], [0.8, 0.35, 5], [0.3, 0.8, 5], [0.7, 0.8, 5]].map(([fx2, fy, r2]) => `<circle class="${k("poof")}" cx="${w * fx2}" cy="${h * fy}" r="${r2 * (scale / 2)}" fill="#e9ecef" stroke="#adb5bd" stroke-width="1"/>`).join("");
       return layers(body, "", "", puffs + say("TA-DA!", "tada"));
     }
     case "jump-rope": {
@@ -1870,25 +1898,25 @@ function trickLayers(trick, species, scale, slot = 0) {
       return layers(body, "", "", say("CHEESE", "early") + flash);
     }
     case "bug-hunt": {
-      const bug = px5(["k.k.k", ".ggg.", "gGgGg", ".ggg.", "k.k.k"], { k: "#1f2328", g: "#2f9e44", G: "#8ce99a" }, w / 2 + 16, h - 15, 3);
+      const bug = px6(["k.k.k", ".ggg.", "gGgGg", ".ggg.", "k.k.k"], { k: "#1f2328", g: "#2f9e44", G: "#8ce99a" }, w / 2 + 16, h - 15, 3);
       const body = k("pounce");
       return layers(body, "", "", `<g class="${k("crawl")}">${bug}</g>` + bubble(pixelText("FIXED!"), w + 6, top - 2, k("fixed")));
     }
     case "item-get": {
       const body = k("raise");
       const cs = Math.max(2, scale);
-      const item = px5(COMMIT, FX_PALETTE, w / 2 - 2 * cs, top - 6 * cs, cs);
-      const sparkles = [[-3, 0], [5, -1], [-2, -4], [4.5, -4.5]].map(([dx, dy]) => px5(["..s..", ".sss.", "..s.."], FX_PALETTE, w / 2 + dx * cs - 5, top - 5 * cs + dy * cs, 2)).join("");
+      const item = px6(COMMIT, FX_PALETTE, w / 2 - 2 * cs, top - 6 * cs, cs);
+      const sparkles = [[-3, 0], [5, -1], [-2, -4], [4.5, -4.5]].map(([dx, dy]) => px6(["..s..", ".sss.", "..s.."], FX_PALETTE, w / 2 + dx * cs - 5, top - 5 * cs + dy * cs, 2)).join("");
       return layers(body, `<g class="${k("lift")}">${item}${sparkles}</g>`);
     }
     case "bubblegum": {
-      const r = 2 * scale;
-      const gum = `<circle class="${k("gum")}" cx="${mouth.x + r}" cy="${mouth.y - scale}" r="${r}" fill="#ff8fc7" stroke="#e64980" stroke-width="1"/>`;
-      return layers("", gum + burst({ x: mouth.x + 3 * r, y: mouth.y - scale }, "#ff8fc7", Math.max(2, scale / 2), fan(6, 40, 10), false, "pop"));
+      const r2 = 2 * scale;
+      const gum = `<circle class="${k("gum")}" cx="${mouth.x + r2}" cy="${mouth.y - scale}" r="${r2}" fill="#ff8fc7" stroke="#e64980" stroke-width="1"/>`;
+      return layers("", gum + burst({ x: mouth.x + 3 * r2, y: mouth.y - scale }, "#ff8fc7", Math.max(2, scale / 2), fan(6, 40, 10), false, "pop"));
     }
     case "sing": {
       const body = k("sway");
-      const notes = [0, 1, 2].map((i) => `<g class="${k("note")}" style="--dx:${6 + i * 6}px;animation-delay:calc(var(--pf-t0,0s) + ${i * 0.45}s)">${px5(["..xx", "..x.", "..x.", "xxx.", "xx.."], { x: "#1f2328" }, mouth.x + 4, mouth.y - 10, 2)}</g>`).join("");
+      const notes = [0, 1, 2].map((i) => `<g class="${k("note")}" style="--dx:${6 + i * 6}px;animation-delay:calc(var(--pf-t0,0s) + ${i * 0.45}s)">${px6(["..xx", "..x.", "..x.", "xxx.", "xx.."], { x: "#1f2328" }, mouth.x + 4, mouth.y - 10, 2)}</g>`).join("");
       const open = `<rect class="${k("show")}" x="${mouth.x - scale}" y="${mouth.y - scale}" width="${2 * scale}" height="${2 * scale}" rx="${scale}" fill="#3b1d1d"/>`;
       return layers(body, open, "", notes);
     }
@@ -1914,7 +1942,7 @@ function trickLayers(trick, species, scale, slot = 0) {
         return layers(body, `<g class="${k("show")}">${seeds}</g>`);
       }
       case "yuzu": {
-        const yuzu = px5(outlined([".l.", "yyy", "yYy", ".y."]), { y: "#fcc419", Y: "#ffe066", l: "#51cf66", o: "#8a6a00" }, (species.crownAnchor.x - 2.5) * scale, (species.crownAnchor.y - 5) * scale, scale);
+        const yuzu = px6(outlined([".l.", "yyy", "yYy", ".y."]), { y: "#fcc419", Y: "#ffe066", l: "#51cf66", o: "#8a6a00" }, (species.crownAnchor.x - 2.5) * scale, (species.crownAnchor.y - 5) * scale, scale);
         return layers("", `<g class="${k("lift")}">${yuzu}</g>`);
       }
       case "roll":
@@ -1933,7 +1961,7 @@ function trickLayers(trick, species, scale, slot = 0) {
       case "jetup":
         return layers(k("jetup"), "", "", burst({ x: w / 2, y: h }, "#d0ebff", scale, fan(5, 30, -6)));
       case "float": {
-        const pebble = px5(outlined(["ss", "sS"]), { s: "#adb5bd", S: "#dee2e6", o: "#495057" }, w / 2 - 2 * scale, -2 * scale, scale);
+        const pebble = px6(outlined(["ss", "sS"]), { s: "#adb5bd", S: "#dee2e6", o: "#495057" }, w / 2 - 2 * scale, -2 * scale, scale);
         return layers(k("belly"), "", "", `<g class="${k("show")}">${pebble}</g>`);
       }
       case "zoomies": {
@@ -1947,74 +1975,2158 @@ function trickLayers(trick, species, scale, slot = 0) {
 }
 var playful = (mood) => mood === "happy" || mood === "idle";
 
-// src/world/calendar.ts
-var HOLIDAYS = [
-  "new-year",
-  "lunar-new-year",
-  "valentines",
-  "pi-day",
-  "april-fools",
-  "programmers-day",
-  "mid-autumn",
-  "halloween",
-  "christmas"
+// src/pet/surprises/wear.ts
+var SANTA_HAT = {
+  grid: [
+    "....rrrr.....",
+    "..rrrrrrrr...",
+    ".rrRrrrrrrr..",
+    ".rRrrrrrr.rr.",
+    ".rrrrrrrr..ww",
+    "rrrrrrrrr..ww",
+    "wwwwwwwwww...",
+    "wwWwwwWwww..."
+  ],
+  palette: { r: "#e03131", R: "#ff6b6b", w: "#ffffff", W: "#dfe6ee" },
+  cx: 5,
+  sink: 2
+};
+var WITCH_HAT = {
+  grid: [
+    "........kk...",
+    ".......kkk...",
+    "......kkk....",
+    ".....kKkk....",
+    ".....kKkkk...",
+    "....kKkkkk...",
+    "....oooyoo...",
+    "kkkkkkkkkkkkk"
+  ],
+  palette: { k: "#3d2a5c", K: "#6a4c93", o: "#f28c28", y: "#ffd166" },
+  cx: 6.5,
+  sink: 1
+};
+var TOP_HAT = {
+  grid: [
+    "..kkkkk..",
+    "..kKkkk..",
+    "..kKkkk..",
+    "..kKkkk..",
+    "..yyyyy..",
+    "kkkkkkkkk"
+  ],
+  palette: { k: "#1f2328", K: "#4b5563", y: "#ffd166" },
+  sink: 1
+};
+var PARTY_HAT = {
+  grid: [
+    "...w...",
+    "..wWw..",
+    "...p...",
+    "..pyp..",
+    "..ypy..",
+    ".pypyp.",
+    ".ypypy.",
+    "pypypyp"
+  ],
+  palette: { p: "#ff5c9a", y: "#ffd166", w: "#ffffff", W: "#4cc9f0" },
+  sink: 1
+};
+function glasses(species, scale, look) {
+  const eyes6 = eyeBoxes(species);
+  if (!eyes6.length) return "";
+  const s = scale;
+  const out = [];
+  const frame = look === "shades" ? "#111418" : "#1f2328";
+  const lenses = eyes6.map((e) => ({ x: (e.x - 0.5) * s, y: (e.y - 0.25) * s, w: (e.w + 1) * s, h: (e.h + 0.5) * s }));
+  const lw = Math.max(1, s / 2);
+  for (const l of lenses) {
+    if (look === "shades") {
+      out.push(`<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${s / 2}" fill="${frame}"/>`);
+      out.push(`<rect class="pf-s-glint" x="${l.x + s / 2}" y="${l.y + s / 2}" width="${Math.max(1, s / 2)}" height="${Math.max(1, s / 2)}" fill="#ffffff"/>`);
+    } else {
+      out.push(`<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${s / 3}" fill="#ffffff" fill-opacity=".18" stroke="${frame}" stroke-width="${lw}"/>`);
+    }
+  }
+  const first = lenses[0];
+  const last = lenses[lenses.length - 1];
+  if (lenses.length > 1) {
+    const bx = first.x + first.w;
+    const by = first.y + s / 2;
+    out.push(`<rect x="${bx}" y="${by}" width="${last.x - bx}" height="${lw}" fill="${frame}"/>`);
+    if (look === "nerd") out.push(`<rect x="${round(bx + (last.x - bx) / 2 - s / 2)}" y="${by - s / 3}" width="${s}" height="${lw + 2 * s / 3}" fill="#f4f1e8"/>`);
+  } else {
+    out.push(`<rect x="${first.x - 3 * s}" y="${first.y + s / 2}" width="${3 * s}" height="${lw}" fill="${frame}"/>`);
+  }
+  if (look === "disguise") {
+    const a = anchors(species);
+    const side = lenses.length === 1;
+    for (const l of lenses) out.push(`<rect x="${l.x}" y="${l.y - s}" width="${l.w}" height="${s * 0.75}" fill="#2b1b12"/>`);
+    const nx = side ? last.x + last.w - s / 2 : (first.x + last.x + last.w) / 2 - 1.25 * s;
+    const ny = first.y + first.h - s / 2;
+    out.push(`<rect x="${round(nx)}" y="${round(ny)}" width="${2.5 * s}" height="${2 * s}" rx="${s}" fill="#f4a3a3"/>`);
+    out.push(`<rect x="${round(nx + s / 2)}" y="${round(ny + s / 3)}" width="${s * 0.75}" height="${s / 2}" fill="#fff" opacity=".6"/>`);
+    const mx = side ? nx - s / 2 : a.mouth.x * s - 2.5 * s;
+    const my = Math.max(ny + 2 * s, (a.mouth.y - 1.5) * s);
+    out.push(`<path d="M${round(mx)} ${round(my + s)}q${1.25 * s} ${-1.5 * s} ${2.5 * s} 0q${1.25 * s} ${-1.5 * s} ${2.5 * s} 0v${s / 2}q${-1.25 * s} ${-s / 2} ${-2.5 * s} 0q${-1.25 * s} ${-s / 2} ${-2.5 * s} 0z" fill="#2b1b12"/>`);
+  }
+  return out.join("");
+}
+function heldAt(species, scale, grid, palette, cls = "") {
+  const s = Math.max(2, Math.round(scale * 3 / 4));
+  const w = grid[0].length * s;
+  const h = grid.length * s;
+  const x = species.width * scale - w / 2;
+  const y = species.height * scale - h - scale;
+  const svg = `<g${cls ? ` class="${cls}"` : ""}>${px(grid, palette, x, y, s)}</g>`;
+  return { svg, x, y, w, h };
+}
+var RED_ENVELOPE = ["rrrrr", "rdddr", "rrdrr", "ryyyr", "rryrr", "rrrrr", "rrrrr"];
+var RED_ENVELOPE_PALETTE = { r: "#e03131", d: "#b02525", y: "#ffd166" };
+var CANDY_PAIL = [".k..k.", "..kk..", "oooooo", "oyoyoo", "oooyoo", "oyyyoo", ".oooo."];
+var CANDY_PAIL_PALETTE = { k: "#3b2a1a", o: "#f28c28", y: "#3b1d00" };
+var COFFEE = ["cccc..", "bbbbb.", "bbbb.b", "bwbbb.", "bbbb..", ".bb..."];
+var COFFEE_PALETTE = { c: "#6f4e37", b: "#2f81f7", w: "#ffffff" };
+
+// src/pet/surprises/holidays.ts
+var TREE = [
+  ".....g.....",
+  "....ggg....",
+  "...gggGg...",
+  "....ggg....",
+  "...ggggg...",
+  "..gggggGg..",
+  "...ggggg...",
+  "..ggggggg..",
+  ".gggggggGg.",
+  "ggggggggggg",
+  ".....b.....",
+  ".....b....."
 ];
-var LUNAR_NEW_YEAR = {
-  2026: ["02-17", "horse"],
-  2027: ["02-06", "goat"],
-  2028: ["01-26", "monkey"],
-  2029: ["02-13", "rooster"],
-  2030: ["02-03", "dog"],
-  2031: ["01-23", "pig"],
-  2032: ["02-11", "rat"],
-  2033: ["01-31", "ox"],
-  2034: ["02-19", "tiger"],
-  2035: ["02-08", "rabbit"]
-};
-var MID_AUTUMN = {
-  2026: "09-25",
-  2027: "09-15",
-  2028: "10-03",
-  2029: "09-22",
-  2030: "09-12",
-  2031: "10-01",
-  2032: "09-19",
-  2033: "09-08",
-  2034: "09-27",
-  2035: "09-16"
-};
-var DAY = 864e5;
-var utc = (date) => Date.parse(`${date}T00:00:00Z`);
-var daysBetween = (a, b) => Math.round((utc(a) - utc(b)) / DAY);
-function dayOfYear(date) {
-  return daysBetween(date, `${date.slice(0, 4)}-01-01`) + 1;
+var STAR = ["..y..", ".yyy.", "yyyyy", ".y.y."];
+var LIGHTS = [[5, 1], [4, 3], [6, 5], [3, 5], [5, 7], [2, 8], [7, 8], [4, 9], [8, 9], [1, 9]];
+var XMAS = ["#ff4d4d", "#ffd166", "#7dd3fc", "#ff9ff3"];
+var GIFT_RED = ["..y..y..", "...yy...", "rrryyrrr", "rrryyrrr", "yyyyyyyy", "rrryyrrr", "rrryyrrr"];
+var GIFT_BLUE = [".w..w.", "..ww..", "bbwwbb", "wwwwww", "bbwwbb", "bbwwbb"];
+function christmas(c) {
+  const { scene: sc } = c;
+  const s = 4;
+  const tx = sc.x + 6;
+  const ty = sc.ground - TREE.length * s + 2;
+  const lights = LIGHTS.map(
+    ([col, row], i) => `<rect class="${i % 2 ? "pf-s-blink" : "pf-s-blink2"}" x="${tx + col * s}" y="${ty + row * s}" width="${s - 1}" height="${s - 1}" fill="${XMAS[i % XMAS.length]}"/>`
+  ).join("");
+  const star = `<g class="pf-s-twinkle">${px(STAR, { y: "#ffd23f" }, tx + 5.5 * s - 7.5, ty - 4 * 3 + 2, 3)}</g>`;
+  const back = px(TREE, { g: "#2b8a3e", G: "#51cf66", b: "#7a4a24" }, tx, ty, s) + lights + star + px(GIFT_RED, { r: "#e03131", y: "#ffd166" }, tx + 40, sc.ground - 17, 3) + px(GIFT_BLUE, { b: "#4c6ef5", w: "#ffffff" }, tx + 22, sc.ground - 13, 3);
+  const snow = drift(c.rng, sc, 12, () => `<rect width="2" height="2" fill="#ffffff" opacity=".9"/>`, { seconds: [7, 11], sway: 8 });
+  return {
+    back,
+    front: snow,
+    hat: SANTA_HAT,
+    banner: { text: "MERRY CHRISTMAS", color: "#c92a2a", shade: "#6b1010" },
+    line: "Merry Christmas! \xB7 ho ho ho"
+  };
 }
-function near(date, table, before, after) {
-  const md = table[Number(date.slice(0, 4))];
-  if (!md) return false;
-  const d = daysBetween(date, `${date.slice(0, 4)}-${md}`);
-  return d >= -before && d <= after;
+var PUMPKIN = ["....gg...", "..ooooo..", ".ooOoOoo.", "ooOooooOo", "ooOooooOo", "ooOooooOo", ".ooOoOoo.", "..ooooo.."];
+var PUMPKIN_FACE = [".........", ".........", ".........", "..y...y..", ".yy...yy.", "....y....", ".y.y.y.y.", "..yyyyy.."];
+var GHOST = ["..www..", ".wwwww.", "wwkwkww", "wwwwwww", "wwwkwww", "wwwwwww", "wwwwwww", "w.ww.ww"];
+var BAT_UP = "M0 0L3 2L5 1L7 2L10 0L8 4L5 3L2 4Z";
+var BAT_DOWN = "M0 4L3 2L5 1L7 2L10 4L8 3L5 4L2 3Z";
+function halloween(c) {
+  const { scene: sc } = c;
+  const g = sc.ground;
+  const moon2 = `<circle cx="${sc.x + 34}" cy="${sc.y + 50}" r="17" fill="#ffb347" opacity=".25"/><circle cx="${sc.x + 34}" cy="${sc.y + 50}" r="12" fill="#ffc46b"/><circle cx="${sc.x + 30}" cy="${sc.y + 47}" r="2" fill="#f0a63c"/><circle cx="${sc.x + 38}" cy="${sc.y + 54}" r="3" fill="#f0a63c"/>`;
+  const bat = (x, y, d) => `<g transform="translate(${x} ${y})"><path class="pf-fa" style="animation-duration:.5s;animation-delay:-${d}s" d="${BAT_UP}"/><path class="pf-fb" style="animation-duration:.5s;animation-delay:-${d}s" d="${BAT_DOWN}"/></g>`;
+  const bats2 = `<g class="pf-s-bats" fill="#1a0f24">${bat(0, sc.y + 40, 0)}${bat(16, sc.y + 50, 0.2)}${bat(30, sc.y + 36, 0.1)}${bat(48, sc.y + 46, 0.3)}</g>`;
+  const px0 = sc.x + sc.w - 40;
+  const pumpkin2 = px(PUMPKIN, { o: "#f28c28", O: "#c9621a", g: "#3f7d3a" }, px0, g - 22, 3) + `<g class="pf-s-flicker">${px(PUMPKIN_FACE, { y: "#ffe066" }, px0, g - 22, 3)}</g>`;
+  const ghost = `<g class="pf-s-ghost" opacity="0">${px(GHOST, { w: "#f8f9fa", k: "#343a40" }, sc.x + 14, g - 50, 3)}</g>`;
+  const held = heldAt(c.species, c.scale, CANDY_PAIL, CANDY_PAIL_PALETTE);
+  return {
+    css: `.pf-s-bats{animation:pf-s-bats 13s linear infinite}
+@keyframes pf-s-bats{from{transform:translateX(${sc.x + sc.w + 10}px)}to{transform:translateX(${sc.x - 70}px)}}
+.pf-s-ghost{animation:pf-s-ghost 9s ease-in-out infinite}
+@keyframes pf-s-ghost{0%,20%{opacity:0;transform:translate(0,8px)}35%{opacity:.85;transform:translate(4px,-4px)}55%{opacity:.85;transform:translate(10px,0)}72%{opacity:.85;transform:translate(4px,-6px)}85%,100%{opacity:0;transform:translate(0,8px)}}`,
+    back: `<rect x="${sc.x}" y="${sc.y}" width="${sc.w}" height="${g - sc.y}" fill="#3b1a5a" opacity=".35"/>${moon2}${bats2}${ghost}${pumpkin2}`,
+    hat: WITCH_HAT,
+    held: held.svg,
+    banner: { text: "TRICK OR TREAT", color: "#e8590c", shade: "#5c2200" },
+    line: "Trick or treat! \xB7 spooky season"
+  };
 }
-function holidayFor(date) {
-  const md = date.slice(5);
-  if (md === "12-31" || md === "01-01") return "new-year";
-  if (md >= "10-25" && md <= "10-31") return "halloween";
-  if (md >= "12-18" && md <= "12-26") return "christmas";
-  if (md === "02-14") return "valentines";
-  if (md === "03-14") return "pi-day";
-  if (md === "04-01") return "april-fools";
-  if (dayOfYear(date) === 256) return "programmers-day";
-  const lny = Object.fromEntries(Object.entries(LUNAR_NEW_YEAR).map(([y, [d]]) => [y, d]));
-  if (near(date, lny, 3, 3)) return "lunar-new-year";
-  if (near(date, MID_AUTUMN, 1, 1)) return "mid-autumn";
+function newYear(c) {
+  const year = newYearFor(c.state.date);
+  return {
+    back: fireworks(c.rng, c.scene, ["#ff5c7a", "#ffd166", "#4cc9f0", "#c3a6ff"], 4),
+    front: confetti(c.rng, c.scene, 22),
+    hat: TOP_HAT,
+    banner: { text: `HAPPY ${year}`, color: "#b8860b", shade: "#4d3800" },
+    line: `Happy New Year! \xB7 hello ${year}`
+  };
+}
+var LANTERN = [
+  "...yy...",
+  ".yyyyyy.",
+  ".rrrrrr.",
+  "hrrrrrrd",
+  "hrrrrrrd",
+  "hrryyrrd",
+  "hryyyyrd",
+  "hrryyrrd",
+  "hrrrrrrd",
+  ".rrrrrr.",
+  ".yyyyyy.",
+  "...yy...",
+  "..y..y..",
+  "..y..y..",
+  "..y..y.."
+];
+var LANTERN_PALETTE = { r: "#e63946", h: "#ff6b6b", d: "#b5202e", y: "#ffd166" };
+var COIN = [".yyy.", "yYyYy", "yy.yy", "yYyYy", ".yyy."];
+var CRACKER = ["y", "r", "r", "r", "y"];
+function lunarNewYear(c) {
+  const { scene: sc } = c;
+  const animal = zodiacFor(c.state.date);
+  const lantern2 = (x, string, delay) => `<g class="pf-s-swing" style="animation-delay:-${delay}s"><rect x="${x + 11}" y="${sc.y}" width="1" height="${string}" fill="#5b4636"/>${px(LANTERN, LANTERN_PALETTE, x, sc.y + string, 3)}</g>`;
+  const crackers = new RectBatch();
+  const cx = sc.x + 8;
+  const cy = sc.ground + 8;
+  for (let i = 0; i < 7; i++) crackers.add("#8a5a33", cx + i * 5, cy + i % 2, 5, 1);
+  let pops = "";
+  for (let i = 0; i < 7; i++) {
+    pops += px(CRACKER, { y: "#ffd166", r: "#e03131" }, cx + i * 5 + 1, cy - 4 + i % 2, 2);
+    if (i % 2 === 0) {
+      const d = round(i * 0.35);
+      for (const [dx, dy] of [[-6, -8], [0, -12], [6, -8], [-4, -3], [4, -3]]) {
+        pops += `<rect class="pf-s-spark" style="animation-duration:1.4s;animation-delay:-${d}s;--dx:${dx}px;--dy:${dy}px" x="${cx + i * 5 + 1}" y="${cy - 6}" width="2" height="2" fill="${dy < -6 ? "#ffd166" : "#ff6b6b"}"/>`;
+      }
+    }
+  }
+  const coins = drift(c.rng, sc, 8, () => px(COIN, { y: "#ffd23f", Y: "#e0a800" }, 0, 0, 1.6), { seconds: [6, 10], sway: 6 });
+  return {
+    back: lantern2(sc.x + 6, 34, 0) + lantern2(sc.x + sc.w - 30, 40, 1.2) + crackers + pops,
+    front: coins,
+    held: heldAt(c.species, c.scale, RED_ENVELOPE, RED_ENVELOPE_PALETTE, "pf-s-float").svg,
+    banner: { text: `YEAR OF THE ${animal}`, color: "#c92a2a", shade: "#5c0a0a", ink: "#ffd166" },
+    line: `Lunar New Year \xB7 year of the ${animal}`
+  };
+}
+var RABBIT = [".x.x...", ".x.x...", ".xxx...", "xxxxxx.", ".xxxxxx", "..x..x."];
+var MOONCAKE = ["..cccccccc..", ".cCcCcCcCcc.", ".cccCCCCccc.", ".dddddddddd.", ".dddddddddd.", "wwwwwwwwwwww", ".wwwwwwwwww."];
+var ROUND_LANTERN = ["..yy..", ".oooo.", "oOoooo", "oOoooo", ".oooo.", "..yy..", "..y..."];
+function midAutumn(c) {
+  const { scene: sc } = c;
+  const mx = sc.x + sc.w - 38;
+  const my = sc.y + 60;
+  const moon2 = `<circle cx="${mx}" cy="${my}" r="30" fill="#fff4c2" opacity=".12"/><circle cx="${mx}" cy="${my}" r="25" fill="#fff4c2" opacity=".22"/><circle cx="${mx}" cy="${my}" r="20" fill="#fff1b8"/><circle cx="${mx - 9}" cy="${my - 8}" r="3" fill="#f5e08f"/><circle cx="${mx + 10}" cy="${my + 6}" r="4" fill="#f5e08f"/>` + px(RABBIT, { x: "#e3c86b" }, mx - 6, my - 3, 2);
+  const lantern2 = (x, y, d) => `<g class="pf-s-swing" style="animation-delay:-${d}s"><rect x="${x + 5}" y="${sc.y}" width="1" height="${y - sc.y}" fill="#5b4636"/><g class="pf-s-flicker" style="animation-delay:-${d}s">${px(ROUND_LANTERN, { o: "#ff922b", O: "#ffc078", y: "#ffd43b" }, x, y, 2)}</g></g>`;
+  const cake2 = px(MOONCAKE, { c: "#d99a4e", C: "#a8652a", d: "#c07f3a", w: "#f1f3f5" }, sc.x + 12, sc.ground - 12, 2);
+  return {
+    back: moon2 + lantern2(sc.x + 10, sc.y + 40, 0) + lantern2(sc.x + 30, sc.y + 50, 0.8) + cake2,
+    banner: { text: "HAPPY MID-AUTUMN", color: "#e8590c", shade: "#6b2500", ink: "#fff3bf" },
+    line: "Mid-Autumn \xB7 mooncakes & a full moon"
+  };
+}
+var BALLOON = [".rr.rr.", "rhrrrrr", "rhrrrrr", ".rrrrr.", "..rrr..", "...r..."];
+function valentines(c) {
+  const { scene: sc, species, scale } = c;
+  const w = species.width * scale;
+  const h = species.height * scale;
+  const hand = { x: w - scale, y: h * 0.55 };
+  const bx = w + 2;
+  const by = -30;
+  const balloon = `<g class="pf-s-float"><path d="M${hand.x} ${hand.y}Q${w + 10} ${h * 0.2} ${bx + 10} ${by + 18}" fill="none" stroke="#8d96a0" stroke-width="1"/>` + px(BALLOON, { r: "#ff4d6d", h: "#ff9fb2" }, bx, by, 3) + `</g>`;
+  const hearts = drift(c.rng, sc, 9, () => px(HEART, { p: "#ff8fab" }, 0, 0, 2), { from: sc.ground + 8, fall: -(sc.h - 10), seconds: [6, 10], sway: 10 });
+  return {
+    back: `<rect x="${sc.x}" y="${sc.y}" width="${sc.w}" height="${sc.ground - sc.y}" fill="#ff8fab" opacity=".12"/>`,
+    front: hearts,
+    held: balloon,
+    banner: { text: "BE MY VALENTINE", color: "#e64980", shade: "#6b0f35" },
+    line: "Happy Valentine's Day \u2665"
+  };
+}
+var PIE = ["..cccccccc..", ".cCcCcCcCcc.", "cccccccccccc", "dddddddddddd", ".dddddddddd."];
+var DIGITS = "3.14159265358979323846264338327950288419716939937510";
+function piDay(c) {
+  const { scene: sc } = c;
+  const s = 2;
+  const t = textSize(DIGITS, s);
+  const ticker = `<g opacity=".35"><g class="pf-s-ticker" style="--w:${-t.w - 12}px">${text(DIGITS, sc.x + 4, sc.y + 36, s, "#ffffff")}${text(DIGITS, sc.x + 16 + t.w, sc.y + 36, s, "#ffffff")}</g></g>`;
+  const x = sc.x + 10;
+  const y = sc.ground - 12;
+  const flag = `<rect x="${x + 25}" y="${y - 20}" width="1" height="20" fill="#8a5a33"/><rect x="${x + 26}" y="${y - 20}" width="15" height="11" fill="#ffffff"/>${px(pixelText("\u03C0"), { x: "#7048e8" }, x + 27.75, y - 18.25, 1.5)}`;
+  const steam = [0, 0.8, 1.6].map((d, i) => `<rect class="pf-s-steam" style="animation-delay:-${d}s" x="${x + 8 + i * 8}" y="${y - 5}" width="2" height="3" fill="#ffffff"/>`).join("");
+  return {
+    css: `.pf-s-ticker{animation:pf-s-ticker 26s linear infinite}@keyframes pf-s-ticker{to{transform:translateX(var(--w))}}`,
+    back: ticker + steam + px(PIE, { c: "#f4a259", C: "#c8553d", d: "#adb5bd" }, x, y, 3) + flag,
+    banner: { text: "HAPPY \u03C0 DAY", color: "#7048e8", shade: "#2b1470" },
+    line: "Happy \u03C0 day \xB7 3.14159\u2026"
+  };
+}
+function aprilFools(c) {
+  return {
+    face: glasses(c.species, c.scale, "disguise"),
+    banner: { text: "APRIL FOOLS!", color: "#12b886", shade: "#064d38" },
+    line: `Nice disguise, ${c.state.petName}!`
+  };
+}
+function binaryColumn(bits) {
+  const rows = [];
+  for (const b of bits) rows.push(...pixelText(b), "...", "...");
+  return rows;
+}
+function programmersDay(c) {
+  const { scene: sc, rng } = c;
+  const bs = 1.5;
+  const span = 20 * 7 * bs;
+  const patterns = [0, 1].map((i) => {
+    const bits = Array.from({ length: 20 }, () => rng() < 0.5 ? "0" : "1").join("");
+    return `<g id="pf-s-bits${i}">${px(binaryColumn(bits), { x: "#3fb950" }, 0, 0, bs)}</g>`;
+  }).join("");
+  let rain2 = `<defs>${patterns}</defs>`;
+  for (let x = sc.x + 4, i = 0; x < sc.x + sc.w - 4; x += 16, i++) {
+    const t = round(5 + rng() * 5);
+    const id = `#pf-s-bits${i % 2}`;
+    rain2 += `<g class="pf-s-code" style="--t:${t}s;animation-delay:-${round(rng() * t)}s"><use href="${id}" x="${x}" y="${sc.y - span}"/><use href="${id}" x="${x}" y="${sc.y}"/></g>`;
+  }
+  const mug = heldAt(c.species, c.scale, COFFEE, COFFEE_PALETTE);
+  const steam = [0, 1.2].map((d, i) => `<rect class="pf-s-steam" style="animation-delay:-${d}s" x="${mug.x + 2 + i * 5}" y="${mug.y - 4}" width="2" height="3" fill="#ffffff"/>`).join("");
+  return {
+    css: `.pf-s-code{animation:pf-s-code var(--t) linear infinite}@keyframes pf-s-code{from{transform:translateY(0)}to{transform:translateY(${span}px)}}`,
+    back: `<rect x="${sc.x}" y="${sc.y}" width="${sc.w}" height="${sc.ground - sc.y}" fill="#0d1117" opacity=".35"/><clipPath id="pf-s-sky"><rect x="${sc.x}" y="${sc.y}" width="${sc.w}" height="${sc.ground - sc.y}"/></clipPath><g clip-path="url(#pf-s-sky)" opacity=".7">${rain2}</g>`,
+    face: glasses(c.species, c.scale, "nerd"),
+    held: mug.svg + steam,
+    banner: { text: "PROGRAMMER'S DAY", color: "#1a7f37", shade: "#07300f" },
+    line: "Programmer's Day \xB7 256 = 0x100"
+  };
+}
+var HOLIDAY_ART = {
+  "new-year": newYear,
+  "lunar-new-year": lunarNewYear,
+  valentines,
+  "pi-day": piDay,
+  "april-fools": aprilFools,
+  "programmers-day": programmersDay,
+  "mid-autumn": midAutumn,
+  halloween,
+  christmas
+};
+
+// src/pet/surprises/moments.ts
+function cake(years) {
+  const n = Math.max(1, Math.min(5, years));
+  const cols = Array.from({ length: n }, (_, i) => 7 - (n - 1) + 2 * i);
+  const row = (ch) => Array.from({ length: 14 }, (_, x) => cols.includes(x) ? ch : ".").join("");
+  return {
+    flames: [row("f"), ...Array(10).fill("..............")],
+    cake: [
+      "..............",
+      row("c"),
+      row("c"),
+      "..pppppppppp..",
+      ".pppppppppppp.",
+      ".pbpbppbpppbp.",
+      ".bbbbbbbbbbbb.",
+      ".bsbbbsbbbsbb.",
+      ".bbbbbbbbbbbb.",
+      "dddddddddddddd"
+    ]
+  };
+}
+var BALLOON2 = [".bbb.", "bhbbb", "bhbbb", "bbbbb", ".bbb.", "..b.."];
+function birthday(c) {
+  const { scene: sc } = c;
+  const years = c.state.moments?.birthday ?? 1;
+  const { cake: body, flames } = cake(years);
+  const cx = sc.x + 6;
+  const cy = sc.ground - body.length * 3 + 3;
+  const cakeSvg = px(body, { c: "#74c0fc", p: "#ffc9de", b: "#c68b59", s: "#ff6b6b", d: "#dee2e6" }, cx, cy, 3) + `<g class="pf-s-flicker">${px(flames, { f: "#ffd43b" }, cx, cy, 3)}</g>`;
+  let bunting = `<path d="M${sc.x} ${sc.y + 44}Q${sc.x + sc.w / 2} ${sc.y + 60} ${sc.x + sc.w} ${sc.y + 44}" fill="none" stroke="#8d96a0" stroke-width="1"/>`;
+  for (let i = 0; i < 11; i++) {
+    const x = sc.x + 6 + i * 18;
+    const t = (x - sc.x) / sc.w;
+    const y = sc.y + 44 + 16 * 2 * t * (1 - t);
+    const color = CONFETTI[i % CONFETTI.length];
+    bunting += `<path d="M${round(x)} ${round(y)}h8l-4 8z" fill="${color}"/>`;
+  }
+  const balloons = [
+    [sc.x + sc.w - 40, sc.y + 66, "#ff6b6b", "#ffa8a8", 0],
+    [sc.x + sc.w - 26, sc.y + 58, "#4dabf7", "#a5d8ff", 0.9]
+  ];
+  let air = "";
+  for (const [x, y, b, h, d] of balloons) {
+    air += `<g class="pf-s-float" style="animation-delay:-${d}s"><path d="M${x + 5} ${y + 12}q-3 12 1 ${sc.ground - y - 12}" fill="none" stroke="#8d96a0" stroke-width="1"/>${px(BALLOON2, { b, h }, x, y, 2)}</g>`;
+  }
+  return {
+    back: bunting + air + cakeSvg,
+    front: confetti(c.rng, sc, 10),
+    hat: PARTY_HAT,
+    banner: { text: `${years} YEAR${years === 1 ? "" : "S"} ON GITHUB`, color: "#e64980", shade: "#5c0f30" },
+    line: `GitHub birthday \xB7 ${years} year${years === 1 ? "" : "s"} today`
+  };
+}
+function levelUpTitle(from, to) {
+  if (from < 3 && to >= 3) return "IT HATCHED!";
+  if (from < 15 && to >= 15) return "ALL GROWN UP!";
+  if (from < 50 && to >= 50) return "LEGENDARY!";
+  return "LEVEL UP!";
+}
+function levelUp(c) {
+  const { scene: sc, box, state } = c;
+  const from = state.moments?.levelUp ?? state.level - 1;
+  const pw = Math.round(box.w * 0.9);
+  const px0 = round(box.x + (box.w - pw) / 2);
+  const bottom = box.y + box.h;
+  const pillar = `<defs><linearGradient id="pf-s-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe066" stop-opacity="0"/><stop offset=".7" stop-color="#ffe066" stop-opacity=".55"/><stop offset="1" stop-color="#fff9db" stop-opacity=".9"/></linearGradient></defs><rect class="pf-s-pulse" x="${px0}" y="${sc.y}" width="${pw}" height="${bottom - sc.y}" fill="url(#pf-s-beam)"/>`;
+  let sparkles = "";
+  for (let i = 0; i < 6; i++) {
+    const x = round(px0 + 4 + c.rng() * (pw - 12));
+    const t2 = round(2.2 + c.rng() * 1.6);
+    sparkles += `<g class="pf-s-fall" style="--t:${t2}s;--fy:-${bottom - sc.y - 20}px;--sx:0px;animation-delay:-${round(c.rng() * t2)}s">${px(SPARKLE, { s: "#fff3a0" }, x, bottom - 12, 1.5)}</g>`;
+  }
+  const label = `LV ${state.level}`;
+  const t = textSize(label, 2);
+  const top = anchors(c.species).top * c.scale;
+  const pop = `<g class="pf-s-pop">${text(label, round(box.w / 2 - t.w / 2), top - 26, 2, "#ffd43b", "#7a4f00")}</g>`;
+  return {
+    css: `.pf-s-pulse{animation:pf-s-pulse 1.6s ease-in-out infinite}@keyframes pf-s-pulse{0%,100%{opacity:.65}50%{opacity:1}}
+.pf-s-pop{animation:pf-s-pop 3s ease-out infinite}@keyframes pf-s-pop{0%{transform:translateY(8px);opacity:0}15%{transform:translateY(0);opacity:1}75%{opacity:1}100%{transform:translateY(-8px);opacity:0}}`,
+    follow: pillar + sparkles,
+    over: pop,
+    banner: { text: levelUpTitle(from, state.level), color: "#f59f00", shade: "#5c3a00" },
+    line: `Level up! \xB7 Lv.${from} \u2192 Lv.${state.level}`
+  };
+}
+var RAINBOW = ["#ff6b6b", "#ffa94d", "#ffd43b", "#69db7c", "#4dabf7", "#9775fa"];
+function welcomeBack(c) {
+  const { scene: sc } = c;
+  const days = c.state.moments?.welcomeBack ?? 7;
+  const cx = sc.x + sc.w / 2;
+  const cy = sc.ground;
+  const arcs = RAINBOW.map((color, i) => {
+    const r2 = 90 - i * 3.5;
+    return `<path d="M${round(cx - r2)} ${cy}A${r2} ${r2} 0 0 1 ${round(cx + r2)} ${cy}" fill="none" stroke="${color}" stroke-width="3.6"/>`;
+  }).join("");
+  const cloud3 = (x) => new RectBatch().add("#ffffff", x - 14, cy - 10, 28, 10).add("#ffffff", x - 8, cy - 16, 16, 6).add("#ffffff", x - 18, cy - 5, 36, 5).toString();
+  return {
+    css: `.pf-s-shimmer{animation:pf-s-shimmer 3s ease-in-out infinite}@keyframes pf-s-shimmer{0%,100%{opacity:.75}50%{opacity:.95}}`,
+    back: `<g class="pf-s-shimmer" opacity=".75">${arcs}</g>${cloud3(cx - 80)}${cloud3(cx + 80)}`,
+    front: confetti(c.rng, sc, 10),
+    banner: { text: "WELCOME BACK!", color: "#1c7ed6", shade: "#082c52" },
+    line: `Welcome back! \xB7 missed you ${days} days`
+  };
+}
+var MOMENT_ART = { birthday, "level-up": levelUp, "welcome-back": welcomeBack };
+
+// src/pet/surprises/places/types.ts
+var PW = 96;
+var PH = 60;
+
+// src/pet/surprises/places/photo.ts
+var SKIES = {
+  day: ["#79c2f2", "#9ad2f7", "#bde3fa", "#dcf1fc"],
+  tropical: ["#39b5f0", "#6cc9f5", "#a2dcf8", "#d4f0fc"],
+  sunset: ["#f47c6a", "#fb9b72", "#ffc182", "#ffe2a8"],
+  dusk: ["#3f3a86", "#6d58a8", "#b877ab", "#f0a79c"],
+  night: ["#0e1440", "#172058", "#212d6e", "#2d3a80"],
+  desert: ["#86c7ee", "#aad7f0", "#f0dbb0", "#f7e8c8"],
+  snow: ["#9fc8e6", "#bddbee", "#d9ebf5", "#eef6fb"],
+  mist: ["#b9cbd6", "#cad8e0", "#dae4ea", "#e9eff2"]
+};
+var STARS = [[6, 4], [18, 12], [30, 3], [44, 9], [58, 5], [70, 14], [82, 6], [90, 18], [12, 22], [52, 20]];
+var px2 = (grid, palette, x, y, scale = 2) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
+function sky(x, y, kind) {
+  const bands = SKIES[kind];
+  const b = new RectBatch();
+  const h = PH / bands.length;
+  bands.forEach((c, i) => b.add(c, x, y + i * h, PW, h + 0.5));
+  if (kind === "night" || kind === "dusk") {
+    for (const [sx, sy] of kind === "night" ? STARS : STARS.slice(0, 5)) b.add("#fff8d6", x + sx, y + sy, 1, 1);
+  }
+  return b.toString();
+}
+var sun = (x, y, r2 = 6, color = "#ffe066") => `<circle cx="${x}" cy="${y}" r="${r2 + 3}" fill="${color}" opacity=".3"/><circle cx="${x}" cy="${y}" r="${r2}" fill="${color}"/>`;
+var moon = (x, y, skyColor = "#172058") => `<circle cx="${x}" cy="${y}" r="6" fill="#fff1b8"/><circle cx="${x + 3}" cy="${y - 2}" r="5" fill="${skyColor}"/>`;
+function cloud(x, y, w = 18, color = "#ffffff") {
+  return new RectBatch().add(color, x, y + 3, w, 4).add(color, x + w * 0.2, y, w * 0.45, 3).add(color, x + w * 0.55, y + 1, w * 0.3, 2).toString();
+}
+function ground(x, y, top, color, edge) {
+  const b = new RectBatch().add(color, x, y + top, PW, PH - top);
+  if (edge) b.add(edge, x, y + top, PW, 2);
+  return b.toString();
+}
+function water(x, y, top, color = "#3a86c8", glint = "#9fd4ff") {
+  const b = new RectBatch().add(color, x, y + top, PW, PH - top);
+  for (const [gx, gy, gw] of [[6, 4, 10], [34, 9, 8], [60, 3, 12], [80, 11, 9], [20, 14, 7]]) {
+    if (top + gy < PH) b.add(glint, x + gx, y + top + gy, gw, 1);
+  }
+  return b.toString();
+}
+function hill(x, y, cx, base, w, h, color) {
+  const b = new RectBatch();
+  for (let i = 0; i < h; i += 2) {
+    const t = i / h;
+    const half = w / 2 * Math.sqrt(1 - t * t);
+    b.add(color, x + Math.round(cx - half), y + base - i - 2, Math.round(half * 2), 2);
+  }
+  return b.toString();
+}
+function mountain(x, y, cx, base, w, h, color, cap = 0, snow = "#f8fbff") {
+  const b = new RectBatch();
+  for (let i = 0; i < h; i += 2) {
+    const half = w / 2 * (1 - i / h);
+    b.add(h - i <= cap ? snow : color, x + Math.round(cx - half), y + base - i - 2, Math.max(2, Math.round(half * 2)), 2);
+  }
+  return b.toString();
+}
+function skyline(x, y, base, blocks, lit = "#ffd166") {
+  const b = new RectBatch();
+  for (const [bx, bw, bh, c] of blocks) {
+    b.add(c, x + bx, y + base - bh, bw, bh);
+    for (let wy = base - bh + 3; wy < base - 2; wy += 4) for (let wx = bx + 2; wx < bx + bw - 1; wx += 3) if ((wx * 7 + wy * 3) % 5 < 3) b.add(lit, x + wx, y + wy, 1, 1);
+  }
+  return b.toString();
+}
+
+// src/pet/surprises/places/africa.ts
+function pyramid(b, cx, base, h) {
+  for (let i = 0; i < h; i += 2) {
+    const half = h - i;
+    b.add("#f0c97a", cx - half, base - i - 2, half, 2).add("#c9a24a", cx, base - i - 2, half, 2);
+  }
+}
+var GIRAFFE = outlined([
+  "....yy..",
+  "...yyyk.",
+  "...yy...",
+  "...yd...",
+  "...yy...",
+  "...dy...",
+  "...yy...",
+  "yyyyyy..",
+  "ydyydyy.",
+  "yyydyyy.",
+  "y.y..y.y",
+  "y.y..y.y"
+]);
+var ACACIA = [
+  "..kkkkkkkkkk..",
+  "kkkkkkkkkkkkkk",
+  ".kkkkkkkkkkkk.",
+  "......kk......",
+  ".....kk.......",
+  ".....k........",
+  ".....k........",
+  "....kk........"
+];
+var TREASURY = [
+  "....rrrrrrrrrr....",
+  "...rRrRrRrRrRrr...",
+  "..rrrrrrrrrrrrrr..",
+  "..rc.rc.rrc.rc.r..",
+  "..rc.rc.rrc.rc.r..",
+  "rrrrrrrrrrrrrrrrrr",
+  "rRrRrRrRrRrRrRrRrR",
+  "rc.rc.rkkkkrc.rc.r",
+  "rc.rc.rkkkkrc.rc.r",
+  "rc.rc.rkkkkrc.rc.r",
+  "rc.rc.rkkkkrc.rc.r",
+  "rrrrrrrrrrrrrrrrrr"
+];
+var AFRICA = [
+  {
+    name: "GIZA",
+    ink: "#b8860b",
+    stamp: { bg: "#fff9db", grid: ["..y..", ".yyd.", "yyydd", "yyddd"], colors: { y: "#f0c97a", d: "#c9a24a" } },
+    souvenir: { name: "a papyrus scroll", grid: ["b.....b", "byyyyyb", "bykkkyb", "byyyyyb", "b.....b"], colors: { b: "#a0673a", y: "#f1e3c6", k: "#8a6a4a" } },
+    draw: (x, y) => {
+      const b = new RectBatch();
+      pyramid(b, x + 76, y + 46, 30);
+      pyramid(b, x + 52, y + 46, 20);
+      pyramid(b, x + 92, y + 46, 12);
+      return { bg: sky(x, y, "desert") + sun(x + 18, y + 12, 6) + b + ground(x, y, 46, "#e8c98f", "#f3dcaa"), feet: { x: x + 22, y: y + 55 }, friend: { x: x + 40, y: y + 55 } };
+    }
+  },
+  {
+    name: "SERENGETI",
+    ink: "#e67700",
+    stamp: { bg: "#fff4e6", grid: ["..yy", "..yk", "..y.", "yyyy", "y..y"], colors: { y: "#f2b84b", k: "#3b2616" } },
+    souvenir: { name: "a safari hat", grid: ["..kkk..", ".kbbbk.", "kkkkkkk"], colors: { k: "#c9a86b", b: "#6b4a2a" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "sunset") + sun(x + 50, y + 34, 12, "#ffd43b") + px2(ACACIA, { k: "#3b2a1a" }, x + 60, y + 22) + ground(x, y, 44, "#d9a84e", "#e8c06a") + px2(GIRAFFE, { y: "#f2b84b", d: "#a0673a", k: "#3b2616", o: "#6b4226" }, x + 74, y + 18),
+      feet: { x: x + 24, y: y + 55 },
+      friend: { x: x + 46, y: y + 55 }
+    })
+  },
+  {
+    name: "CAPE TOWN",
+    ink: "#1864ab",
+    stamp: { bg: "#e7f5ff", grid: ["......", ".gggg.", "gggggg", "bbbbbb"], colors: { g: "#6b7f5a", b: "#1c7ed6" } },
+    souvenir: { name: "a protea", grid: [".p.p.", "pPpPp", "pPPPp", ".ggg.", "..g.."], colors: { p: "#f783ac", P: "#fcc2d7", g: "#2f9e44" } },
+    draw: (x, y) => {
+      const table = new RectBatch().add("#7a8a66", x + 20, y + 16, 64, 22).add("#6b7a58", x + 12, y + 24, 80, 14).add("#8d9c78", x + 22, y + 16, 60, 2);
+      return {
+        bg: sky(x, y, "day") + table + cloud(x + 22, y + 11, 58) + water(x, y, 38, "#1c7ed6", "#74c0fc") + ground(x, y, 50, "#f1e3c6", "#f8efdc"),
+        feet: { x: x + 24, y: y + 56 },
+        friend: { x: x + 44, y: y + 56 }
+      };
+    }
+  },
+  {
+    name: "PETRA",
+    ink: "#c2553a",
+    stamp: { bg: "#fff4e6", grid: ["rrrrr", "rc.cr", "rrrrr", "rckcr", "rckcr"], colors: { r: "#d9826a", c: "#b5654f", k: "#5b2a1f" } },
+    souvenir: { name: "a sand bottle", grid: [".k.", "www", "rrr", "yyy", "ppp", "www"], colors: { k: "#8a5a33", w: "#f1f3f5", r: "#e8590c", y: "#fcc419", p: "#d6336c" } },
+    draw: (x, y) => {
+      const cliffs = new RectBatch().add("#b5654f", x, y, 30, 60).add("#c97a62", x + 4, y, 8, 60).add("#b5654f", x + 80, y, 16, 60).add("#a0563f", x + 88, y, 8, 60);
+      return {
+        bg: sky(x, y, "desert") + cliffs + new RectBatch().add("#d9826a", x + 30, y + 4, 50, 56).toString() + px2(TREASURY, { r: "#e8a08a", R: "#c97a62", c: "#b5654f", k: "#5b2a1f" }, x + 37, y + 12) + ground(x, y, 50, "#e8b48a"),
+        feet: { x: x + 20, y: y + 57 }
+      };
+    }
+  }
+];
+
+// src/pet/surprises/places/americas.ts
+var LIBERTY = [
+  ".y......",
+  "yyy.....",
+  ".g......",
+  ".g..ggg.",
+  ".g.ggggg",
+  ".gg.ggg.",
+  "..gggggg",
+  "...ggggg",
+  "...gGggg",
+  "...ggggg",
+  "..gGgggg",
+  "..gggggg",
+  "..gGgggg",
+  "..gggggg",
+  ".ssssssss",
+  ".sSsSsSss",
+  ".ssssssss",
+  "ssssssssss"
+];
+var GOLDEN_GATE_TOWER = ["r..r", "rrrr", "r..r", "r..r", "rrrr", "r..r", "r..r", "r..r", "rrrr", "r..r", "r..r", "r..r", "r..r", "r..r"];
+var LLAMA = outlined([
+  "w.w...",
+  "wwww..",
+  "wkwwn.",
+  "wwww..",
+  ".ww...",
+  ".ww...",
+  ".wwwwww",
+  ".wwwwww",
+  ".wwwwww",
+  ".w.w.w."
+]);
+var CHRIST = ["...w...", "...w...", "wwwwwww", "...w...", "...w...", "..www..", "..www..", "..www..", "..www.."];
+var PALM = ["gg.gg..", ".gggg.g", "gg.bggg", "...b..g", "...b...", "...b...", "..b....", "..b....", "..b....", "..b...."];
+var AMERICAS = [
+  {
+    name: "NEW YORK",
+    ink: "#2b8a3e",
+    stamp: { bg: "#e6fcf5", grid: ["y....", "g.gg.", "ggggg", ".ggg.", "sssss"], colors: { y: "#fcc419", g: "#5fae8f", s: "#adb5bd" } },
+    souvenir: { name: "an I \u2665 NY shirt", grid: ["ww.ww", "wwwww", "wwrww", "wwwww", "wwwww"], colors: { w: "#ffffff", r: "#e03131" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "day") + cloud(x + 6, y + 8, 16) + skyline(x, y, 38, [[0, 8, 16, "#8d99ae"], [9, 6, 26, "#7a869a"], [16, 8, 20, "#8d99ae"], [25, 5, 30, "#6c7890"], [31, 7, 22, "#8d99ae"], [39, 6, 14, "#7a869a"]], "#e7f5ff") + water(x, y, 38, "#3a86c8", "#9fd4ff") + px2(LIBERTY, { y: "#fcc419", g: "#5fae8f", G: "#8fd1b5", s: "#a0896b", S: "#8a7358" }, x + 68, y + 4) + new RectBatch().add("#b0a08a", x, y + 50, 50, 10).toString(),
+      feet: { x: x + 22, y: y + 52 }
+    })
+  },
+  {
+    name: "SAN FRANCISCO",
+    ink: "#c92a2a",
+    stamp: { bg: "#fff5f5", grid: ["r..r", "rrrr", "r..r", "rrrr", "r..r"], colors: { r: "#e8590c" } },
+    souvenir: { name: "sourdough", grid: [".bbbb.", "bBbBbb", "bbbbbb", ".bbbb."], colors: { b: "#d9a066", B: "#f0c890" } },
+    draw: (x, y) => {
+      const deck = new RectBatch().add("#c4461c", x, y + 36, PW, 3).add("#8a2e10", x, y + 39, PW, 1);
+      return {
+        bg: sky(x, y, "day") + hill(x, y, 90, 42, 40, 16, "#6a8f5a") + px2(GOLDEN_GATE_TOWER, { r: "#e8590c" }, x + 34, y + 8) + px2(GOLDEN_GATE_TOWER, { r: "#e8590c" }, x + 78, y + 8) + `<path d="M${x} ${y + 30}Q${x + 20} ${y + 36} ${x + 38} ${y + 10}Q${x + 60} ${y + 34} ${x + 82} ${y + 10}Q${x + 90} ${y + 26} ${x + 96} ${y + 30}" fill="none" stroke="#e8590c" stroke-width="1.2"/>` + deck + water(x, y, 42, "#2f6f9f", "#a5d8ff") + `<rect x="${x}" y="${y + 20}" width="${PW}" height="10" fill="#ffffff" opacity=".35"/>` + new RectBatch().add("#c9b28a", x, y + 52, 44, 8).toString(),
+        feet: { x: x + 22, y: y + 54 }
+      };
+    }
+  },
+  {
+    name: "GRAND CANYON",
+    ink: "#c2553a",
+    stamp: { bg: "#fff4e6", grid: ["......", "rr..rr", "RRRRRR", "rrrrrr"], colors: { r: "#c2553a", R: "#e8a06a" } },
+    souvenir: { name: "a cowboy hat", grid: ["..bbb..", ".bbbbb.", "kkkkkkk", "b.....b"], colors: { b: "#a0673a", k: "#6b4226" } },
+    draw: (x, y) => {
+      const rock = new RectBatch();
+      const bands = ["#a8452e", "#c2553a", "#e8a06a", "#d9774f", "#c2553a", "#a8452e"];
+      const butte = (left, widths) => widths.forEach((w, i) => {
+        const top = y + 44 - (i + 1) * 5;
+        rock.add(bands[i % bands.length], x + left + (widths[0] - w) / 2, top, w, 5).add("#f0b98a", x + left + (widths[0] - w) / 2, top, w, 1);
+      });
+      butte(40, [56, 50, 46, 38, 30, 14]);
+      butte(-6, [34, 30, 24, 16]);
+      rock.add("#7a3222", x + 28, y + 44, 16, 16).add("#4dabf7", x + 32, y + 52, 8, 8);
+      return { bg: sky(x, y, "sunset") + sun(x + 70, y + 12, 5, "#fff3bf") + rock + ground(x, y, 54, "#c2553a"), feet: { x: x + 16, y: y + 55 } };
+    }
+  },
+  {
+    name: "NIAGARA FALLS",
+    ink: "#1864ab",
+    stamp: { bg: "#e7f5ff", grid: ["gggg", "bwbw", "wbwb", "bwbw"], colors: { g: "#2f9e44", b: "#4dabf7", w: "#ffffff" } },
+    souvenir: { name: "maple syrup", grid: [".k.", ".b.", "bbb", "brb", "bbb"], colors: { k: "#6b4226", b: "#c8773a", r: "#e03131" } },
+    draw: (x, y) => {
+      const falls = new RectBatch().add("#4f8f4f", x + 36, y + 14, 60, 8);
+      for (let fx2 = 36; fx2 < PW; fx2 += 3) falls.add(fx2 % 2 ? "#e7f5ff" : "#a5d8ff", x + fx2, y + 22, 3, 24);
+      return {
+        bg: sky(x, y, "day") + falls + `<g class="pf-s-flicker"><rect x="${x + 36}" y="${y + 42}" width="60" height="6" fill="#ffffff" opacity=".6"/></g><path d="M${x + 44} ${y + 40}a26 26 0 0 1 52 0" fill="none" stroke="#ff8787" stroke-width="1.5" opacity=".6"/><path d="M${x + 46} ${y + 40}a24 24 0 0 1 48 0" fill="none" stroke="#ffd43b" stroke-width="1.5" opacity=".6"/><path d="M${x + 48} ${y + 40}a22 22 0 0 1 44 0" fill="none" stroke="#69db7c" stroke-width="1.5" opacity=".6"/>` + water(x, y, 46, "#3a86c8", "#d0ebff") + new RectBatch().add("#6f8f5f", x, y + 14, 36, 46).add("#8a9a6a", x, y + 48, 40, 12).toString(),
+        feet: { x: x + 20, y: y + 56 }
+      };
+    }
+  },
+  {
+    name: "HAWAII",
+    ink: "#e8590c",
+    stamp: { bg: "#e3fafc", grid: ["gg.gg", ".ggg.", "..b..", "..b..", "wwwww"], colors: { g: "#2f9e44", b: "#8a5a33", w: "#4dabf7" } },
+    souvenir: { name: "a pineapple", grid: [".g.g.", "..g..", ".yyy.", "yYyYy", "yyYyy", ".yyy."], colors: { g: "#2f9e44", y: "#fcc419", Y: "#e8a10f" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "tropical") + mountain(x, y, 70, 38, 60, 22, "#5a6b5a") + `<g class="pf-s-steam"><rect x="${x + 68}" y="${y + 10}" width="4" height="4" fill="#dee2e6"/></g>` + water(x, y, 36, "#1c9ad6", "#e3fafc") + ground(x, y, 46, "#f4d58d", "#fbe7b0") + px2(PALM, { g: "#2f9e44", b: "#8a5a33" }, x + 76, y + 26) + // A surfboard stuck in the sand.
+      `<rect x="${x + 60}" y="${y + 30}" width="5" height="18" rx="2.5" fill="#ff6b6b"/><rect x="${x + 62}" y="${y + 31}" width="1" height="16" fill="#ffffff"/>`,
+      feet: { x: x + 24, y: y + 55 },
+      friend: { x: x + 44, y: y + 55 }
+    })
+  },
+  {
+    name: "CHICHEN ITZA",
+    ink: "#2b8a3e",
+    stamp: { bg: "#ebfbee", grid: ["..t..", ".sss.", "sssss", "sssss"], colors: { t: "#8a7358", s: "#c9b28a" } },
+    souvenir: { name: "maracas", grid: ["rr.yy", "rr.yy", ".b..b", ".b..b"], colors: { r: "#e03131", y: "#fcc419", b: "#8a5a33" } },
+    draw: (x, y) => {
+      const b = new RectBatch();
+      const cx = x + 70;
+      for (let i = 0; i < 9; i++) {
+        const w = 52 - i * 5;
+        b.add(i % 2 ? "#c9b28a" : "#b8a07a", cx - w / 2, y + 46 - (i + 1) * 3, w, 3).add("#8a7358", cx - w / 2, y + 46 - (i + 1) * 3, w, 1);
+      }
+      b.add("#a38b63", cx - 3, y + 19, 6, 27);
+      for (let sy = 20; sy < 46; sy += 2) b.add("#8a7358", cx - 3, y + sy, 6, 1);
+      b.add("#b8a07a", cx - 7, y + 11, 14, 8).add("#8a7358", cx - 7, y + 10, 14, 1).add("#3b2a1a", cx - 2, y + 14, 4, 5);
+      return {
+        bg: sky(x, y, "day") + cloud(x + 8, y + 6, 18) + hill(x, y, 18, 46, 40, 14, "#2f7a3f") + hill(x, y, 94, 46, 30, 16, "#3f8f4f") + b + ground(x, y, 46, "#8cbf6a", "#a5d17f"),
+        feet: { x: x + 22, y: y + 55 }
+      };
+    }
+  },
+  {
+    name: "MACHU PICCHU",
+    ink: "#2b8a3e",
+    stamp: { bg: "#ebfbee", grid: ["...g..", "..ggg.", ".ggggg", "ssssss"], colors: { g: "#2f7a3f", s: "#adb5bd" } },
+    souvenir: { name: "a llama plush", grid: ["w.w.", "wwww", "wkwn", ".ww.", ".wwww", ".w.w."], colors: { w: "#fff4e6", k: "#1a1a1a", n: "#e8a0a0" } },
+    draw: (x, y) => {
+      const terraces = new RectBatch();
+      for (let i = 0; i < 5; i++) terraces.add("#6fae5f", x + 30 - i * 4, y + 36 + i * 4, 70, 4).add("#a3a3a3", x + 30 - i * 4, y + 39 + i * 4, 70, 1);
+      terraces.add("#b0a89a", x + 50, y + 30, 10, 6).add("#b0a89a", x + 64, y + 30, 12, 6);
+      return {
+        bg: sky(x, y, "mist") + mountain(x, y, 76, 36, 34, 32, "#2f6f3f") + mountain(x, y, 40, 40, 50, 16, "#4f8f5f") + terraces + px2(LLAMA, { w: "#fff4e6", k: "#1a1a1a", n: "#e8a0a0", o: "#8a7358" }, x + 80, y + 38),
+        feet: { x: x + 22, y: y + 58 }
+      };
+    }
+  },
+  {
+    name: "RIO DE JANEIRO",
+    ink: "#2b8a3e",
+    stamp: { bg: "#ebfbee", grid: ["..w..", "wwwww", "..w..", ".ggg.", "ggggg"], colors: { w: "#ffffff", g: "#2f9e44" } },
+    souvenir: { name: "a football", grid: [".www.", "wkwkw", "wwkww", "wkwkw", ".www."], colors: { w: "#ffffff", k: "#1a1a1a" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "tropical") + hill(x, y, 30, 40, 36, 26, "#3f7d4f") + px2(CHRIST, { w: "#f1f3f5" }, x + 23, y + 0) + hill(x, y, 80, 40, 24, 22, "#4f8f5f") + water(x, y, 38, "#1c9ad6", "#e3fafc") + ground(x, y, 48, "#f4d58d", "#fbe7b0"),
+      feet: { x: x + 50, y: y + 56 },
+      friend: { x: x + 70, y: y + 56 }
+    })
+  }
+];
+
+// src/pet/surprises/places/asia.ts
+var PANDA = outlined([
+  ".kk......kk.",
+  "kkkwwwwwwkkk",
+  ".kwwwwwwwwk.",
+  ".wwkkwwkkww.",
+  ".wkkwwwwkkw.",
+  ".wwwwkkwwww.",
+  "..wwwwwwww..",
+  ".kkwwwwwwkk.",
+  "kkkwwwwwwkkk",
+  "kkwwwwwwwwkk",
+  ".kkwwwwwwkk.",
+  "..kkk..kkk.."
+]);
+var PEARL_TOWER = [
+  "....k....",
+  "....s....",
+  "....s....",
+  "...kpk...",
+  "..kpPpk..",
+  "...kpk...",
+  "....s....",
+  "....s....",
+  "....s....",
+  "...sss...",
+  "..kpppk..",
+  ".kpPpppk.",
+  "kpPpppppk",
+  "kpppppppk",
+  ".kpppppk.",
+  "..kpppk..",
+  "..s.s.s..",
+  "..s.s.s..",
+  ".s..s..s.",
+  ".s..s..s.",
+  "s...s...s",
+  "s...s...s"
+];
+var WARRIOR = outlined([
+  "..hh...",
+  ".hhhh..",
+  ".ffff..",
+  ".fkfk..",
+  "..ff...",
+  ".aAaA..",
+  "aAaAaa.",
+  "aaAaAa.",
+  "fAaAaf.",
+  ".aaaa..",
+  ".aAaa..",
+  ".l..l..",
+  ".l..l..",
+  "ll..ll."
+]);
+var WARRIOR_COLORS = { h: "#4a3526", f: "#c89a6a", k: "#5b3a22", a: "#9c6b45", A: "#7a4f30", l: "#8a5a33", o: "#3b2616" };
+var JUNK = [
+  "....r.....r.....",
+  "...rr....rr.....",
+  "..rRr...rRr..r..",
+  ".rrRr..rrRr.rr..",
+  "rrrRr.rrrRrrRr..",
+  "rrrRr.rrrRrrRr..",
+  ".rrRr..rrRr.rr..",
+  "...b.....b...b..",
+  "bbbbbbbbbbbbbbbb",
+  ".bBbBbBbBbBbBbb.",
+  "..bbbbbbbbbbbb.."
+];
+var TAIPEI_101 = [
+  ".....k.....",
+  ".....k.....",
+  "....kgk....",
+  "....ggg....",
+  "...ggggg...",
+  ...Array.from({ length: 8 }, () => ["..gGgggGg..", "...ggggg...", "...gwgwg..."]).flat(),
+  "..ggggggg..",
+  ".ggggggggg.",
+  "ggggggggggg"
+];
+var TOKYO_TOWER = [
+  "......o......",
+  "......o......",
+  ".....ooo.....",
+  ".....owo.....",
+  ".....ooo.....",
+  "....oo.oo....",
+  "....o.o.o....",
+  "....wwwww....",
+  "...oo.o.oo...",
+  "...o.o.o.o...",
+  "...oo.o.oo...",
+  "..ooooooooo..",
+  "..wwwwwwwww..",
+  "..oo.o.o.oo..",
+  "..o.o.o.o.o..",
+  ".oo.o.o.o.oo.",
+  ".o..o...o..o.",
+  "oo..o...o..oo",
+  "o...o...o...o"
+];
+var SEOUL_TOWER = [
+  "...k...",
+  "...k...",
+  "...k...",
+  "...w...",
+  "..www..",
+  ".wwwww.",
+  ".wbbbw.",
+  ".wwwww.",
+  "..www..",
+  ...Array.from({ length: 9 }, () => "...w..."),
+  "..www.."
+];
+var TAJ = [
+  "............k.............",
+  "............k.............",
+  "...........www............",
+  ".........wwwwwww..........",
+  "........wwwwwwwww.........",
+  "........wwwwwwwww.........",
+  ".m.......wwwwwww.......m..",
+  ".m........wwwww........m..",
+  "mmm..w...wwwwwww...w..mmm.",
+  ".m..www.wwwwwwwww.www..m..",
+  ".m..www.wwwwwwwww.www..m..",
+  ".m.wwwwwwwwwwwwwwwwwww.m..",
+  ".m.wsswwwwwaaawwwwwssw.m..",
+  ".m.wsswwwwaaaaawwwwssw.m..",
+  ".m.wwwwwwwaaaaawwwwwww.m..",
+  "mmmwwwwwwwaaaaawwwwwwwmmm.",
+  "wwwwwwwwwwwwwwwwwwwwwwwww."
+];
+var ANGKOR = [
+  "............t............",
+  "...........ttt...........",
+  "...........ttt...........",
+  "...t......ttttt......t...",
+  "..ttt.....ttttt.....ttt..",
+  "..ttt....ttTtttt....ttt..",
+  ".ttttt...ttTtttt...ttttt.",
+  ".ttTtt..tttTttttt..ttTtt.",
+  ".ttTtt.t.tttttt.t..ttTtt.",
+  "ttttttttttttttttttttttttt",
+  "tTtTtTtTtTtTtTtTtTtTtTtTt",
+  "ttttttttttttttttttttttttt"
+];
+function torii(b, cx, base, h) {
+  const w = h * 0.9;
+  const post = Math.max(1, Math.round(h / 10));
+  b.add("#d9480f", cx - w / 2 + w * 0.12, base - h, post, h);
+  b.add("#d9480f", cx + w / 2 - w * 0.12 - post, base - h, post, h);
+  b.add("#d9480f", cx - w / 2 + w * 0.05, base - h * 0.78, w * 0.9, Math.max(1, post));
+  b.add("#d9480f", cx - w / 2, base - h - post, w, post + 1);
+  b.add("#2b1e1e", cx - w / 2 - 1, base - h - post * 2, w + 2, post);
+}
+var ASIA = [
+  {
+    name: "BEIJING",
+    ink: "#c92a2a",
+    stamp: { bg: "#fff3d6", grid: ["t.t.t", "ttttt", "twtwt", "ttttt", "ttttt"], colors: { t: "#a67c52", w: "#fff3d6" } },
+    souvenir: { name: "hawthorn candy", grid: [".r.", "rRr", ".r.", "rRr", ".r.", "rRr", ".b.", ".b."], colors: { r: "#e03131", R: "#ff8787", b: "#8a5a33" } },
+    draw: (x, y) => {
+      const wall = new RectBatch();
+      let wy = 46;
+      for (let i = 0; i < 8; i++) {
+        const sx = x + 18 + i * 8;
+        wall.add("#c9b28a", sx, y + wy, 9, 7).add("#9c8460", sx, y + wy + 6, 9, 1).add("#c9b28a", sx + 1, y + wy - 2, 2, 2).add("#c9b28a", sx + 5, y + wy - 2, 2, 2);
+        wy -= 3;
+      }
+      wall.add("#b39a73", x + 80, y + 14, 14, 20).add("#c9b28a", x + 79, y + 12, 16, 3);
+      for (const dx of [79, 83, 87, 91]) wall.add("#c9b28a", x + dx, y + 9, 2, 3);
+      wall.add("#5b4636", x + 83, y + 18, 3, 5).add("#5b4636", x + 88, y + 18, 3, 5);
+      return {
+        bg: sky(x, y, "day") + cloud(x + 10, y + 6, 20) + hill(x, y, 72, 50, 70, 30, "#5ea65e") + hill(x, y, 18, 52, 56, 16, "#79b865") + ground(x, y, 50, "#6fae5f") + wall,
+        feet: { x: x + 16, y: y + 57 }
+      };
+    }
+  },
+  {
+    name: "CHENGDU",
+    ink: "#2b8a3e",
+    stamp: { bg: "#d3f9d8", grid: [".k.k.", "kwwwk", "wkwkw", "wwkww", ".www."], colors: { k: "#1a1a1a", w: "#ffffff" } },
+    souvenir: { name: "a panda plush", grid: [".k.k.", "kwwwk", "wkwkw", "wwkww", "kwwwk", ".k.k."], colors: { k: "#1a1a1a", w: "#ffffff" } },
+    draw: (x, y) => {
+      const bamboo = new RectBatch();
+      for (const [bx, c] of [[4, "#5aa35a"], [14, "#3f8f4f"], [40, "#5aa35a"], [52, "#3f8f4f"], [86, "#5aa35a"], [92, "#3f8f4f"]]) {
+        bamboo.add(c, x + bx, y, 3, 50);
+        for (let ny = 6; ny < 50; ny += 9) bamboo.add("#2c6b3a", x + bx, y + ny, 3, 1);
+        bamboo.add("#6fbf6a", x + bx + 3, y + 10 + bx % 7, 5, 2).add("#6fbf6a", x + bx - 5, y + 22 + bx % 5, 5, 2);
+      }
+      const stalk = new RectBatch().add("#8fd18f", x + 60, y + 30, 2, 16).add("#6fbf6a", x + 57, y + 28, 4, 2);
+      return {
+        bg: sky(x, y, "mist") + bamboo + ground(x, y, 48, "#79b865", "#8cc97a") + px2(PANDA, { k: "#1a1a1a", w: "#ffffff", o: "#3b3b3b" }, x + 58, y + 22) + stalk,
+        feet: { x: x + 24, y: y + 54 }
+      };
+    }
+  },
+  {
+    name: "SHANGHAI",
+    ink: "#d6336c",
+    stamp: { bg: "#1b2156", grid: [".p.", "ppp", ".s.", "ppp", "s.s"], colors: { p: "#ff5c9a", s: "#c3c9e8" } },
+    souvenir: { name: "soup dumplings", grid: [".w.w.", "wwwww", "wwwww", "bbbbb", "bBbBb"], colors: { w: "#fff8ef", b: "#c79a5b", B: "#a67c3d" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "night") + skyline(x, y, 46, [[34, 8, 20, "#232a52"], [44, 6, 28, "#1c2246"], [52, 10, 16, "#232a52"], [80, 7, 30, "#1c2246"], [88, 8, 22, "#232a52"]], "#ffd6e7") + px2(PEARL_TOWER, { k: "#2a2f5a", p: "#ff5c9a", P: "#ffc2d9", s: "#c3c9e8" }, x + 62, y + 2) + new RectBatch().add("#5c6370", x, y + 44, PW, 4).toString() + water(x, y, 48, "#16204a", "#ff8fb8"),
+      feet: { x: x + 20, y: y + 47 },
+      friend: { x: x + 40, y: y + 47 }
+    })
+  },
+  {
+    name: "GUILIN",
+    ink: "#0b7285",
+    stamp: { bg: "#e6fcf5", grid: ["..g..g", ".gg.gg", ".gggg.", "gggggg", "bbbbbb"], colors: { g: "#2f9e44", b: "#4dabf7" } },
+    souvenir: { name: "a bamboo hat", grid: ["...y...", "..yyy..", ".yYyyy.", "yyyyyyy"], colors: { y: "#e0b861", Y: "#f2d28f" } },
+    draw: (x, y) => {
+      const raft = new RectBatch();
+      for (let i = 0; i < 8; i++) raft.add(i % 2 ? "#c9a36b" : "#a88450", x + 10 + i * 4, y + 50, 4, 4);
+      raft.add("#6b4a2a", x + 10, y + 53, 32, 1);
+      return {
+        bg: sky(x, y, "mist") + hill(x, y, 22, 46, 20, 36, "#8db89a") + hill(x, y, 50, 46, 22, 26, "#7aa888") + hill(x, y, 76, 46, 20, 40, "#6a9e7a") + hill(x, y, 94, 46, 16, 24, "#8db89a") + water(x, y, 44, "#5aa6a0", "#b8e0dc") + raft,
+        feet: { x: x + 26, y: y + 51 }
+      };
+    }
+  },
+  {
+    name: "XI'AN",
+    ink: "#a0522d",
+    stamp: { bg: "#fff4e6", grid: [".hh.", "hhhh", "ffff", "fkfk", ".ff."], colors: { h: "#4a3526", f: "#c89a6a", k: "#5b3a22" } },
+    souvenir: { name: "a mini warrior", grid: [".hh.", ".ff.", "aAaA", "aaAa", ".l.l"], colors: { h: "#4a3526", f: "#c89a6a", a: "#9c6b45", A: "#7a4f30", l: "#8a5a33" } },
+    draw: (x, y) => {
+      const pit = new RectBatch().add("#c9955f", x, y + 8, PW, 18).add("#b07845", x, y + 26, PW, 34);
+      for (let ly = 12; ly < 26; ly += 5) pit.add("#a97a4a", x, y + ly, PW, 1);
+      let army = "";
+      for (const [wx, base] of [[48, 36], [64, 36], [80, 36], [56, 54], [72, 54], [88, 54]]) army += px2(WARRIOR, WARRIOR_COLORS, x + wx - 8, y + base - 32);
+      return { bg: sky(x, y, "day") + pit + army, feet: { x: x + 22, y: y + 56 } };
+    }
+  },
+  {
+    name: "HONG KONG",
+    ink: "#c92a2a",
+    stamp: { bg: "#fff4e6", grid: ["..r..", ".rRr.", "rrRrr", "..b..", "bbbbb"], colors: { r: "#d9480f", R: "#a8350a", b: "#6b4226" } },
+    souvenir: { name: "an egg tart", grid: [".bbbb.", "bYyyYb", "byyyyb", ".bbbb."], colors: { b: "#c68b59", y: "#ffd43b", Y: "#fff3bf" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "night") + mountain(x, y, 70, 30, 90, 16, "#1c2246") + skyline(x, y, 38, [[0, 8, 22, "#2a3160"], [9, 6, 30, "#232a52"], [16, 9, 18, "#2a3160"], [26, 5, 34, "#1f2550"], [32, 8, 24, "#2a3160"], [41, 7, 28, "#232a52"], [49, 9, 20, "#2a3160"], [59, 6, 32, "#1f2550"], [66, 8, 22, "#2a3160"], [75, 7, 26, "#232a52"], [83, 9, 18, "#2a3160"]], "#9ff0ff") + water(x, y, 38, "#101a44", "#ff8fb8") + px2(JUNK, { r: "#d9480f", R: "#a8350a", b: "#6b4226", B: "#8a5a33" }, x + 58, y + 32) + new RectBatch().add("#5b4636", x, y + 50, 40, 4).add("#3b2a1a", x + 4, y + 54, 3, 6).add("#3b2a1a", x + 32, y + 54, 3, 6).toString(),
+      feet: { x: x + 20, y: y + 51 }
+    })
+  },
+  {
+    name: "TAIPEI",
+    ink: "#2b8a3e",
+    stamp: { bg: "#e6fcf5", grid: ["..k..", ".ggg.", ".GgG.", ".ggg.", ".GgG.", "ggggg"], colors: { k: "#3b5b58", g: "#7fbfb5", G: "#a5d8cf" } },
+    souvenir: { name: "bubble tea", grid: ["..k..", "wwwww", "wtttw", "wtttw", "wkkkw", ".www."], colors: { k: "#3b2616", w: "#e7f5ff", t: "#d9a066" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "day") + cloud(x + 8, y + 8, 18) + hill(x, y, 30, 48, 70, 18, "#6fae7a") + hill(x, y, 88, 48, 50, 14, "#5e9e6a") + skyline(x, y, 48, [[40, 8, 12, "#b8c4d0"], [50, 6, 16, "#a5b4c3"], [82, 9, 14, "#b8c4d0"]], "#e7f5ff") + px2(TAIPEI_101, { k: "#3b5b58", g: "#7fbfb5", G: "#a5d8cf", w: "#e7f5ff" }, x + 60, y + 48 - TAIPEI_101.length * 2) + ground(x, y, 48, "#8a9099", "#adb5bd"),
+      feet: { x: x + 22, y: y + 54 },
+      friend: { x: x + 42, y: y + 54 }
+    })
+  },
+  {
+    name: "TOKYO",
+    ink: "#e8590c",
+    stamp: { bg: "#fff0f6", grid: ["..w..", ".www.", "bbbbb", "bbbbb"], colors: { w: "#ffffff", b: "#5c7cfa" } },
+    souvenir: { name: "a lucky cat", grid: ["w.w.w", "wwwww", "kwkww", "wwrww", "wwwww", ".yyy."], colors: { w: "#ffffff", k: "#1a1a1a", r: "#e03131", y: "#fcc419" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "sunset") + sun(x + 16, y + 16, 5, "#fff3bf") + mountain(x, y, 36, 46, 70, 30, "#7c86b8", 10) + skyline(x, y, 48, [[0, 10, 8, "#5c4a7a"], [12, 7, 12, "#4a3b66"], [22, 9, 7, "#5c4a7a"], [80, 8, 10, "#4a3b66"], [88, 8, 14, "#5c4a7a"]], "#ffe8a3") + px2(TOKYO_TOWER, { o: "#ff6b1a", w: "#ffffff" }, x + 54, y + 48 - TOKYO_TOWER.length * 2) + ground(x, y, 48, "#6b5a7a"),
+      feet: { x: x + 22, y: y + 55 },
+      friend: { x: x + 40, y: y + 55 }
+    })
+  },
+  {
+    name: "KYOTO",
+    ink: "#d9480f",
+    stamp: { bg: "#fff4e6", grid: ["kkkkkk", "rrrrrr", ".r..r.", "rrrrrr", ".r..r.", ".r..r."], colors: { k: "#2b1e1e", r: "#d9480f" } },
+    souvenir: { name: "a cup of matcha", grid: ["wgggw", "wgGgw", "wwwww", ".www."], colors: { w: "#f1f3f5", g: "#6aa84f", G: "#9ccc65" } },
+    draw: (x, y) => {
+      const gates = new RectBatch();
+      for (const [cx, base, h] of [[88, 34, 8], [82, 37, 11], [75, 41, 15], [67, 46, 20], [58, 52, 26]]) torii(gates, x + cx, y + base, h);
+      return {
+        bg: sky(x, y, "day") + hill(x, y, 60, 44, 110, 30, "#3f7d4f") + ground(x, y, 44, "#5e9e6a") + new RectBatch().add("#d9c7a8", x + 40, y + 44, 56, 16).add("#d9c7a8", x + 62, y + 36, 30, 8).toString() + gates,
+        feet: { x: x + 22, y: y + 56 }
+      };
+    }
+  },
+  {
+    name: "SEOUL",
+    ink: "#5f3dc4",
+    stamp: { bg: "#f3f0ff", grid: ["..k..", ".www.", ".wbw.", "..w..", "..w..", ".ggg."], colors: { k: "#343a40", w: "#ffffff", b: "#5c7cfa", g: "#2f9e44" } },
+    souvenir: { name: "kimchi", grid: [".bb.", "brrb", "brRb", "brrb", ".bb."], colors: { b: "#8a5a33", r: "#e03131", R: "#ff6b6b" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "dusk") + hill(x, y, 68, 50, 70, 26, "#2f5d3a") + px2(SEOUL_TOWER, { k: "#343a40", w: "#f1f3f5", b: "#91a7ff" }, x + 61, y + 26 - SEOUL_TOWER.length * 2 + 4) + skyline(x, y, 54, [[0, 12, 10, "#3b3566"], [14, 8, 16, "#2f2a55"], [24, 10, 8, "#3b3566"], [84, 12, 12, "#2f2a55"]], "#ffd8a8") + ground(x, y, 54, "#4a4270"),
+      feet: { x: x + 24, y: y + 56 },
+      friend: { x: x + 44, y: y + 56 }
+    })
+  },
+  {
+    name: "BALI",
+    ink: "#2b8a3e",
+    stamp: { bg: "#e6fcf5", grid: ["..w..", ".wyw.", "wyyyw", ".wyw.", "..w.."], colors: { w: "#ffffff", y: "#fcc419" } },
+    souvenir: { name: "a frangipani", grid: ["..w..", ".wyw.", "wyyyw", ".wyw.", "..w.."], colors: { w: "#ffffff", y: "#fcc419" } },
+    draw: (x, y) => {
+      const terraces = new RectBatch();
+      for (let i = 0; i < 6; i++) terraces.add(i % 2 ? "#74c26b" : "#5eaf57", x + 40 - i * 6, y + 26 + i * 5, 80, 5).add("#9ad48f", x + 40 - i * 6, y + 26 + i * 5, 80, 1);
+      const gate = new RectBatch();
+      for (const side of [0, 1]) {
+        const gx = x + (side ? 82 : 64);
+        for (let s = 0; s < 5; s++) gate.add(s % 2 ? "#6b5a4a" : "#826d58", gx + (side ? 0 : s), y + 8 + s * 4, 10 - s, 4);
+        gate.add("#826d58", gx, y + 28, 10, 20);
+      }
+      return { bg: sky(x, y, "tropical") + cloud(x + 6, y + 6, 16) + terraces + gate, feet: { x: x + 22, y: y + 56 } };
+    }
+  },
+  {
+    name: "SINGAPORE",
+    ink: "#c92a2a",
+    stamp: { bg: "#1b2156", grid: ["bbbbbb", "t.t.t.", "t.t.t.", "t.t.t."], colors: { b: "#c3c9e8", t: "#8d99c2" } },
+    souvenir: { name: "a durian", grid: [".g.g.", "ggggg", "gGgGg", "ggggg", ".ggg."], colors: { g: "#94d82d", G: "#5c940d" } },
+    draw: (x, y) => {
+      const mbs = new RectBatch();
+      for (const tx of [50, 62, 74]) {
+        mbs.add("#8d99c2", x + tx, y + 16, 8, 28).add("#aab4d6", x + tx, y + 16, 2, 28);
+        for (let wy = 19; wy < 42; wy += 4) mbs.add("#ffe8a3", x + tx + 3, y + wy, 3, 1);
+      }
+      mbs.add("#c3c9e8", x + 46, y + 12, 42, 3).add("#5c6b99", x + 48, y + 15, 38, 1).add("#c3c9e8", x + 84, y + 11, 6, 2);
+      return {
+        bg: sky(x, y, "night") + moon(x + 16, y + 12) + mbs + water(x, y, 44, "#101a44", "#ffe8a3"),
+        feet: { x: x + 22, y: y + 44 },
+        fg: new RectBatch().add("#5c6370", x, y + 44, 40, 3).toString()
+      };
+    }
+  },
+  {
+    name: "AGRA",
+    ink: "#a61e4d",
+    stamp: { bg: "#fff0f6", grid: ["..k..", ".www.", "wwwww", "wwwww", "waaaw", "wwwww"], colors: { k: "#868e96", w: "#ffffff", a: "#d8cbb3" } },
+    souvenir: { name: "masala chai", grid: ["..s..", "bbbbb", "bcccb", "bcccb", ".bbb."], colors: { s: "#ffffff", b: "#c68b59", c: "#a0522d" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "sunset") + px2(TAJ, { k: "#868e96", w: "#f8f4ec", s: "#e3d9c6", a: "#d8cbb3", m: "#f1ebe0" }, x + 44, y + 4) + ground(x, y, 38, "#6fae5f") + new RectBatch().add("#7fc8e6", x + 60, y + 40, 20, 20).add("#bfe6f5", x + 64, y + 42, 4, 16).toString(),
+      feet: { x: x + 24, y: y + 56 }
+    })
+  },
+  {
+    name: "EVEREST",
+    ink: "#1971c2",
+    stamp: { bg: "#e7f5ff", grid: ["..w..", ".www.", ".gww.", "gggwg", "ggggg"], colors: { w: "#ffffff", g: "#748ffc" } },
+    souvenir: { name: "prayer flags", grid: ["kkkkk", "bwrgy", "bwrgy"], colors: { k: "#5b4636", b: "#1c7ed6", w: "#ffffff", r: "#e03131", g: "#2f9e44", y: "#fcc419" } },
+    draw: (x, y) => {
+      const flags = new RectBatch();
+      const colours = ["#1c7ed6", "#ffffff", "#e03131", "#2f9e44", "#fcc419"];
+      for (let i = 0; i < 10; i++) {
+        const fx2 = x + 2 + i * 5;
+        const fy = y + 8 + Math.round(Math.sin(i / 9 * Math.PI) * 5);
+        flags.add("#5b4636", fx2, fy, 5, 1).add(colours[i % 5], fx2 + 1, fy + 1, 3, 4);
+      }
+      return {
+        bg: sky(x, y, "day") + mountain(x, y, 30, 52, 70, 26, "#8ea3c7", 8) + mountain(x, y, 66, 52, 84, 48, "#6f84ad", 18) + mountain(x, y, 94, 52, 40, 20, "#8ea3c7", 6) + ground(x, y, 50, "#eef3f8", "#ffffff") + flags,
+        feet: { x: x + 22, y: y + 56 }
+      };
+    }
+  },
+  {
+    name: "DUBAI",
+    ink: "#b8860b",
+    stamp: { bg: "#fff9db", grid: ["..s..", "..s..", ".sss.", ".sss.", "sssss"], colors: { s: "#8d99ae" } },
+    souvenir: { name: "some dates", grid: ["bb.bb", "bBbbB", ".bb..", ".Bb.."], colors: { b: "#7a4a24", B: "#a0673a" } },
+    draw: (x, y) => {
+      const burj = new RectBatch();
+      const widths = [10, 10, 9, 9, 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 2, 1, 1, 1];
+      widths.forEach((w, i) => burj.add(i % 3 ? "#cfd8e3" : "#eef3f8", x + 72 - w, y + 46 - i * 2, w * 2, 2));
+      burj.add("#cfd8e3", x + 71, y + 46 - widths.length * 2 - 8, 2, 8);
+      return {
+        bg: sky(x, y, "desert") + sun(x + 20, y + 12, 5, "#fff3bf") + burj + hill(x, y, 20, 60, 70, 16, "#e8c98f") + hill(x, y, 80, 60, 60, 12, "#dcb877") + ground(x, y, 52, "#e8c98f"),
+        feet: { x: x + 26, y: y + 55 }
+      };
+    }
+  },
+  {
+    name: "ANGKOR WAT",
+    ink: "#9c6b30",
+    stamp: { bg: "#fff4e6", grid: ["..t..", ".ttt.", "t.t.t", "ttttt", "ttttt"], colors: { t: "#7a5c3a" } },
+    souvenir: { name: "a lotus", grid: ["..p..", ".pPp.", "pPpPp", ".ggg."], colors: { p: "#f783ac", P: "#fcc2d7", g: "#2f9e44" } },
+    draw: (x, y) => {
+      const lotus = new RectBatch();
+      for (const [lx, ly] of [[60, 54], [80, 50], [72, 57]]) lotus.add("#2f9e44", x + lx - 2, y + ly + 2, 7, 2).add("#f783ac", x + lx, y + ly, 3, 2);
+      return {
+        bg: sky(x, y, "sunset") + sun(x + 80, y + 14, 6, "#fff3bf") + px2(ANGKOR, { t: "#6b4f35", T: "#8a6a4a" }, x + 22, y + 12) + ground(x, y, 36, "#6fae5f") + water(x, y, 44, "#e8a37a", "#ffd8a8") + lotus,
+        feet: { x: x + 20, y: y + 44 }
+      };
+    }
+  }
+];
+
+// src/pet/surprises/places/europe.ts
+var EIFFEL = [
+  ".......k.......",
+  ".......k.......",
+  "......kkk......",
+  "......kek......",
+  "......kkk......",
+  ".....kk.kk.....",
+  ".....k.k.k.....",
+  ".....kk.kk.....",
+  ".....kk.kk.....",
+  "....kkkkkkk....",
+  "....k.k.k.k....",
+  "....kk.k.kk....",
+  "...kk.k.k.kk...",
+  "...kk.k.k.kk...",
+  "..kkkkkkkkkkk..",
+  "..kk.k...k.kk..",
+  "..k.k.....k.k..",
+  ".kk..........kk",
+  ".kkkkkkkkkkkkk.",
+  ".kk.........kk.",
+  "kk...kkkkk...kk",
+  "k...kk...kk...k",
+  "k..kk.....kk..k"
+];
+var BIG_BEN = [
+  "....k....",
+  "....k....",
+  "...ttt...",
+  "...ttt...",
+  "..ttttt..",
+  "..tTtTt..",
+  ".ttttttt.",
+  ".twwwwwt.",
+  ".twwkwwt.",
+  ".twkkwwt.",
+  ".twwwwwt.",
+  ".ttttttt.",
+  ...Array.from({ length: 6 }, () => [".tTtTtTt.", ".ttttttt."]).flat(),
+  "ttttttttt"
+];
+var BUS = outlined([
+  "rrrrrrrrrrrrrrrr",
+  "rwwrwwrwwrwwrwwr",
+  "rrrrrrrrrrrrrrrr",
+  "rwwrwwrwwrwwrwwr",
+  "rrrrrrrrrrrrrrrr",
+  ".kk........kk..."
+]);
+var COLOSSEUM = [
+  "..............ssssssss..",
+  "......ssssssssssssssssss",
+  "..ssssssssssssssssssssss",
+  ".sakasakasakasakasakasak",
+  ".sakasakasakasakasakasak",
+  "ssssssssssssssssssssssss",
+  "sakasakasakasakasakasaka",
+  "sakasakasakasakasakasaka",
+  "ssssssssssssssssssssssss",
+  "sakasakasakasakasakasaka",
+  "sakasakasakasakasakasaka",
+  "ssssssssssssssssssssssss"
+];
+var WINDMILL = [
+  "s.......s..",
+  ".s.....s...",
+  "..s...s....",
+  "...s.s.....",
+  "....h......",
+  "...shs.....",
+  "..s.b.s....",
+  ".s.bbb.s...",
+  "s..bbbb.s..",
+  "...bbbb....",
+  "..bbwbbb...",
+  "..bbwbbb...",
+  ".bbbbbbbb..",
+  ".bbbbbbbb.."
+];
+var PARTHENON = [
+  "......ppppppp......",
+  "...ppppppppppppp...",
+  "ppppppppppppppppppp",
+  "ppppppppppppppppppp",
+  "c.c.c.c.c.c.c.c.c.c",
+  "c.c.c.c.c.c.c.c.c.c",
+  "c.c.c.c.c.c.c.c.c.c",
+  "c.c.c.c.c.c.c.c.c.c",
+  "c.c.c.c.c.c.c.c.c.c",
+  "ppppppppppppppppppp"
+];
+var SAGRADA = [
+  "..y.....y..y.....y..",
+  ".ttt...ttttt....ttt.",
+  ".ttt...tt.tt....ttt.",
+  ".tTt...tTtTt....tTt.",
+  ".ttt..ttttttt...ttt.",
+  ".tTt..tTt.tTt...tTt.",
+  "ttttt.ttttttt..ttttt",
+  "tTtTt.tTtTtTt..tTtTt",
+  "tttttttttttttttttttt",
+  "tTttTttTttTttTttTttT",
+  "tttkkkttttttttkkkttt",
+  "tttkkkttttttttkkkttt"
+];
+var ST_BASILS = [
+  ".........y.........",
+  "........ggg........",
+  "...y...gGgGg...y...",
+  "..rrr...ggg...bbb..",
+  ".rwrwr..rrr..bwbwb.",
+  "..rrr..rrrrr..bbb..",
+  "..ttt..ttttt..ttt..",
+  "..tRt..tRtRt..tRt..",
+  "..ttt..ttttt..ttt..",
+  "ttttttttttttttttttt",
+  "tRtRtRtRtRtRtRtRtRt",
+  "ttttttttkkkttttttt.",
+  "ttttttttkkktttttttt"
+];
+var MOSQUE = [
+  "m..........k.........m",
+  "m.........www........m",
+  "m.......wwwwwww......m",
+  "m......wwwwwwwww.....m",
+  "m....w.wwwwwwwww.w...m",
+  "m...www.wwwwwww.www..m",
+  "m..wwwwwwwwwwwwwwwww.m",
+  "mm.wwwwwwwwwwwwwwwwwmm",
+  "m.wwawwawwawwawwawwaw.",
+  "m.wwwwwwwwwwwwwwwwwww."
+];
+var GATE = [
+  ".......qqqqq.......",
+  "......qq.q.qq......",
+  "sssssssssssssssssss",
+  "SSSSSSSSSSSSSSSSSSS",
+  "ssssssssssssssssss.",
+  ".s.s.s.s.s.s.s.s.s.",
+  ".s.s.s.s.s.s.s.s.s.",
+  ".s.s.s.s.s.s.s.s.s.",
+  ".s.s.s.s.s.s.s.s.s.",
+  ".s.s.s.s.s.s.s.s.s.",
+  "sssssssssssssssssss"
+];
+var EUROPE = [
+  {
+    name: "PARIS",
+    ink: "#364fc7",
+    stamp: { bg: "#edf2ff", grid: ["..k..", "..k..", ".kkk.", ".k.k.", "k...k"], colors: { k: "#6b5a48" } },
+    souvenir: { name: "a croissant", grid: ["..ccc..", ".cCcCc.", "cc...cc"], colors: { c: "#e0a458", C: "#b97a36" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "day") + cloud(x + 6, y + 8, 20) + cloud(x + 36, y + 16, 14) + px2(EIFFEL, { k: "#6b5a48", e: "#ffd43b" }, x + 58, y + 4) + ground(x, y, 50, "#79b865", "#8cc97a"),
+      feet: { x: x + 24, y: y + 55 },
+      friend: { x: x + 42, y: y + 55 }
+    })
+  },
+  {
+    name: "LONDON",
+    ink: "#c92a2a",
+    stamp: { bg: "#fff5f5", grid: ["..k..", ".ttt.", ".twt.", ".ttt.", ".ttt.", "ttttt"], colors: { k: "#5b4636", t: "#c8a86b", w: "#ffffff" } },
+    souvenir: { name: "a cup of tea", grid: ["..s...", "wwww..", "wtttww", "wtttw.", ".www.."], colors: { s: "#ffffff", w: "#f1f3f5", t: "#a0522d" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "mist") + cloud(x + 6, y + 6, 22, "#f1f3f5") + px2(BIG_BEN, { k: "#5b4636", t: "#c8a86b", T: "#a8894f", w: "#fff8e1" }, x + 74, y + 2) + ground(x, y, 50, "#6b717a", "#868e96") + px2(BUS, { r: "#e03131", w: "#cfe8ff", k: "#212529", o: "#6b1414" }, x + 40, y + 36),
+      feet: { x: x + 20, y: y + 57 }
+    })
+  },
+  {
+    name: "ROME",
+    ink: "#c92a2a",
+    stamp: { bg: "#fff4e6", grid: ["sssss", "sksks", "sssss", "sksks"], colors: { s: "#d9b98a", k: "#7a5a3a" } },
+    souvenir: { name: "a pizza slice", grid: ["bbbbb", "yryry", ".yry.", "..y.."], colors: { b: "#c68b59", y: "#ffd43b", r: "#e03131" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "day") + sun(x + 16, y + 12, 5) + px2(COLOSSEUM, { s: "#d9b98a", a: "#b8966a", k: "#6b4a2a" }, x + 44, y + 22) + ground(x, y, 46, "#c9b28a", "#d9c7a8"),
+      feet: { x: x + 22, y: y + 55 },
+      friend: { x: x + 40, y: y + 55 }
+    })
+  },
+  {
+    name: "VENICE",
+    ink: "#1864ab",
+    stamp: { bg: "#e7f5ff", grid: ["k.....", "kk...k", ".kkkkk", "..kk.."], colors: { k: "#1a1a1a" } },
+    souvenir: { name: "a carnival mask", grid: ["p...p", "ggggg", "gkgkg", ".ggg."], colors: { g: "#fcc419", k: "#1a1a1a", p: "#be4bdb" } },
+    draw: (x, y) => {
+      const houses = new RectBatch();
+      for (const [hx, hw, hh, c] of [[0, 14, 30, "#f4a261"], [14, 12, 36, "#e76f51"], [70, 12, 34, "#e9c46a"], [82, 14, 28, "#f4a261"]]) {
+        houses.add(c, x + hx, y + 40 - hh, hw, hh);
+        for (let wy = 40 - hh + 4; wy < 36; wy += 7) houses.add("#264653", x + hx + 3, y + wy, 3, 4).add("#264653", x + hx + hw - 6, y + wy, 3, 4);
+      }
+      const gondola = new RectBatch().add("#1a1a1a", x + 28, y + 50, 40, 3).add("#1a1a1a", x + 26, y + 47, 3, 4).add("#1a1a1a", x + 66, y + 46, 3, 5).add("#c92a2a", x + 40, y + 49, 14, 1);
+      return {
+        bg: sky(x, y, "sunset") + houses + `<path d="M${x + 30} ${y + 30}q18 -12 36 0v4q-18 -9 -36 0z" fill="#e9dcc3"/>` + water(x, y, 40, "#2f7fa8", "#a5d8ff") + gondola,
+        feet: { x: x + 48, y: y + 50 }
+      };
+    }
+  },
+  {
+    name: "AMSTERDAM",
+    ink: "#e8590c",
+    stamp: { bg: "#fff4e6", grid: ["s...s", ".s.s.", "..h..", ".bbb.", ".bwb."], colors: { s: "#6b4a2a", h: "#343a40", b: "#8a5a33", w: "#fff4e6" } },
+    souvenir: { name: "wooden clogs", grid: ["....yy", "yyyyyy", ".yyyyy"], colors: { y: "#fcc419" } },
+    draw: (x, y) => {
+      const tulips = new RectBatch();
+      const colours = ["#e03131", "#fcc419", "#f783ac", "#e03131"];
+      for (let row = 0; row < 4; row++) for (let tx = 0; tx < PW; tx += 4) tulips.add(colours[row], x + tx + row % 2 * 2, y + 46 + row * 4, 2, 2).add("#2f9e44", x + tx + row % 2 * 2, y + 48 + row * 4, 2, 2);
+      return {
+        bg: sky(x, y, "day") + cloud(x + 10, y + 6, 18) + ground(x, y, 44, "#5eaf57") + px2(WINDMILL, { s: "#6b4a2a", h: "#343a40", b: "#8a5a33", w: "#fff4e6" }, x + 62, y + 16) + tulips,
+        feet: { x: x + 24, y: y + 50 }
+      };
+    }
+  },
+  {
+    name: "SANTORINI",
+    ink: "#1864ab",
+    stamp: { bg: "#e7f5ff", grid: [".bbb.", "bbbbb", "wwwww", "wkwkw"], colors: { b: "#1c7ed6", w: "#ffffff", k: "#495057" } },
+    souvenir: { name: "a jar of olives", grid: [".kkk.", "jjjjj", "jgGgj", "jGgGj", "jgGgj", "jjjjj"], colors: { k: "#1c7ed6", j: "#d0ebff", g: "#5c940d", G: "#94d82d" } },
+    draw: (x, y) => {
+      const town = new RectBatch();
+      for (const [hx, hy, hw, hh] of [[46, 22, 14, 10], [58, 16, 12, 16], [70, 24, 14, 10], [82, 18, 14, 14], [52, 30, 16, 8], [74, 32, 16, 8]]) {
+        town.add("#ffffff", x + hx, y + hy, hw, hh).add("#dee2e6", x + hx, y + hy + hh - 1, hw, 1).add("#1c7ed6", x + hx + 3, y + hy + hh - 5, 3, 4);
+      }
+      return {
+        bg: sky(x, y, "sunset") + sun(x + 20, y + 30, 6, "#fff3bf") + water(x, y, 36, "#1971c2", "#74c0fc") + hill(x, y, 72, 44, 60, 12, "#b08968") + town + `<path d="M${x + 60} ${y + 16}a5 5 0 0 1 10 0z M${x + 84} ${y + 18}a5 5 0 0 1 10 0z" fill="#1c7ed6"/>` + new RectBatch().add("#f1e3c6", x, y + 50, 44, 10).toString(),
+        feet: { x: x + 22, y: y + 52 }
+      };
+    }
+  },
+  {
+    name: "ATHENS",
+    ink: "#1864ab",
+    stamp: { bg: "#e7f5ff", grid: ["..p..", "ppppp", "c.c.c", "c.c.c", "ppppp"], colors: { p: "#e9dcc3", c: "#d8cbb3" } },
+    souvenir: { name: "a greek vase", grid: [".oo.", "oooo", "okko", "oooo", ".oo."], colors: { o: "#e8590c", k: "#1a1a1a" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "day") + sun(x + 16, y + 12, 5) + hill(x, y, 68, 40, 72, 14, "#b8a07a") + px2(PARTHENON, { p: "#e9dcc3", c: "#d8cbb3" }, x + 50, y + 8) + ground(x, y, 40, "#c9b28a") + hill(x, y, 16, 60, 30, 20, "#6b8e4e"),
+      feet: { x: x + 24, y: y + 55 },
+      friend: { x: x + 44, y: y + 55 }
+    })
+  },
+  {
+    name: "BARCELONA",
+    ink: "#e67700",
+    stamp: { bg: "#fff9db", grid: ["y...y", "t.t.t", "t.t.t", "ttttt", "ttttt"], colors: { y: "#fcc419", t: "#b08968" } },
+    souvenir: { name: "churros", grid: ["b.b.b", "b.b.b", "b.b.b", "kkkkk", "kkkkk"], colors: { b: "#e0a458", k: "#5c3d2e" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "day") + cloud(x + 8, y + 8, 18) + px2(SAGRADA, { y: "#fcc419", t: "#b08968", T: "#8a6a4a", k: "#3b2a1a" }, x + 54, y + 14) + // Still under construction, of course.
+      new RectBatch().add("#fcc419", x + 90, y + 4, 1, 34).add("#fcc419", x + 78, y + 4, 16, 1).add("#1a1a1a", x + 80, y + 5, 1, 6).toString() + ground(x, y, 38, "#d9c7a8"),
+      feet: { x: x + 22, y: y + 55 },
+      friend: { x: x + 40, y: y + 55 }
+    })
+  },
+  {
+    name: "MOSCOW",
+    ink: "#c92a2a",
+    stamp: { bg: "#fff5f5", grid: ["..y..", ".ggg.", "gGgGg", ".ggg.", "rrrrr"], colors: { y: "#fcc419", g: "#2f9e44", G: "#8ce99a", r: "#c92a2a" } },
+    souvenir: { name: "a matryoshka", grid: [".ff.", "rffr", "rrrr", "ryyr", ".rr."], colors: { f: "#f8d8b0", r: "#e03131", y: "#fcc419" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "snow") + px2(ST_BASILS, { y: "#fcc419", g: "#2f9e44", G: "#8ce99a", r: "#e03131", w: "#ffffff", b: "#1c7ed6", t: "#b5452b", R: "#e8a18f", k: "#3b1a14" }, x + 54, y + 20) + ground(x, y, 46, "#eef3f8", "#ffffff"),
+      feet: { x: x + 24, y: y + 55 },
+      friend: { x: x + 42, y: y + 55 }
+    })
+  },
+  {
+    name: "ICELAND",
+    ink: "#0b7285",
+    stamp: { bg: "#0e1440", grid: ["g.g..", ".g.g.", "..g.g", "wwwww"], colors: { g: "#69db7c", w: "#ffffff" } },
+    souvenir: { name: "a puffin", grid: ["kkk.", "kwwo", "kwwO", "kww."], colors: { k: "#1a1a1a", w: "#ffffff", o: "#ff922b", O: "#e8590c" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "night") + // The northern lights ripple across the sky.
+      `<g class="pf-s-flicker" opacity=".8"><path d="M${x} ${y + 18}q24 -14 48 0t48 0v6q-24 -12 -48 0t-48 0z" fill="#69db7c" opacity=".7"/><path d="M${x} ${y + 28}q24 -10 48 0t48 -4v4q-24 -8 -48 2t-48 0z" fill="#b197fc" opacity=".5"/></g>` + mountain(x, y, 70, 50, 70, 22, "#3b4a6b", 8) + mountain(x, y, 22, 50, 50, 14, "#4a5a7b", 5) + ground(x, y, 48, "#dfe7f0", "#f8fbff"),
+      feet: { x: x + 26, y: y + 55 }
+    })
+  },
+  {
+    name: "SWISS ALPS",
+    ink: "#c92a2a",
+    stamp: { bg: "#fff5f5", grid: ["..w..", ".wgw.", ".ggg.", "ggggg"], colors: { w: "#ffffff", g: "#5c7cfa" } },
+    souvenir: { name: "swiss cheese", grid: ["..yyy", "yyoyy", "yoyyy", "yyyyo"], colors: { y: "#fcc419", o: "#e8b10f" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "day") + mountain(x, y, 66, 48, 44, 44, "#7d8aa8", 14) + mountain(x, y, 30, 48, 60, 20, "#95a3be", 6) + ground(x, y, 46, "#6fbf5a", "#8cd176") + // A chalet with a pitched roof.
+      new RectBatch().add("#b07845", x + 74, y + 40, 16, 10).add("#ffffff", x + 78, y + 43, 3, 3).add("#ffffff", x + 84, y + 43, 3, 3).toString() + `<path d="M${x + 71} ${y + 41}L${x + 82} ${y + 33}L${x + 93} ${y + 41}Z" fill="#6b3a1e"/>`,
+      feet: { x: x + 26, y: y + 55 },
+      friend: { x: x + 46, y: y + 55 }
+    })
+  },
+  {
+    name: "ISTANBUL",
+    ink: "#1864ab",
+    stamp: { bg: "#e7f5ff", grid: ["m.k.m", "m.w.m", "mwwwm", "wwwww"], colors: { m: "#adb5bd", k: "#868e96", w: "#dee2e6" } },
+    souvenir: { name: "a mosaic lamp", grid: ["..k..", ".rbr.", "rbybr", ".rbr.", "..k.."], colors: { k: "#b8860b", r: "#e03131", b: "#1c7ed6", y: "#fcc419" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "sunset") + sun(x + 18, y + 14, 5, "#fff3bf") + px2(MOSQUE, { m: "#c9cfd6", k: "#868e96", w: "#e9e4dc", a: "#8d99ae" }, x + 50, y + 22) + water(x, y, 42, "#3a6ea5", "#a5d8ff") + new RectBatch().add("#b08968", x, y + 50, 40, 10).toString(),
+      feet: { x: x + 20, y: y + 52 }
+    })
+  },
+  {
+    name: "BERLIN",
+    ink: "#343a40",
+    stamp: { bg: "#f8f9fa", grid: ["...q...", "..qqq..", "sssssss", "SSSSSSS", "s.s.s.s", "s.s.s.s", "s.s.s.s", "sssssss"], colors: { q: "#2f9e44", s: "#c9b28a", S: "#a68b5b" } },
+    souvenir: { name: "a pretzel", grid: [".bb.bb.", "b..b..b", "b.bwb.b", "bb...bb", ".bbwbb."], colors: { b: "#b5651d", w: "#f8f9fa" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "day") + cloud(x + 8, y + 6, 20) + px2(GATE, { q: "#3f8f6a", s: "#d9c49a", S: "#b8a07a" }, x + 54, y + 20) + ground(x, y, 42, "#adb5bd", "#ced4da"),
+      feet: { x: x + 24, y: y + 55 },
+      friend: { x: x + 42, y: y + 55 }
+    })
+  }
+];
+
+// src/pet/surprises/places/oceania.ts
+var MOAI = outlined([
+  ".ssss.",
+  "ssssss",
+  "kSSSSk",
+  "skSSks",
+  "ssSSss",
+  "ssSSss",
+  "sSSSSs",
+  "ssssss",
+  "skkkks",
+  "ssssss",
+  ".ssss.",
+  "ssssss",
+  "ssssss"
+]);
+var PENGUIN = outlined(["..kk..", ".kkkk.", ".kwkw.", "kkwwff", "kwwwk.", "kwwwk.", "kwwwk.", ".f..f."]);
+var CORAL = ["p..p..p.", "p.p.p.p.", "ppp.ppp.", ".p...p..", ".pp.pp..", "..ppp...", "...p....", "...p...."];
+var TURTLE = outlined(["..ggg...", ".gGgGg..", "gGgGgGgh", ".ggggg..", "h.....h."]);
+var OCEANIA = [
+  {
+    name: "SYDNEY",
+    ink: "#1864ab",
+    stamp: { bg: "#e7f5ff", grid: ["..w..w", ".ww.ww", "wwwwww", "bbbbbb"], colors: { w: "#ffffff", b: "#1c7ed6" } },
+    souvenir: { name: "a boomerang", grid: ["bb....", "bbb...", ".bbb..", "..bbbb", "...bbb"], colors: { b: "#a0673a" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "day") + sun(x + 16, y + 10, 5) + // The Harbour Bridge's arch behind, the Opera House's sails in front.
+      `<path d="M${x + 30} ${y + 38}Q${x + 60} ${y + 4} ${x + 96} ${y + 38}" fill="none" stroke="#6c7890" stroke-width="3"/>` + new RectBatch().add("#6c7890", x + 30, y + 36, 66, 2).toString() + `<path d="M${x + 44} ${y + 42}L${x + 54} ${y + 22}L${x + 58} ${y + 42}Z M${x + 54} ${y + 42}L${x + 64} ${y + 18}L${x + 70} ${y + 42}Z M${x + 66} ${y + 42}L${x + 76} ${y + 26}L${x + 80} ${y + 42}Z" fill="#f8f9fa" stroke="#ced4da" stroke-width=".8"/>` + new RectBatch().add("#c9a88a", x + 40, y + 42, 44, 4).toString() + water(x, y, 46, "#1c7ed6", "#a5d8ff") + new RectBatch().add("#b0a08a", x, y + 50, 36, 10).toString(),
+      feet: { x: x + 18, y: y + 52 }
+    })
+  },
+  {
+    name: "GREAT BARRIER REEF",
+    ink: "#0b7285",
+    stamp: { bg: "#c5f6fa", grid: ["..oo..o", ".owowoo", "oowowoo", ".owowoo", "..oo..o"], colors: { o: "#ff922b", w: "#ffffff" } },
+    souvenir: { name: "a seashell", grid: ["..p..", ".pPp.", "pPpPp", "ppppp"], colors: { p: "#fcc2d7", P: "#f783ac" } },
+    draw: (x, y) => ({
+      bg: new RectBatch().add("#0c8599", x, y, PW, 60).add("#1098ad", x, y, PW, 20).add("#15aabf", x, y, PW, 8).toString() + `<g opacity=".15" fill="#ffffff"><path d="M${x + 20} ${y}h8l-18 60h-8z M${x + 60} ${y}h8l-18 60h-8z"/></g>` + px2(CORAL, { p: "#ff8787" }, x + 56, y + 36) + px2(CORAL, { p: "#ffa94d" }, x + 76, y + 40) + px2(CORAL, { p: "#da77f2" }, x + 4, y + 42) + px2(TURTLE, { g: "#5c940d", G: "#94d82d", h: "#8ce99a", o: "#2b5f0a" }, x + 60, y + 12) + ground(x, y, 54, "#f4d58d"),
+      feet: { x: x + 28, y: y + 54 }
+    })
+  },
+  {
+    name: "EASTER ISLAND",
+    ink: "#5c940d",
+    stamp: { bg: "#f4fce3", grid: [".ss.", "ssss", "kSSk", "sSSs", "sSSs", "skks", "ssss"], colors: { s: "#8a8a7a", S: "#6b6b5c", k: "#3b3b30" } },
+    souvenir: { name: "a mini moai", grid: [".ss.", "ssss", "kSSk", "sSSs", "sSSs", "skks", "ssss"], colors: { s: "#8a8a7a", S: "#6b6b5c", k: "#3b3b30" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "sunset") + sun(x + 20, y + 30, 7, "#fff3bf") + water(x, y, 36, "#3a6ea5", "#ffd8a8") + hill(x, y, 70, 50, 70, 18, "#6f9e4f") + ground(x, y, 50, "#6f9e4f") + [52, 66, 80].map((mx, i) => px2(MOAI, { s: "#8a8a7a", S: "#6b6b5c", k: "#3b3b30", o: "#3b3b30" }, x + mx, y + 20 + i % 2 * 2)).join(""),
+      feet: { x: x + 26, y: y + 56 }
+    })
+  },
+  {
+    name: "ANTARCTICA",
+    ink: "#1971c2",
+    stamp: { bg: "#e7f5ff", grid: [".kk.", "kwwk", "kwwk", ".o.o"], colors: { k: "#1a1a1a", w: "#ffffff", o: "#ff922b" } },
+    souvenir: { name: "a penguin plush", grid: [".kk.", "kwkw", "kwwo", "kwwk", ".oo."], colors: { k: "#1a1a1a", w: "#ffffff", o: "#ff922b" } },
+    draw: (x, y) => ({
+      bg: sky(x, y, "snow") + mountain(x, y, 70, 40, 60, 20, "#dbe7f3", 20, "#f8fbff") + mountain(x, y, 30, 40, 40, 12, "#e7eef6", 12, "#ffffff") + water(x, y, 38, "#4a7fb0", "#dbe7f3") + ground(x, y, 46, "#f1f5f9", "#ffffff") + [60, 72, 84].map((px0, i) => px2(PENGUIN, { k: "#1a1a1a", w: "#ffffff", f: "#ff922b", o: "#343a40" }, x + px0, y + 34 + i % 2 * 3)).join(""),
+      feet: { x: x + 24, y: y + 56 }
+    })
+  }
+];
+
+// src/pet/surprises/places/programmer.ts
+var PALM2 = ["gg.gg..", ".gggg.g", "gg.bggg", "...b..g", "...b...", "..b....", "..b....", "..b...."];
+var KERNEL = ["..yyyyyyyyyy..", ".yyyyyyyyyyyy.", "yyhhyyyyyyyyyo", "yyhyyyyyyyyyyo", ".yyyyyyyyyyyo.", "..yyyyyyyyyo..", "...yyyyyyyo...", "....yyyyyo....", ".....wwww.....", "......ww......"];
+var DUCK = outlined(["...yyy...", "..yyyyk..", "..yyyyyrr", "..yyyy...", "yyyyyyyy.", "yyyyyyyyy", ".yyyyyyy.", "..yyyyy.."]);
+var FLAMES = ["..r.....r....r...r.....r..", ".rr..r.rrr..rr..rrr..r.rr.", "rryrrrrryrrrryrrryrrrrryrr", "ryyyrryyyyrryyyrryyyrryyyr"];
+var QUESTION = ["xx.", "..x", ".x.", "...", ".x."];
+var PROGRAMMER_PLACES = [
+  {
+    name: "NULL ISLAND",
+    ink: "#1971c2",
+    stamp: { bg: "#d0ebff", grid: ["gg.gg", ".ggg.", "..b..", "..b..", "yyyyy"], colors: { g: "#2f9e44", b: "#8a5a33", y: "#f4d58d" } },
+    souvenir: { name: "a coconut", grid: [".bbb.", "bbwbb", "bbbbb", ".bbb."], colors: { b: "#8a5a33", w: "#f1e3c6" } },
+    draw: (x, y) => ({
+      bg: new RectBatch().add("#8fd3ff", x, y, PW, 38).add("#3a86c8", x, y + 38, PW, 22).add("#9fd4ff", x + 8, y + 44, 10, 1).add("#9fd4ff", x + 70, y + 50, 12, 1).add("#f4d58d", x + 18, y + 34, 58, 6).add("#f4d58d", x + 24, y + 32, 46, 2).add("#8a5a33", x + 10, y + 24, 2, 10).add("#ffffff", x + 3, y + 18, 17, 7).toString() + `<circle cx="${x + 84}" cy="${y + 10}" r="6" fill="#ffe066"/>` + text("0,0", x + 5, y + 19, 1, "#1f2328") + px(PALM2, { g: "#2f9e44", b: "#8a5a33" }, x + 60, y + 16, 2),
+      feet: { x: x + 40, y: y + 34 },
+      friend: { x: x + 68, y: y + 34 }
+    })
+  },
+  {
+    name: "LOCALHOST",
+    ink: "#2b8a3e",
+    stamp: { bg: "#ffe8cc", grid: ["..r..", ".rrr.", "rrrrr", "wwkww", "wwkww"], colors: { r: "#c92a2a", w: "#f8f0e3", k: "#8a5a33" } },
+    souvenir: { name: "a keychain", grid: [".yy..", "y..y.", ".yy..", "..y..", "..yy.", "..y.."], colors: { y: "#e0a800" } },
+    draw: (x, y) => ({
+      bg: `<rect x="${x}" y="${y}" width="${PW}" height="44" fill="#ffd8a8"/><circle cx="${x + 14}" cy="${y + 36}" r="8" fill="#ffa94d"/>` + new RectBatch().add("#8ce99a", x, y + 44, PW, 16).add("#69db7c", x, y + 44, PW, 2).add("#f8f0e3", x + 54, y + 24, 36, 20).add("#ffffff", x + 56, y + 26, 32, 7).add("#8a5a33", x + 67, y + 34, 8, 10).add("#ffd43b", x + 57, y + 35, 7, 6).add("#ffd43b", x + 79, y + 35, 7, 6).toString() + `<path d="M${x + 50} ${y + 24}L${x + 72} ${y + 8}L${x + 94} ${y + 24}Z" fill="#c92a2a"/>` + text("127.0.0.1", x + 57, y + 27, 1, "#495057"),
+      feet: { x: x + 26, y: y + 46 },
+      friend: { x: x + 44, y: y + 47 }
+    })
+  },
+  {
+    name: "THE CLOUD",
+    ink: "#1c7ed6",
+    stamp: { bg: "#74c0fc", grid: [".ww..", "wwwww", "wwwww"], colors: { w: "#ffffff" } },
+    souvenir: { name: "a cloud in a jar", grid: [".kkk.", "gwwwg", "gwwwg", "gwwwg", ".ggg."], colors: { k: "#8a5a33", g: "#a5d8ff", w: "#ffffff" } },
+    draw: (x, y) => {
+      const leds = [0, 1, 2].map((i) => `<rect class="${i % 2 ? "pf-s-blink" : "pf-s-blink2"}" x="${x + 66}" y="${y + 20 + i * 5}" width="8" height="2" fill="#51cf66"/>`).join("");
+      return {
+        bg: new RectBatch().add("#74c0fc", x, y, PW, 60).add("#a5d8ff", x, y + 30, PW, 30).add("#ffffff", x + 4, y + 42, 88, 18).add("#ffffff", x + 10, y + 35, 36, 8).add("#ffffff", x + 52, y + 33, 34, 10).add("#ffffff", x + 70, y + 8, 18, 5).add("#ffffff", x + 74, y + 5, 10, 3).add("#495057", x + 63, y + 16, 14, 18).add("#343a40", x + 63, y + 16, 14, 2).toString() + leds,
+        feet: { x: x + 28, y: y + 38 },
+        friend: { x: x + 46, y: y + 40 }
+      };
+    }
+  },
+  {
+    name: "STACK OVERFLOW",
+    ink: "#e8590c",
+    stamp: { bg: "#fff4e6", grid: ["ooooo.", "o.o.o.", "ooooo.", ".ooooo", ".o.o.o", ".ooooo"], colors: { o: "#f76707" } },
+    souvenir: { name: "a spare box", grid: ["oooooo", "oyyyyo", "oyooyo", "oyyyyo", "oooooo"], colors: { o: "#7a3500", y: "#ffa94d" } },
+    draw: (x, y) => {
+      let boxes = "";
+      for (let i = 0; i < 5; i++) {
+        boxes += `<rect x="${x + 60 + (i % 2 ? 3 : -2)}" y="${y + 41 - i * 8}" width="20" height="7" fill="${i % 2 ? "#ffa94d" : "#f76707"}" stroke="#7a3500" stroke-width="1"/>`;
+      }
+      return {
+        bg: new RectBatch().add("#d0ebff", x, y, PW, 48).add("#ced4da", x, y + 48, PW, 12).toString() + boxes + `<g class="pf-s-teeter"><rect x="${x + 64}" y="${y - 3}" width="20" height="7" fill="#f76707" stroke="#7a3500" stroke-width="1"/></g>`,
+        feet: { x: x + 26, y: y + 49 },
+        friend: { x: x + 46, y: y + 49 }
+      };
+    }
+  },
+  {
+    name: "PORT 8080",
+    ink: "#0b7285",
+    stamp: { bg: "#c5f6fa", grid: ["..k..", ".kkk.", "..k..", "k.k.k", ".kkk."], colors: { k: "#0b7285" } },
+    souvenir: { name: "an anchor", grid: ["..k..", ".kkk.", "..k..", "k.k.k", ".kkk."], colors: { k: "#495057" } },
+    draw: (x, y) => {
+      let tower = "";
+      for (let i = 0; i < 4; i++) tower += `<rect x="${x + 78}" y="${y + 10 + i * 6}" width="9" height="6" fill="${i % 2 ? "#ffffff" : "#e03131"}"/>`;
+      return {
+        bg: new RectBatch().add("#a5d8ff", x, y, PW, 34).add("#1971c2", x, y + 34, PW, 26).add("#74c0fc", x + 56, y + 44, 12, 1).add("#74c0fc", x + 82, y + 50, 10, 1).add("#8a5a33", x, y + 32, 50, 4).add("#6b4226", x + 4, y + 36, 3, 14).add("#6b4226", x + 44, y + 36, 3, 14).add("#8a5a33", x + 58, y + 22, 2, 12).add("#ffffff", x + 50, y + 15, 19, 8).toString() + tower + `<rect x="${x + 77}" y="${y + 3}" width="11" height="7" fill="#343a40"/><rect class="pf-s-blink" x="${x + 79}" y="${y + 5}" width="7" height="3" fill="#ffe066"/>` + text("8080", x + 52, y + 16.5, 1, "#1f2328"),
+        feet: { x: x + 24, y: y + 33 }
+      };
+    }
+  },
+  {
+    name: "THE KERNEL",
+    ink: "#e67700",
+    stamp: { bg: "#3b1f5c", grid: [".yyy.", "yyyyy", "yyyyy", ".yyy.", "..w.."], colors: { y: "#ffd43b", w: "#fff9db" } },
+    souvenir: { name: "some popcorn", grid: ["w.w.w", "wwwww", "rwrwr", "rwrwr", ".rwr."], colors: { w: "#fff9db", r: "#e03131" } },
+    draw: (x, y) => {
+      const b = new RectBatch().add("#3b1f5c", x, y, PW, 46).add("#5c3d2e", x, y + 46, PW, 14);
+      for (const [sx, sy] of [[6, 8], [24, 20], [40, 6], [88, 12], [92, 34]]) b.add("#ffffff", x + sx, y + sy, 1, 1);
+      return {
+        bg: b + px(KERNEL, { y: "#ffd43b", h: "#fff3bf", o: "#f59f00", w: "#fff9db" }, x + 56, y + 16, 2),
+        feet: { x: x + 28, y: y + 47 },
+        friend: { x: x + 44, y: y + 48 }
+      };
+    }
+  },
+  {
+    name: "404 NOT FOUND",
+    ink: "#868e96",
+    stamp: { bg: "#e9ecef", grid: QUESTION, colors: { x: "#868e96" } },
+    souvenir: { name: "nothing (404)", grid: ["kkkkk", "k.x.k", "k..xk", "k.x.k", "kkkkk"], colors: { k: "#868e96", x: "#495057" } },
+    // The photo didn't come out: just "404", and a tail at the edge of the frame.
+    draw: (x, y) => ({
+      bg: `<rect x="${x}" y="${y}" width="${PW}" height="${PH}" fill="#e9ecef"/>` + text("404", x + 26, y + 10, 4, "#adb5bd") + text("NOT FOUND", x + 31, y + 38, 1, "#adb5bd"),
+      feet: { x: x + PW + 8, y: y + 58 }
+    })
+  },
+  {
+    name: "/DEV/NULL",
+    ink: "#5f3dc4",
+    stamp: { bg: "#1a1a2e", grid: [".ooo.", "o...o", "o.k.o", "o...o", ".ooo."], colors: { o: "#845ef7", k: "#ffffff" } },
+    souvenir: { name: "an empty bag", grid: ["..k..", ".k.k.", "bbbbb", "b...b", "bbbbb"], colors: { k: "#495057", b: "#adb5bd" } },
+    draw: (x, y) => {
+      const b = new RectBatch().add("#0b0b14", x, y, PW, PH);
+      for (const [sx, sy] of [[8, 6], [20, 40], [44, 8], [86, 20], [80, 52], [12, 54]]) b.add("#ffffff", x + sx, y + sy, 1, 1);
+      return {
+        bg: b + `<ellipse cx="${x + 62}" cy="${y + 26}" rx="24" ry="7" fill="none" stroke="#ff922b" stroke-width="2" opacity=".85"/><circle cx="${x + 62}" cy="${y + 26}" r="10" fill="#000000" stroke="#845ef7" stroke-width="2"/><path d="M${x + 38} ${y + 26}a24 7 0 0 0 48 0" fill="none" stroke="#ffc078" stroke-width="2"/>`,
+        feet: { x: x + 24, y: y + 50 }
+      };
+    }
+  },
+  {
+    name: "SPAGHETTI CODE",
+    ink: "#c92a2a",
+    stamp: { bg: "#fff9db", grid: ["yyy..", "y.yyy", "yyy.y", "..yyy", ".rr.."], colors: { y: "#fab005", r: "#a0522d" } },
+    souvenir: { name: "a meatball", grid: [".rr.", "rRrr", "rrrr", ".rr."], colors: { r: "#8a4b2a", R: "#b86b40" } },
+    draw: (x, y) => {
+      const cloth = new RectBatch().add("#ffe3e3", x, y, PW, 38);
+      for (let cx = 0; cx < PW; cx += 8) for (let cy = 38; cy < PH; cy += 8) cloth.add((cx + cy) % 16 ? "#ffffff" : "#e03131", x + cx, y + cy, 8, 8);
+      const noodles = px(["..yyy.yyyy..", ".yy.yyy..yy.", "yyyy.yy.yyyy", "y.yyyyyyy.yy", ".yyy.yyyyyy."], { y: "#fcc419" }, x + 24, y + 34, 4);
+      return {
+        bg: cloth + `<ellipse cx="${x + 48}" cy="${y + 50}" rx="36" ry="8" fill="#ffffff" stroke="#ced4da" stroke-width="1"/>` + noodles + `<circle cx="${x + 70}" cy="${y + 38}" r="5" fill="#8a4b2a"/>`,
+        feet: { x: x + 42, y: y + 40 }
+      };
+    }
+  },
+  {
+    name: "THE FIREWALL",
+    ink: "#e8590c",
+    stamp: { bg: "#fff4e6", grid: ["..r..", ".rr..", ".ryr.", "ryyyr", ".rrr."], colors: { r: "#f03e3e", y: "#ffd43b" } },
+    souvenir: { name: "a marshmallow", grid: ["ww...", "ww...", "..b..", "...b.", "....b"], colors: { w: "#fff4e6", b: "#8a5a33" } },
+    draw: (x, y) => {
+      const wall = new RectBatch().add("#2b1a3a", x, y, PW, 60).add("#3b2a1a", x, y + 50, PW, 10);
+      for (let row = 0; row < 4; row++) for (let col = -1; col < 10; col++) wall.add(row % 2 ? "#b33b2b" : "#c9452f", x + col * 10 + row % 2 * 5, y + 26 + row * 6, 9, 5);
+      return {
+        bg: wall + `<g class="pf-s-flicker">${px(FLAMES, { r: "#ff6b3b", y: "#ffd43b" }, x - 4, y + 10, 4)}</g>`,
+        feet: { x: x + 28, y: y + 58 },
+        fg: `<path d="M${x + 44} ${y + 46}L${x + 62} ${y + 30}" stroke="#8a5a33" stroke-width="1.5"/><rect x="${x + 60}" y="${y + 26}" width="5" height="5" rx="1" fill="#fff4e6"/>`
+      };
+    }
+  },
+  {
+    name: "HELLO WORLD",
+    ink: "#1c7ed6",
+    stamp: { bg: "#0b1d3a", grid: [".bbb.", "bgbgb", "bbgbb", "bgbbb", ".bbb."], colors: { b: "#4dabf7", g: "#51cf66" } },
+    souvenir: { name: "a snow globe", grid: [".www.", "wbwbw", "wwgww", ".www.", "kkkkk"], colors: { w: "#e7f5ff", b: "#ffffff", g: "#51cf66", k: "#8a5a33" } },
+    draw: (x, y) => {
+      const b = new RectBatch().add("#0b1d3a", x, y, PW, PH);
+      for (const [sx, sy] of [[8, 8], [30, 14], [70, 6], [88, 24], [14, 30], [80, 40]]) b.add("#ffffff", x + sx, y + sy, 1, 1);
+      return {
+        bg: b + `<circle cx="${x + 48}" cy="${y + 70}" r="34" fill="#4dabf7"/><path d="M${x + 26} ${y + 46}q8 -6 16 0t12 4v14h-28z M${x + 58} ${y + 42}q6 -2 12 4v10h-12z" fill="#51cf66"/><circle cx="${x + 48}" cy="${y + 70}" r="34" fill="none" stroke="#a5d8ff" stroke-width="1"/>`,
+        feet: { x: x + 48, y: y + 37 }
+      };
+    }
+  },
+  {
+    name: "RUBBER DUCK POND",
+    ink: "#e67700",
+    stamp: { bg: "#c5f6fa", grid: ["..yy.", ".yyyr", "yyyy.", ".yyy."], colors: { y: "#fcc419", r: "#f76707" } },
+    souvenir: { name: "a rubber duck", grid: ["..yy.", ".yyyr", "yyyy.", ".yyy."], colors: { y: "#fcc419", r: "#f76707" } },
+    draw: (x, y) => ({
+      bg: new RectBatch().add("#c5f6fa", x, y, PW, 36).add("#4dabf7", x, y + 36, PW, 24).add("#a5d8ff", x + 6, y + 44, 12, 1).add("#a5d8ff", x + 76, y + 50, 12, 1).toString() + px(DUCK, { y: "#fcc419", k: "#1a1a1a", r: "#f76707", o: "#8a6a00" }, x + 34, y + 20, 4),
+      feet: { x: x + 50, y: y + 28 }
+    })
+  },
+  {
+    name: "THE MAINFRAME",
+    ink: "#2b8a3e",
+    stamp: { bg: "#e9ecef", grid: ["kkkkk", "kwwwk", "kkkkk", "kgggk", "kgggk"], colors: { k: "#343a40", w: "#ffffff", g: "#adb5bd" } },
+    souvenir: { name: "a floppy disk", grid: ["kkkkk", "kwwwk", "kkkkk", "kgggk", "kgggk"], colors: { k: "#1c7ed6", w: "#ffffff", g: "#dee2e6" } },
+    draw: (x, y) => {
+      const b = new RectBatch().add("#343a40", x, y, PW, 46).add("#212529", x, y + 46, PW, 14);
+      let reels = "";
+      for (const cx of [52, 72]) {
+        b.add("#adb5bd", x + cx - 8, y + 8, 18, 38);
+        reels += `<circle cx="${x + cx + 1}" cy="${y + 16}" r="5" fill="#495057" stroke="#dee2e6"/><circle cx="${x + cx + 1}" cy="${y + 28}" r="5" fill="#495057" stroke="#dee2e6"/>`;
+        for (let i = 0; i < 3; i++) reels += `<rect class="${i % 2 ? "pf-s-blink" : "pf-s-blink2"}" x="${x + cx - 5 + i * 5}" y="${y + 38}" width="3" height="2" fill="${["#ff6b6b", "#51cf66", "#ffd43b"][i]}"/>`;
+      }
+      return { bg: b + reels, feet: { x: x + 22, y: y + 56 } };
+    }
+  }
+];
+
+// src/pet/surprises/places/index.ts
+var PLACES = [...PROGRAMMER_PLACES, ...ASIA, ...EUROPE, ...AFRICA, ...AMERICAS, ...OCEANIA];
+
+// src/pet/sprite.ts
+var FACE2 = {
+  happy: { eyes: "happy", mouth: "smile", blush: true },
+  idle: { eyes: "open", mouth: "smile", blush: false },
+  hungry: { eyes: "sad", mouth: "frown", blush: false },
+  sleeping: { eyes: "closed", mouth: "neutral", blush: false }
+};
+var FRAME_SPEED = { happy: 0.3, idle: 0.24, hungry: 1, sleeping: 1 };
+var SPRITE_CSS = `
+.pf-fa{animation:pf-a 1s steps(1) infinite}
+.pf-fb{opacity:0;animation:pf-b 1s steps(1) infinite}
+@keyframes pf-a{0%{opacity:1}50%{opacity:0}100%{opacity:0}}
+@keyframes pf-b{0%{opacity:0}50%{opacity:1}100%{opacity:1}}
+${BEHAVIOR_CSS}
+.pf-bob{animation:pf-bob 2s ease-in-out infinite}
+@keyframes pf-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+`;
+function frames(a, b, seconds) {
+  if (a === b) return a;
+  const style = `style="animation-duration:${seconds * 2}s"`;
+  return `<g class="pf-fa" ${style}>${a}</g><g class="pf-fb" ${style}>${b}</g>`;
+}
+function renderPetSprite(state, scale, { lively = true, emote = true, eyes: swap = null, hat, face: faceArt = "" } = {}) {
+  if (state.stage === "egg") return eggSprite(state, scale);
+  const species = getSpecies(state.species);
+  const legendary = state.stage === "legendary";
+  const palette = legendary ? { ...species.palette, ...species.legendaryPalette } : species.palette;
+  const px6 = (layers) => renderPixels(layers, palette, { scale });
+  const face = FACE2[state.mood];
+  const [limbA, limbB] = species.limbs[state.mood];
+  const side = glance(species.eyes.open);
+  let eyes6 = state.mood === "idle" ? `<g class="pf-eo">${px6(species.eyes.open)}</g>${side ? `<g class="pf-eg">${px6(side)}</g>` : ""}<g class="pf-es">${px6(species.eyes.closed)}</g>` : px6(species.eyes[face.eyes]);
+  if (swap) {
+    const alt = (kind) => px6(kind === "closed" ? species.eyes.closed : crossEyes(species.eyes.open, species.width));
+    eyes6 = `<g class="${swap.hide}">${eyes6}</g>${swap.alts.map((a) => `<g class="${a.cls}">${alt(a.kind)}</g>`).join("")}`;
+  }
+  let crown = "";
+  const cs = Math.max(1, Math.round(scale * 3 / 4));
+  if (hat) {
+    const hx = species.crownAnchor.x * scale - (hat.cx ?? hat.grid[0].length / 2) * scale;
+    const hy = species.crownAnchor.y * scale - (hat.grid.length - (hat.sink ?? 1)) * scale;
+    crown = renderPixels([{ x: 0, y: 0, grid: hat.grid }], hat.palette, { x: hx, y: hy, scale });
+  } else if (legendary) {
+    const cx = species.crownAnchor.x * scale - CROWN[0].length * cs / 2;
+    const cy = species.crownAnchor.y * scale - CROWN.length * cs - 1.5 * scale;
+    crown = `<g class="pf-bob">${renderPixels([{ x: 0, y: 0, grid: CROWN }], FX_PALETTE, { x: cx, y: cy, scale: cs })}</g>`;
+  }
+  let svg = [
+    frames(px6(limbA), px6(limbB), FRAME_SPEED[state.mood]),
+    px6(species.body),
+    px6(species.mouths[face.mouth]),
+    face.blush ? px6(species.blush) : "",
+    eyes6,
+    faceArt,
+    crown
+  ].join("");
+  let css = "";
+  if (lively && playful(state.mood)) {
+    const tricks = state.trick ? TRICK_STARTS.map(() => state.trick) : tricksFor(state.date, state.login);
+    let body = svg;
+    let beside = "";
+    tricks.forEach((trick, slot) => {
+      const t = trickLayers(trick, species, scale, slot);
+      body = `${t.under}${body}${t.overlay}`;
+      if (t.bodyClass) body = `<g class="${t.bodyClass}">${body}</g>`;
+      beside += t.beside;
+      css += t.css;
+    });
+    const bubble2 = emote ? emoteBubble(state.mood === "happy" ? "note" : "question", species.width * scale - 4, anchors(species).top * scale - 2, "pf-emote") : "";
+    svg = `${body}${beside}${bubble2}`;
+  }
+  return { svg, width: species.width * scale, height: species.height * scale, css };
+}
+function eggSprite(state, scale) {
+  const layers = [{ x: 0, y: 0, grid: EGG }];
+  if (state.xp / xpForLevel(3) >= 0.5) layers.push({ x: 0, y: 0, grid: EGG_CRACK });
+  return {
+    svg: renderPixels(layers, EGG_PALETTE, { scale }),
+    width: EGG[0].length * scale,
+    height: EGG.length * scale
+  };
+}
+
+// src/pet/surprises/postcard.ts
+var SPARKLE2 = ["..s..", ".sss.", "sssss", ".sss.", "..s.."];
+var PLACE_COUNT = PLACES.length;
+function tripFor(login, date) {
+  const rng = seeded(`postcard:${login}:${date}`);
+  const place = pick(rng, PLACES);
+  const roll = rng();
+  return {
+    place,
+    golden: roll < 0.08,
+    night: roll >= 0.08 && roll < 0.22,
+    friend: roll >= 0.22 && roll < 0.42 ? pick(rng, Object.keys(SPECIES)) : null
+  };
+}
+function postcardPlace(login, date) {
+  return tripFor(login, date).place;
+}
+var placeTitle = (name) => name.startsWith("/") ? name.toLowerCase() : name.toLowerCase().replace(/\b[a-z]/g, (ch) => ch.toUpperCase());
+var at = (sprite, feet6) => `<g transform="translate(${round(feet6.x - sprite.width / 2)} ${round(feet6.y - sprite.height)})">${sprite.svg}</g>`;
+function postcard(c) {
+  const { scene: sc, state } = c;
+  const trip = tripFor(state.login, state.date);
+  const { place } = trip;
+  const snapshot = (species) => renderPetSprite({ ...state, species, mood: "happy", trick: void 0, care: void 0 }, 2, { lively: false });
+  const W3 = 152;
+  const H3 = 98;
+  const x = sc.x + 6;
+  const y = sc.y + 34;
+  const photo = { x: x + 6, y: y + 6 };
+  const shot = place.draw(photo.x, photo.y);
+  const night = trip.night ? `<rect x="${photo.x}" y="${photo.y}" width="${PW}" height="${PH}" fill="#0b1040" opacity=".5"/>` + [[10, 6], [30, 14], [62, 4], [84, 10], [48, 18]].map(([dx, dy]) => `<rect x="${photo.x + dx}" y="${photo.y + dy}" width="1.5" height="1.5" fill="#fff8d6"/>`).join("") : "";
+  const friend2 = trip.friend && shot.friend && trip.friend !== state.species ? at(snapshot(trip.friend), shot.friend) : "";
+  const pictured = `${shot.bg}${night}${friend2}${at(snapshot(state.species), shot.feet)}${shot.fg ?? ""}`;
+  const sx = x + W3 - 34;
+  const sy = y + 6;
+  const iconW = place.stamp.grid[0].length * 2;
+  const iconH = place.stamp.grid.length * 2;
+  const iconColors = trip.golden ? Object.fromEntries(Object.keys(place.stamp.colors).map((k) => [k, "#b8860b"])) : place.stamp.colors;
+  const stamp = `<rect x="${sx}" y="${sy}" width="26" height="30" fill="#ffffff" stroke="${trip.golden ? "#c99a1a" : "#adb5bd"}" stroke-width="1" stroke-dasharray="2 1"/><rect x="${sx + 3}" y="${sy + 3}" width="20" height="24" fill="${trip.golden ? "#ffe066" : place.stamp.bg}"/>` + px(place.stamp.grid, iconColors, sx + 13 - iconW / 2, sy + 15 - iconH / 2, 2) + (trip.golden ? `<g class="pf-s-twinkle">${px(SPARKLE2, { s: "#fff9db" }, sx + 18, sy - 3, 1.5)}</g>` : "");
+  const postmark = `<g fill="none" stroke="#495057" stroke-width="1" opacity=".5"><circle cx="${sx}" cy="${sy + 30}" r="8"/><circle cx="${sx}" cy="${sy + 30}" r="5"/></g>`;
+  const address = new RectBatch().add("#c9b79a", x + PW + 12, y + 50, W3 - PW - 20, 1).add("#c9b79a", x + PW + 12, y + 57, W3 - PW - 20, 1).add("#c9b79a", x + PW + 12, y + 64, W3 - PW - 26, 1).toString();
+  const scribble = `<path d="M${x + PW + 13} ${y + 47}q3 -3 6 0t6 0t6 0M${x + PW + 13} ${y + 54}q3 -3 6 0t6 0" fill="none" stroke="#5b4636" stroke-width="1"/>`;
+  const card = `<rect x="${x + 3}" y="${y + 3}" width="${W3}" height="${H3}" fill="#000000" opacity=".2"/><rect x="${x}" y="${y}" width="${W3}" height="${H3}" fill="#fffaf0" stroke="#d9cbb0" stroke-width="1"/><clipPath id="pf-s-photo"><rect x="${photo.x}" y="${photo.y}" width="${PW}" height="${PH}"/></clipPath><g clip-path="url(#pf-s-photo)">${pictured}</g><rect x="${photo.x}" y="${photo.y}" width="${PW}" height="${PH}" fill="none" stroke="#5b4636" stroke-width="1" opacity=".4"/>` + stamp + postmark + address + scribble + text("GREETINGS FROM", x + 7, y + 71, 1, "#8a6d4b") + text(place.name, x + 7, y + 79, 2, place.ink, "#e9dfcc");
+  const line = `<path d="M${sc.x} ${y - 8}Q${sc.x + sc.w / 2} ${y - 2} ${sc.x + sc.w} ${y - 8}" fill="none" stroke="#8d96a0" stroke-width="1"/>`;
+  const peg = `<rect x="${x + W3 / 2 - 3}" y="${y - 9}" width="6" height="13" rx="1" fill="#d9a066"/><rect x="${x + W3 / 2 - 1}" y="${y - 9}" width="2" height="13" fill="#b07d4a"/>`;
+  const right = sc.x + sc.w;
+  const g = sc.ground;
+  const mailbox = `<rect x="${right - 14}" y="${g - 24}" width="4" height="24" fill="#8a5a33"/><rect x="${right - 22}" y="${g - 36}" width="20" height="13" rx="4" fill="#1c7ed6"/><rect x="${right - 20}" y="${g - 31}" width="12" height="2" fill="#0b3a66"/><rect x="${right - 4}" y="${g - 46}" width="2" height="12" fill="#e03131"/><rect x="${right - 4}" y="${g - 46}" width="5" height="5" fill="#e03131"/>`;
+  return {
+    css: `.pf-s-sway{transform-box:fill-box;transform-origin:50% 0;animation:pf-s-sway 4.5s ease-in-out infinite alternate}@keyframes pf-s-sway{from{transform:rotate(-2deg)}to{transform:rotate(1.5deg)}}
+.pf-s-teeter{transform-box:fill-box;transform-origin:0 100%;animation:pf-s-teeter 2.4s ease-in-out infinite alternate}@keyframes pf-s-teeter{from{transform:rotate(-4deg)}to{transform:rotate(14deg)}}`,
+    replace: `${line}${mailbox}<g class="pf-s-sway">${peg}${card}</g>`,
+    line: trip.golden ? "Weekend trip \xB7 a golden stamp!" : `Weekend trip \xB7 ${placeTitle(place.name)}`
+  };
+}
+function souvenir(c) {
+  const from = c.state.moments?.backFrom;
+  const place = from ? postcardPlace(c.state.login, from) : PLACES[0];
+  const grid = outlined(place.souvenir.grid, "@");
+  const s = c.scale;
+  const w = grid[0].length * s;
+  const h = grid.length * s;
+  const x = c.species.width * s - w / 3;
+  const y = c.species.height * s - h;
+  const sparkle = `<g class="pf-s-twinkle">${px(SPARKLE2, { s: "#fff3a0" }, x + w - 4, y - 8, 2)}</g>`;
+  return {
+    held: px(grid, { ...place.souvenir.colors, "@": "#3b2a1a" }, x, y, s) + sparkle,
+    line: `Back home \xB7 brought ${place.souvenir.name}`
+  };
+}
+
+// src/pet/surprises/rare.ts
+var CYCLE = 24;
+var pct = (t) => `${+(t / CYCLE * 100).toFixed(2)}%`;
+var shown = (name, from, to) => `.${name}{opacity:0;animation:${name} ${CYCLE}s steps(1) infinite}@keyframes ${name}{0%{opacity:0}${pct(from)}{opacity:1}${pct(to)}{opacity:0}100%{opacity:0}}`;
+var SAUCER = [
+  "......cccccc......",
+  ".....cwCCCCCc.....",
+  "....cCCCCCCCCc....",
+  ".ssssssssssssssss.",
+  "sSSSSSSSSSSSSSSSSs",
+  ".ssssssssssssssss.",
+  "....dddddddddd...."
+];
+var SAUCER_LIGHTS = ["..................", "..................", "..................", "..................", ".y..r..g..y..r..g.", "..................", ".................."];
+function ufo(c) {
+  const { scene: sc, box } = c;
+  const s = 3;
+  const uw = SAUCER[0].length * s;
+  const ux = round(box.x + box.w / 2 - uw / 2);
+  const uy = sc.y + 16;
+  const under = uy + SAUCER.length * s;
+  const rise = Math.round(box.y + box.h / 2 - under - 4);
+  const beam = `<path class="pf-s-beam" d="M${ux + uw / 2 - 8} ${under}h16L${round(box.x + box.w + 6)} ${box.y + box.h}H${round(box.x - 6)}Z" fill="#b2f2bb" opacity="0"/>`;
+  const saucer = `<g class="pf-s-ufo">${px(SAUCER, { c: "#99e9f2", C: "#66d9e8", w: "#ffffff", s: "#adb5bd", S: "#868e96", d: "#495057" }, ux, uy, s)}<g class="pf-s-blink">${px(SAUCER_LIGHTS, { y: "#ffe066", r: "#ff6b6b", g: "#69db7c" }, ux, uy, s)}</g></g>`;
+  const top = anchors(c.species).top * c.scale;
+  const huh = bubble(pixelText("?!"), box.w - 6, top - 2, "pf-s-huh");
+  return {
+    css: `.pf-s-ufo{animation:pf-s-ufo ${CYCLE}s ease-in-out infinite}
+@keyframes pf-s-ufo{0%{transform:translate(-160px,-50px)}12%{transform:translate(0,0)}20%{transform:translate(0,-3px)}30%{transform:translate(0,0)}50%{transform:translate(0,-3px)}72%{transform:translate(0,0)}86%,100%{transform:translate(180px,-60px)}}
+.pf-s-beam{animation:pf-s-beam ${CYCLE}s steps(1) infinite}
+@keyframes pf-s-beam{0%{opacity:0}${pct(4.3)}{opacity:.5}${pct(4.6)}{opacity:.15}${pct(4.9)}{opacity:.5}${pct(16.4)}{opacity:0}100%{opacity:0}}
+.pf-s-abduct{transform-box:fill-box;transform-origin:center;animation:pf-s-abduct ${CYCLE}s ease-in-out infinite}
+@keyframes pf-s-abduct{0%,${pct(5.2)}{transform:none;opacity:1}${pct(10)}{transform:translateY(-${rise}px) scale(.35) rotate(-24deg);opacity:1}${pct(10.4)},${pct(13)}{transform:translateY(-${rise}px) scale(.35);opacity:0}${pct(13.4)}{transform:translateY(-${rise}px) scale(.35) rotate(20deg);opacity:1}${pct(15.6)}{transform:none;opacity:1}100%{transform:none;opacity:1}}
+${shown("pf-s-huh", 15.8, 19.4)}`,
+    follow: beam + saucer,
+    bodyClass: "pf-s-abduct",
+    over: huh,
+    line: "Close encounter of the pet kind"
+  };
+}
+function friend(c) {
+  const { scene: sc, state } = c;
+  const id = pick(c.rng, Object.keys(SPECIES).filter((k) => k !== state.species && k !== c.species.id));
+  const buddy = getSpecies(id);
+  const s = 3;
+  const sprite = renderPetSprite({ ...state, species: id, stage: "baby", mood: "idle", trick: void 0, care: void 0 }, s, { lively: false });
+  const fw = sprite.width;
+  const fh = sprite.height;
+  const meet = sc.x + sc.w - fw - 18;
+  const y = sc.ground - fh - 4 + s;
+  const flip = buddy.facing === "right" ? ` transform="translate(${fw} 0) scale(-1 1)"` : "";
+  const hello = bubble(pixelText("HI!"), fw - 4, 0, "pf-s-hi");
+  const love = `<g class="pf-s-love">${px(HEART, { p: "#ff5c7a" }, fw / 2 - 5, -12, 2)}</g>`;
+  return {
+    css: `.pf-s-friend{animation:pf-s-friend ${CYCLE}s linear infinite}
+@keyframes pf-s-friend{0%{transform:translateX(${sc.x + sc.w + 4}px)}${pct(4.6)}{transform:translateX(${meet}px)}${pct(11)}{transform:translateX(${meet}px)}${pct(20.5)},100%{transform:translateX(${sc.x - fw - 8}px)}}
+.pf-s-wave{animation:pf-s-wave ${CYCLE}s ease-in-out infinite}
+@keyframes pf-s-wave{0%,${pct(5)}{transform:none}${pct(5.4)}{transform:translateY(-6px)}${pct(5.8)}{transform:none}${pct(6.2)}{transform:translateY(-6px)}${pct(6.6)},100%{transform:none}}
+${shown("pf-s-hi", 5, 8)}
+${shown("pf-s-love", 8.2, 10.8)}`,
+    back: `<g class="pf-s-friend"><g transform="translate(0 ${y})"><g class="pf-s-wave"><g${flip}>${sprite.svg}</g>${hello}${love}</g></g></g>`,
+    line: `${buddy.defaultName} the ${id} dropped by`
+  };
+}
+var WINGS_OPEN = ["pp...pp", "pPp.pPp", ".ppkpp.", "..pkp..", ".pp.pp."];
+var WINGS_SHUT = [".......", "..p.p..", "..pkp..", "..pkp..", "...k..."];
+function butterfly(c) {
+  const { species, scale } = c;
+  const a = anchors(species);
+  const side = species.facing === "right";
+  const eye = a.eyes[0];
+  const nose = side ? { x: Math.min(species.width - 1, eye.x + 2), y: eye.y } : { x: a.eyes.reduce((sum, e) => sum + e.x, 0) / a.eyes.length, y: Math.max(...a.eyes.map((e) => e.y)) + 1 };
+  const bx = round(nose.x * scale - 7);
+  const by = round(nose.y * scale - 9);
+  const palette = { p: "#ffa94d", P: "#fff3bf", k: "#343a40" };
+  const wings2 = `<g class="pf-fa" style="animation-duration:.3s">${px(WINGS_OPEN, palette, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.3s">${px(WINGS_SHUT, palette, 0, 0, 2)}</g>`;
+  return {
+    css: `.pf-s-fly{animation:pf-s-fly ${CYCLE}s ease-in-out infinite}
+@keyframes pf-s-fly{0%{transform:translate(-60px,-70px);opacity:0}3%{opacity:1}14%{transform:translate(50px,-50px)}26%{transform:translate(-24px,-44px)}38%{transform:translate(18px,-30px)}${pct(10.8)}{transform:translate(0,-8px)}${pct(11.3)},${pct(16.3)}{transform:translate(0,0);opacity:1}${pct(17.4)}{transform:translate(26px,-26px)}${pct(19.4)}{transform:translate(80px,-80px);opacity:1}${pct(19.5)},100%{transform:translate(-60px,-70px);opacity:0}}`,
+    held: `<g transform="translate(${bx} ${by})"><g class="pf-s-fly">${wings2}</g></g>`,
+    crossed: [[11.4, 16.3]],
+    line: "A butterfly landed on its nose"
+  };
+}
+function sunglasses(c) {
+  const { scene: sc } = c;
+  const sx = sc.x + sc.w - 30;
+  const sy = sc.y + 28;
+  let rays = "";
+  for (let i = 0; i < 8; i++) {
+    const angle = i / 8 * Math.PI * 2;
+    rays += `<rect x="${round(sx + Math.cos(angle) * 16 - 2)}" y="${round(sy + Math.sin(angle) * 16 - 2)}" width="4" height="4" fill="#ffd43b"/>`;
+  }
+  return {
+    css: `.pf-s-glint{animation:pf-s-glint 4s steps(1) infinite}@keyframes pf-s-glint{0%,78%{opacity:0}80%,90%{opacity:.9}92%,100%{opacity:0}}
+.pf-s-sun{transform-box:fill-box;transform-origin:center;animation:pf-s-sun 16s linear infinite}@keyframes pf-s-sun{to{transform:rotate(360deg)}}`,
+    back: `<g class="pf-s-sun">${rays}</g><circle cx="${sx}" cy="${sy}" r="10" fill="#ffd43b"/><circle cx="${sx - 3}" cy="${sy - 3}" r="3" fill="#fff3bf"/>`,
+    face: glasses(c.species, c.scale, "shades"),
+    line: "Summer mode \xB7 too cool for school"
+  };
+}
+var RARE_ART = { ufo, friend, butterfly, sunglasses };
+
+// src/pet/surprises/index.ts
+var isHoliday = (s) => HOLIDAYS.includes(s);
+var tripRoll = (login, date) => seeded(`surprise:${login}:${date}`)() < 0.5;
+function surpriseFor(state, season) {
+  if (state.surprise !== void 0) return state.surprise;
+  const holiday = holidayFor(state.date);
+  if (holiday) return holiday;
+  const m = state.moments ?? {};
+  if (m.birthday) return "birthday";
+  if (state.ranAway) return null;
+  if (m.levelUp !== void 0) return "level-up";
+  if (m.welcomeBack) return "welcome-back";
+  if (state.stage === "egg") return null;
+  const calm = state.mood === "idle" || state.mood === "happy";
+  const r2 = seeded(`surprise:${state.login}:${state.date}`)();
+  const weekday = (/* @__PURE__ */ new Date(`${state.date}T00:00:00Z`)).getUTCDay();
+  const weekend = weekday === 0 || weekday === 6;
+  if (calm && weekend && state.daysSinceLastContribution >= 1 && tripRoll(state.login, state.date)) return "postcard";
+  if (calm && m.backFrom) return "souvenir";
+  if (state.mood !== "sleeping" && r2 >= 0.95) return "ufo";
+  if (calm && r2 >= 0.87 && r2 < 0.95) return "friend";
+  if (calm && season === "spring" && r2 >= 0.6 && r2 < 0.87) return "butterfly";
+  if (calm && season === "summer" && r2 >= 0.6 && r2 < 0.87) return "sunglasses";
   return null;
 }
-function zodiacFor(date) {
-  return LUNAR_NEW_YEAR[Number(date.slice(0, 4))]?.[1] ?? "dragon";
+function disguiseFor(state) {
+  return pick(seeded(`fools:${state.login}:${state.date}`), Object.keys(SPECIES).filter((id) => id !== state.species));
 }
-function newYearFor(date) {
-  const year = Number(date.slice(0, 4));
-  return date.slice(5) === "12-31" ? year + 1 : year;
+function showSurprise(surprise2, ctx, where) {
+  const draw = isHoliday(surprise2) ? HOLIDAY_ART[surprise2] : surprise2 === "postcard" ? postcard : surprise2 === "souvenir" ? souvenir : surprise2 in MOMENT_ART ? MOMENT_ART[surprise2] : RARE_ART[surprise2];
+  const art = { ...draw(ctx) };
+  if (where !== "pet") {
+    delete art.held;
+    delete art.over;
+    delete art.follow;
+    delete art.bodyClass;
+    delete art.crossed;
+    delete art.replace;
+    if (where !== "visit") {
+      delete art.hat;
+      delete art.face;
+    }
+  }
+  return { art, css: `${KIT_CSS}${art.css ?? ""}`, banner: art.banner ? banner(art.banner, ctx.scene) : "" };
+}
+
+// src/pet/state.ts
+var MAX_LEVEL = 99;
+var RUN_AWAY_DAYS = 30;
+function xpForLevel(level) {
+  return 5 * (level - 1) ** 2;
+}
+function levelForXp(xp) {
+  return Math.min(MAX_LEVEL, Math.floor(1 + Math.sqrt(Math.max(0, xp) / 5)));
+}
+function stageForLevel(level) {
+  if (level < 3) return "egg";
+  if (level < 15) return "baby";
+  if (level < 50) return "adult";
+  return "legendary";
+}
+function currentStreak(calendar) {
+  let i = calendar.length - 1;
+  if (i >= 0 && calendar[i].count === 0) i--;
+  let streak = 0;
+  for (; i >= 0 && calendar[i].count > 0; i--) streak++;
+  return streak;
+}
+function daysSinceLastContribution(calendar) {
+  for (let i = calendar.length - 1; i >= 0; i--) {
+    if (calendar[i].count > 0) return calendar.length - 1 - i;
+  }
+  return calendar.length;
+}
+function lastDays(calendar, n) {
+  return calendar.slice(Math.max(0, calendar.length - n));
+}
+function moodFor(calendar) {
+  const idle = daysSinceLastContribution(calendar);
+  if (idle >= 14) return "sleeping";
+  if (idle >= 4) return "hungry";
+  const week = lastDays(calendar, 7).reduce((sum, d) => sum + d.count, 0);
+  if (currentStreak(calendar) >= 3 || week >= 15) return "happy";
+  return "idle";
+}
+function statFor(value) {
+  return Math.max(1, Math.min(99, Math.round(25 * Math.log10(Math.max(0, value) + 1))));
+}
+var WELCOME_BACK_DAYS = 7;
+function momentsFor(profile, xp, level, date) {
+  const moments = {};
+  const cal = profile.calendar;
+  if (profile.createdAt) {
+    const born = profile.createdAt.slice(0, 10);
+    const years = Number(date.slice(0, 4)) - Number(born.slice(0, 4));
+    const leap = (y) => y % 4 === 0 && y % 100 !== 0 || y % 400 === 0;
+    const md = born.slice(5) === "02-29" && !leap(Number(date.slice(0, 4))) ? "02-28" : born.slice(5);
+    if (years >= 1 && date.slice(5) === md) moments.birthday = years;
+  }
+  const recent = cal.slice(-2).reduce((sum, d) => sum + d.count, 0);
+  const before = levelForXp(xp - recent);
+  if (recent > 0 && before < level) moments.levelUp = before;
+  let i = cal.length - 1;
+  while (i >= 0 && cal[i].count === 0) i--;
+  if (i >= cal.length - 2) {
+    let gap = 0;
+    for (let j = i - 1; j >= 0 && cal[j].count === 0; j--) gap++;
+    if (gap >= WELCOME_BACK_DAYS && i - 1 - gap >= 0) moments.welcomeBack = gap;
+  }
+  return moments;
+}
+function computePetState(profile, options = {}) {
+  const state = stateFor(profile, options);
+  const cal = profile.calendar;
+  if (cal.length >= 2) {
+    const yesterday = stateFor({ ...profile, calendar: cal.slice(0, -1), lifetimeContributions: profile.lifetimeContributions - cal.at(-1).count }, options);
+    if (surpriseFor(yesterday, "autumn") === "postcard") state.moments = { ...state.moments, backFrom: yesterday.date };
+  }
+  return state;
+}
+function stateFor(profile, options) {
+  const xp = profile.lifetimeContributions + profile.totalStars * 2 + profile.followers * 3;
+  const level = levelForXp(xp);
+  const topLanguage = profile.languages[0]?.name ?? null;
+  const species = getSpecies(options.species ?? speciesForLanguage(topLanguage));
+  const stats = {
+    str: statFor(profile.commits),
+    int: statFor(profile.pullRequests + profile.reviews),
+    cha: statFor(profile.totalStars + profile.followers),
+    dex: statFor(profile.issues)
+  };
+  const date = profile.calendar.at(-1)?.date ?? (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  return {
+    login: profile.login,
+    date,
+    petName: options.petName ?? species.defaultName,
+    species: species.id,
+    level,
+    stage: stageForLevel(level),
+    className: classForLanguage(topLanguage),
+    topLanguage,
+    mood: moodFor(profile.calendar),
+    xp,
+    xpLevelStart: xpForLevel(level),
+    xpNextLevel: xpForLevel(Math.min(level + 1, MAX_LEVEL)),
+    activeDays14: lastDays(profile.calendar, 14).filter((d) => d.count > 0).length,
+    streak: currentStreak(profile.calendar),
+    daysSinceLastContribution: daysSinceLastContribution(profile.calendar),
+    stats,
+    ranAway: options.runaway !== false && level >= 3 && daysSinceLastContribution(profile.calendar) >= RUN_AWAY_DAYS,
+    moments: momentsFor(profile, xp, level, date)
+  };
+}
+
+// src/demo.ts
+var MOODS = ["happy", "idle", "hungry", "sleeping"];
+var STAGES = ["egg", "baby", "adult", "legendary"];
+
+// src/care/commands.ts
+var CARE_ACTIONS = ["feed", "bath", "play"];
+var TITLE_PREFIX = "ProfileForge:";
+var SYNONYMS = {
+  feed: "feed",
+  food: "feed",
+  eat: "feed",
+  bath: "bath",
+  wash: "bath",
+  clean: "bath",
+  play: "play",
+  ball: "play"
+};
+function parseCommand(body) {
+  if (body.length > 2e3) return null;
+  const match = /^[^\p{L}\p{N}]*([a-z]+)/iu.exec(body);
+  const word = (match?.[1] ?? "").toLowerCase();
+  return Object.hasOwn(SYNONYMS, word) ? SYNONYMS[word] : null;
+}
+function houseLink(repo, issue) {
+  return `https://github.com/${repo}/issues/${issue}`;
 }
 
 // src/types.ts
@@ -2024,6 +4136,7 @@ var SURPRISES = [
   "level-up",
   "welcome-back",
   "postcard",
+  "souvenir",
   "ufo",
   "friend",
   "butterfly",
@@ -2282,12 +4395,12 @@ async function react(token, repo, commentId, content, f = fetch) {
   });
   if (!res.ok) throw new IssuesError(`reacting to comment ${commentId} failed: ${res.status}`);
 }
-async function createIssue(token, repo, title2, body, f = fetch) {
+async function createIssue(token, repo, title, body, f = fetch) {
   checkRepo(repo);
   const res = await f(`${API}/repos/${repo}/issues`, {
     method: "POST",
     headers: { ...headers(token), "content-type": "application/json" },
-    body: JSON.stringify({ title: title2, body })
+    body: JSON.stringify({ title, body })
   });
   if (!res.ok) throw new IssuesError(`creating the house issue failed: ${res.status}`);
   const number = (await res.json()).number;
@@ -2423,7 +4536,7 @@ async function fetchProfile(login, token) {
     name: user.name,
     createdAt: user.createdAt,
     followers: user.followers.totalCount,
-    totalStars: repos.reduce((sum, r) => sum + r.stargazerCount, 0),
+    totalStars: repos.reduce((sum, r2) => sum + r2.stargazerCount, 0),
     lifetimeContributions: await fetchLifetimeContributions(token, user.login, cc.contributionYears),
     commits: cc.totalCommitContributions,
     pullRequests: cc.totalPullRequestContributions,
@@ -2521,89 +4634,6 @@ var ENTITIES = {
 };
 function escapeXml(text2) {
   return text2.replace(/[&<>"']/g, (c) => ENTITIES[c]);
-}
-
-// src/pet/sprite.ts
-var FACE2 = {
-  happy: { eyes: "happy", mouth: "smile", blush: true },
-  idle: { eyes: "open", mouth: "smile", blush: false },
-  hungry: { eyes: "sad", mouth: "frown", blush: false },
-  sleeping: { eyes: "closed", mouth: "neutral", blush: false }
-};
-var FRAME_SPEED = { happy: 0.3, idle: 0.24, hungry: 1, sleeping: 1 };
-var SPRITE_CSS = `
-.pf-fa{animation:pf-a 1s steps(1) infinite}
-.pf-fb{opacity:0;animation:pf-b 1s steps(1) infinite}
-@keyframes pf-a{0%{opacity:1}50%{opacity:0}100%{opacity:0}}
-@keyframes pf-b{0%{opacity:0}50%{opacity:1}100%{opacity:1}}
-${BEHAVIOR_CSS}
-.pf-bob{animation:pf-bob 2s ease-in-out infinite}
-@keyframes pf-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-`;
-function frames(a, b, seconds) {
-  if (a === b) return a;
-  const style = `style="animation-duration:${seconds * 2}s"`;
-  return `<g class="pf-fa" ${style}>${a}</g><g class="pf-fb" ${style}>${b}</g>`;
-}
-function renderPetSprite(state, scale, { lively = true, emote = true, eyes: swap = null, hat, face: faceArt = "" } = {}) {
-  if (state.stage === "egg") return eggSprite(state, scale);
-  const species = getSpecies(state.species);
-  const legendary = state.stage === "legendary";
-  const palette = legendary ? { ...species.palette, ...species.legendaryPalette } : species.palette;
-  const px5 = (layers) => renderPixels(layers, palette, { scale });
-  const face = FACE2[state.mood];
-  const [limbA, limbB] = species.limbs[state.mood];
-  const side = glance(species.eyes.open);
-  let eyes6 = state.mood === "idle" ? `<g class="pf-eo">${px5(species.eyes.open)}</g>${side ? `<g class="pf-eg">${px5(side)}</g>` : ""}<g class="pf-es">${px5(species.eyes.closed)}</g>` : px5(species.eyes[face.eyes]);
-  if (swap) {
-    const alt = (kind) => px5(kind === "closed" ? species.eyes.closed : crossEyes(species.eyes.open, species.width));
-    eyes6 = `<g class="${swap.hide}">${eyes6}</g>${swap.alts.map((a) => `<g class="${a.cls}">${alt(a.kind)}</g>`).join("")}`;
-  }
-  let crown = "";
-  const cs = Math.max(1, Math.round(scale * 3 / 4));
-  if (hat) {
-    const hx = species.crownAnchor.x * scale - (hat.cx ?? hat.grid[0].length / 2) * scale;
-    const hy = species.crownAnchor.y * scale - (hat.grid.length - (hat.sink ?? 1)) * scale;
-    crown = renderPixels([{ x: 0, y: 0, grid: hat.grid }], hat.palette, { x: hx, y: hy, scale });
-  } else if (legendary) {
-    const cx = species.crownAnchor.x * scale - CROWN[0].length * cs / 2;
-    const cy = species.crownAnchor.y * scale - CROWN.length * cs - 1.5 * scale;
-    crown = `<g class="pf-bob">${renderPixels([{ x: 0, y: 0, grid: CROWN }], FX_PALETTE, { x: cx, y: cy, scale: cs })}</g>`;
-  }
-  let svg = [
-    frames(px5(limbA), px5(limbB), FRAME_SPEED[state.mood]),
-    px5(species.body),
-    px5(species.mouths[face.mouth]),
-    face.blush ? px5(species.blush) : "",
-    eyes6,
-    faceArt,
-    crown
-  ].join("");
-  let css = "";
-  if (lively && playful(state.mood)) {
-    const tricks = state.trick ? TRICK_STARTS.map(() => state.trick) : tricksFor(state.date, state.login);
-    let body = svg;
-    let beside = "";
-    tricks.forEach((trick, slot) => {
-      const t = trickLayers(trick, species, scale, slot);
-      body = `${t.under}${body}${t.overlay}`;
-      if (t.bodyClass) body = `<g class="${t.bodyClass}">${body}</g>`;
-      beside += t.beside;
-      css += t.css;
-    });
-    const bubble2 = emote ? emoteBubble(state.mood === "happy" ? "note" : "question", species.width * scale - 4, anchors(species).top * scale - 2, "pf-emote") : "";
-    svg = `${body}${beside}${bubble2}`;
-  }
-  return { svg, width: species.width * scale, height: species.height * scale, css };
-}
-function eggSprite(state, scale) {
-  const layers = [{ x: 0, y: 0, grid: EGG }];
-  if (state.xp / xpForLevel(3) >= 0.5) layers.push({ x: 0, y: 0, grid: EGG_CRACK });
-  return {
-    svg: renderPixels(layers, EGG_PALETTE, { scale }),
-    width: EGG[0].length * scale,
-    height: EGG.length * scale
-  };
 }
 
 // src/themes.ts
@@ -2782,14 +4812,14 @@ function themeFilter(name) {
 function hexToHsl(hex) {
   const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex.trim());
   if (!m) return null;
-  const [r, g, b] = [m[1], m[2], m[3]].map((c) => parseInt(c, 16) / 255);
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
+  const [r2, g, b] = [m[1], m[2], m[3]].map((c) => parseInt(c, 16) / 255);
+  const max = Math.max(r2, g, b);
+  const min = Math.min(r2, g, b);
   const l = (max + min) / 2;
   if (max === min) return [0, 0, l];
   const d = max - min;
   const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  const h = max === r2 ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r2) / d + 2 : (r2 - g) / d + 4;
   return [h / 6, s, l];
 }
 function hslToHex(h, s, l) {
@@ -2826,10 +4856,10 @@ var CRANE = "#f5a623";
 var BEACON = "#ff4d4d";
 var ROOFS = ["#7a3b2e", "#4f3f63", "#35536b"];
 function pickStyle(floors, rng) {
-  const r = rng();
-  if (floors >= 12) return r < 0.25 ? "setback" : r < 0.4 ? "glass" : r < 0.52 ? "spire" : "classic";
-  if (floors <= 6) return r < 0.4 ? "brick" : r < 0.48 ? "glass" : "classic";
-  return r < 0.15 ? "glass" : r < 0.35 ? "brick" : "classic";
+  const r2 = rng();
+  if (floors >= 12) return r2 < 0.25 ? "setback" : r2 < 0.4 ? "glass" : r2 < 0.52 ? "spire" : "classic";
+  if (floors <= 6) return r2 < 0.4 ? "brick" : r2 < 0.48 ? "glass" : "classic";
+  return r2 < 0.15 ? "glass" : r2 < 0.35 ? "brick" : "classic";
 }
 function addWindow(c, rng, lit, alt, x, y, w, h) {
   if (rng() >= lit) {
@@ -3002,14 +5032,14 @@ var EVENTS_CSS = `
 .pf-spark{animation:pf-spark 4.2s ease-out infinite}
 @keyframes pf-spark{0%,30%{transform:translate(0,0);opacity:0}32%{opacity:1}70%{opacity:.9}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
 `;
-var XMAS = ["#ff4d4d", "#ffd166", "#7dd3fc", "#7dff9b"];
+var XMAS2 = ["#ff4d4d", "#ffd166", "#7dd3fc", "#7dff9b"];
 function roofDecor(c, rng, x, top, holiday) {
   if (holiday === "halloween" && rng() < 0.22) {
     pumpkin(c, x + 4, top - 4);
   } else if (holiday === "christmas") {
     for (let i = 0; i < 5; i++) {
       const cls = i % 2 ? "pf-xmas-b" : "pf-xmas-a";
-      c.extras.push(`<rect class="${cls}" x="${x + 1 + i * 3}" y="${top - 1}" width="2" height="2" fill="${XMAS[(i + Math.floor(rng() * 4)) % 4]}"/>`);
+      c.extras.push(`<rect class="${cls}" x="${x + 1 + i * 3}" y="${top - 1}" width="2" height="2" fill="${XMAS2[(i + Math.floor(rng() * 4)) % 4]}"/>`);
     }
   } else if (holiday === "lunar-new-year" && rng() < 0.3) {
     lantern(c, x + 1, top + 2);
@@ -3040,7 +5070,7 @@ function bats(holiday) {
   return `<g class="pf-bats" style="animation-delay:-4s"><g transform="translate(0 72)" fill="none" stroke="#140c1c" stroke-width="1.6">${bat(0, 0)}${bat(12, 7)}${bat(24, -4)}${bat(36, 5)}${bat(48, -1)}</g></g>`;
 }
 var SPARK_COLORS = ["#ff5c7a", "#ffd166", "#7dd3fc", "#c3a6ff", "#7dff9b"];
-function fireworks(rng) {
+function fireworks2(rng) {
   const out = [];
   for (let b = 0; b < 3; b++) {
     const cx = Math.round(140 + b * 220 + rng() * 80);
@@ -3050,9 +5080,9 @@ function fireworks(rng) {
     out.push(`<rect class="pf-launch" style="${delay}" x="${cx}" y="${cy}" width="2" height="5" fill="${color}"/>`);
     for (let i = 0; i < 14; i++) {
       const angle = i / 14 * Math.PI * 2;
-      const r = 20 + rng() * 10;
-      const dx = Math.round(Math.cos(angle) * r);
-      const dy = Math.round(Math.sin(angle) * r + 8);
+      const r2 = 20 + rng() * 10;
+      const dx = Math.round(Math.cos(angle) * r2);
+      const dy = Math.round(Math.sin(angle) * r2 + 8);
       out.push(
         `<rect class="pf-spark" style="${delay};--dx:${dx}px;--dy:${dy}px" x="${cx}" y="${cy}" width="2" height="2" fill="${color}"/>`
       );
@@ -3109,14 +5139,14 @@ var WEATHER_CSS = `
 .pf-fog{animation:pf-fog 24s ease-in-out infinite alternate}
 @keyframes pf-fog{0%{transform:translateX(-50px)}100%{transform:translateX(50px)}}
 `;
-function cloud(batch, fill, x, y, s) {
+function cloud2(batch, fill, x, y, s) {
   batch.add(fill, x, y + 4 * s, 22 * s, 4 * s).add(fill, x + 4 * s, y + s, 10 * s, 4 * s).add(fill, x + 10 * s, y, 8 * s, 5 * s).add(fill, x + 16 * s, y + 2 * s, 5 * s, 3 * s);
 }
 function clouds(rng) {
   const out = [];
   for (let i = 0; i < 4; i++) {
     const batch = new RectBatch();
-    cloud(batch, "#ffffff", 0, 0, 2);
+    cloud2(batch, "#ffffff", 0, 0, 2);
     const y = 64 + Math.round(rng() * 70);
     const delay = Math.round(rng() * 160);
     out.push(`<g class="pf-drift" style="animation-delay:-${delay}s"><g transform="translate(0 ${y})" opacity=".7">${batch}</g></g>`);
@@ -3126,7 +5156,7 @@ function clouds(rng) {
 function overcast(rng) {
   const batch = new RectBatch();
   for (let x = -30; x < W; x += 70 + Math.round(rng() * 40)) {
-    cloud(batch, "#6f7689", x, 58 + Math.round(rng() * 40), 3);
+    cloud2(batch, "#6f7689", x, 58 + Math.round(rng() * 40), 3);
   }
   return `<rect width="${W}" height="${H}" fill="#1b2033" opacity=".28"/><g opacity=".85">${batch}</g>`;
 }
@@ -3175,30 +5205,30 @@ function moonPhaseName(phase) {
   ];
   return names[Math.round(phase * 8) % 8];
 }
-function pixelCircle(batch, fill, cx, cy, radius, px5) {
-  const r = Math.round(radius / px5);
-  for (let dy = -r; dy < r; dy++) {
-    const half = Math.round(Math.sqrt(r * r - (dy + 0.5) ** 2));
-    batch.add(fill, cx - half * px5, cy + dy * px5, half * 2 * px5, px5);
+function pixelCircle(batch, fill, cx, cy, radius, px6) {
+  const r2 = Math.round(radius / px6);
+  for (let dy = -r2; dy < r2; dy++) {
+    const half = Math.round(Math.sqrt(r2 * r2 - (dy + 0.5) ** 2));
+    batch.add(fill, cx - half * px6, cy + dy * px6, half * 2 * px6, px6);
   }
 }
-function pixelMoon(cx, cy, radius, px5, phase, south = false) {
+function pixelMoon(cx, cy, radius, px6, phase, south = false) {
   const lit = new RectBatch();
   const dark2 = new RectBatch();
-  const r = Math.round(radius / px5);
+  const r2 = Math.round(radius / px6);
   const terminator = Math.cos(2 * Math.PI * phase);
-  for (let dy = -r; dy < r; dy++) {
-    const yc = (dy + 0.5) / r;
+  for (let dy = -r2; dy < r2; dy++) {
+    const yc = (dy + 0.5) / r2;
     const half = Math.sqrt(Math.max(0, 1 - yc * yc));
-    const cols = Math.round(half * r);
+    const cols = Math.round(half * r2);
     let runStart = -cols;
     let runLit = null;
     const flush = (end) => {
       if (runLit === null || end <= runStart) return;
-      (runLit ? lit : dark2).add("var(--pf-celestial)", cx + runStart * px5, cy + dy * px5, (end - runStart) * px5, px5);
+      (runLit ? lit : dark2).add("var(--pf-celestial)", cx + runStart * px6, cy + dy * px6, (end - runStart) * px6, px6);
     };
     for (let dx = -cols; dx < cols; dx++) {
-      const xc = (dx + 0.5) / r * (south ? -1 : 1);
+      const xc = (dx + 0.5) / r2 * (south ? -1 : 1);
       const isLit = phase < 0.5 ? xc > half * terminator : xc < -half * terminator;
       if (isLit !== runLit) {
         flush(dx);
@@ -3271,7 +5301,7 @@ function floorsFor(week, maxTotal) {
   const ratio = (week.total / maxTotal) ** 0.6;
   return Math.max(1, Math.round(1 + (MAX_FLOORS - 1) * ratio));
 }
-function sky(state, rng, weather, south) {
+function sky2(state, rng, weather, south) {
   const stars = new RectBatch();
   const twinkles = [];
   for (let i = 0; i < 46; i++) {
@@ -3285,15 +5315,15 @@ function sky(state, rng, weather, south) {
       stars.add("#fff", x, y, 2, 2);
     }
   }
-  const sun = new RectBatch();
-  pixelCircle(sun, "var(--pf-celestial)", 640, 168, 40, 4);
+  const sun2 = new RectBatch();
+  pixelCircle(sun2, "var(--pf-celestial)", 640, 168, 40, 4);
   const sunGlow = new RectBatch();
   pixelCircle(sunGlow, "var(--pf-celestial)", 640, 168, 60, 4);
   const shootingStar = state.currentStreak >= 7 ? `<g class="pf-shoot"><line x1="560" y1="34" x2="592" y2="20" stroke="url(#pf-tail)" stroke-width="2"/><rect x="558" y="33" width="3" height="3" fill="#fff"/></g>` : "";
   if (weather !== "clear") return `<rect width="${W}" height="${H}" fill="url(#pf-sky)"/>`;
   return `
 <rect width="${W}" height="${H}" fill="url(#pf-sky)"/>
-<g class="pf-day"><g opacity=".25">${sunGlow}</g>${sun}</g>
+<g class="pf-day"><g opacity=".25">${sunGlow}</g>${sun2}</g>
 <g class="pf-night">${stars}${twinkles.join("")}${pixelMoon(712, 78, 13, U, moonPhase(state.date), south)}${shootingStar}</g>`;
 }
 function flyers() {
@@ -3317,7 +5347,7 @@ function backdrop(rng) {
   }
   return `<g opacity=".45">${batch}</g>`;
 }
-function skyline(state, season, holiday, weather) {
+function skyline2(state, season, holiday, weather) {
   const canvas = newCanvas();
   const look = LOOKS[season];
   const weeks = state.weeks;
@@ -3426,13 +5456,13 @@ function renderCityCard(state, options = {}) {
 </defs>
 ${filter.defs}
 <g clip-path="url(#pf-clip)"><g${filter.attr}>
-${sky(state, rng, weather, options.hemisphere === "south")}
+${sky2(state, rng, weather, options.hemisphere === "south")}
 ${weather === "clear" ? clouds(rng) : overcast(rng)}
 ${flyers()}
 ${bats(holiday)}
-${celebrating ? fireworks(rng) : ""}
+${celebrating ? fireworks2(rng) : ""}
 ${backdrop(rng)}
-${skyline(state, season, holiday, weather)}
+${skyline2(state, season, holiday, weather)}
 ${weather === "clear" ? fireflies(look, rng) : ""}
 ${street(state, season, strollingPet(state.pet))}
 ${weather === "rain" && season !== "winter" ? rain(rng) : fallingParticles(look, rng)}
@@ -3446,14 +5476,14 @@ ${border}
 }
 
 // src/pet/homes.ts
-var px = (grid, palette, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
+var px3 = (grid, palette, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
 var BAMBOO = ["g.", "gl", "gg", "Gg", "gg", "gl", "gg", "Gg", "gg", "gl", "gg", "Gg"];
 var BAMBOO_LEAF = ["..ll", "lll.", "l..."];
 var YUZU = outlined([".l.", "yyy", "yYy", ".y."]);
 var LOG = outlined(["bbbbbbbbbbbrr", "bBbbbbBbbbbRr", "bbbbbbbbbbbrr"]);
 var MUSHROOM = outlined(["..rrrr..", ".rwrrwr.", "rrrrrwrr", "rwrrrrrr", "..ssss..", "..ssss..", "..ssss.."]);
 var MUSHROOM_SMALL = outlined([".rr.", "rwrr", ".ss.", ".ss."]);
-var CORAL = [
+var CORAL2 = [
   "c...c...",
   "c.c.c.c.",
   "ccc.ccc.",
@@ -3469,7 +5499,7 @@ var TULIP = ["r.r.r", "rrrrr", ".rrr.", "..g..", ".gg..", "..g..", "..gg.", "..g
 var PINE = outlined(["...g...", "..ggg..", ".gGggg.", "..ggg..", ".ggggg.", "gggGggg", "..ggg..", ".ggggg.", "ggggggg", "...b...", "...b..."]);
 var STUMP = outlined(["wwwww", "bbbbb", "bBbbb", "bbbbb"]);
 var BIRDHOUSE = outlined(["..rr..", ".rrrr.", "rrrrrr", "wwwwww", "wwkkww", "wwkkww", "wwwwww", "..bb..", "..bb..", "..bb..", "..bb..", "..bb.."]);
-var TREE = outlined([
+var TREE2 = outlined([
   "....gggggg....",
   "..ggGGggggg...",
   ".gGGggggGggg..",
@@ -3493,9 +5523,9 @@ function homeProps(home, area) {
   let art = "";
   switch (home) {
     case "onsen": {
-      art += px(BAMBOO, { g: "#5aa35a", G: "#2f7a3a", l: "#8fd18f" }, left + 6, g - 36, 3);
-      art += px(BAMBOO, { g: "#5aa35a", G: "#2f7a3a", l: "#8fd18f" }, left + 16, g - 28, 3);
-      art += px(BAMBOO_LEAF, { l: "#6fbf6a" }, left + 12, g - 40, 3);
+      art += px3(BAMBOO, { g: "#5aa35a", G: "#2f7a3a", l: "#8fd18f" }, left + 6, g - 36, 3);
+      art += px3(BAMBOO, { g: "#5aa35a", G: "#2f7a3a", l: "#8fd18f" }, left + 16, g - 28, 3);
+      art += px3(BAMBOO_LEAF, { l: "#6fbf6a" }, left + 12, g - 40, 3);
       const px0 = right - 62;
       b.add("#8a9099", px0, g + 3, 56, 18).add("#8a9099", px0 + 4, g + 1, 48, 22);
       b.add("#7fd3d8", px0 + 5, g + 5, 46, 14).add("#b6ecee", px0 + 10, g + 7, 16, 2).add("#b6ecee", px0 + 30, g + 12, 12, 2);
@@ -3505,9 +5535,9 @@ function homeProps(home, area) {
       break;
     }
     case "forest": {
-      art += px(LOG, { b: "#8a5a33", B: "#6b4226", r: "#d9a066", R: "#b07d4a", o: "#3b2616" }, left + 2, g - 9, 3);
-      art += px(MUSHROOM, { r: "#e03131", w: "#ffffff", s: "#f1e3c6", o: "#4a1a0c" }, right - 30, g - 24, 3);
-      art += px(MUSHROOM_SMALL, { r: "#e03131", w: "#ffffff", s: "#f1e3c6", o: "#4a1a0c" }, right - 44, g - 14, 2);
+      art += px3(LOG, { b: "#8a5a33", B: "#6b4226", r: "#d9a066", R: "#b07d4a", o: "#3b2616" }, left + 2, g - 9, 3);
+      art += px3(MUSHROOM, { r: "#e03131", w: "#ffffff", s: "#f1e3c6", o: "#4a1a0c" }, right - 30, g - 24, 3);
+      art += px3(MUSHROOM_SMALL, { r: "#e03131", w: "#ffffff", s: "#f1e3c6", o: "#4a1a0c" }, right - 44, g - 14, 2);
       for (const [x, y, c] of [[left + 50, g + 12, "#d9822b"], [left + 90, g + 20, "#b5651d"], [right - 70, g + 14, "#e8a45a"], [left + 30, g + 22, "#b5651d"]]) {
         b.add(c, x, y, 4, 2).add(c, x + 1, y - 1, 2, 1);
       }
@@ -3516,22 +5546,22 @@ function homeProps(home, area) {
     case "reef": {
       art += `<rect class="pf-amb-water" x="${left}" y="${area.y}" width="${area.w}" height="${g - area.y}" fill="#1c7fc4"/>`;
       art += `<g class="pf-amb-rays" fill="#ffffff">${[20, 70, 130].map((x) => `<path d="M${left + x} ${area.y}h14l-40 ${g - area.y}h-14z"/>`).join("")}</g>`;
-      art += px(CORAL, { c: "#ff7f9e" }, left + 4, g - 24, 3);
-      art += px(CORAL, { c: "#ffb35c" }, left + 22, g - 16, 2);
-      art += px(CLAM, { p: "#f7c6d9", P: "#e39bb6", o: "#8a4a64" }, right - 44, g + 8, 2);
+      art += px3(CORAL2, { c: "#ff7f9e" }, left + 4, g - 24, 3);
+      art += px3(CORAL2, { c: "#ffb35c" }, left + 22, g - 16, 2);
+      art += px3(CLAM, { p: "#f7c6d9", P: "#e39bb6", o: "#8a4a64" }, right - 44, g + 8, 2);
       break;
     }
     case "garden": {
-      art += px(BIG_LEAF, { g: "#5cb85c", G: "#8fd18f", s: "#3f8f4f", o: "#2c6b3a" }, left + 2, g - 36, 4);
-      art += px(TULIP, { r: "#ff6b6b", g: "#3f8f4f" }, right - 36, g - 22, 3);
-      art += px(TULIP, { r: "#ffd43b", g: "#3f8f4f" }, right - 20, g - 18, 3);
+      art += px3(BIG_LEAF, { g: "#5cb85c", G: "#8fd18f", s: "#3f8f4f", o: "#2c6b3a" }, left + 2, g - 36, 4);
+      art += px3(TULIP, { r: "#ff6b6b", g: "#3f8f4f" }, right - 36, g - 22, 3);
+      art += px3(TULIP, { r: "#ffd43b", g: "#3f8f4f" }, right - 20, g - 18, 3);
       b.add("#9fd0ec", left + 60, g + 12, 30, 5).add("#9fd0ec", left + 64, g + 11, 22, 1).add("#d0ebff", left + 66, g + 13, 8, 1);
       break;
     }
     case "pinewood": {
       const pine = { g: "#2f6b3a", G: "#4f9a55", b: "#6b4226", o: "#173a20" };
-      art += px(PINE, pine, left - 4, g - 36, 3) + px(PINE, pine, left + 18, g - 26, 2) + px(PINE, pine, right - 26, g - 36, 3);
-      art += px(STUMP, { w: "#e9c89a", b: "#8a5a33", B: "#6b4226", o: "#3b2616" }, right - 52, g - 10, 2);
+      art += px3(PINE, pine, left - 4, g - 36, 3) + px3(PINE, pine, left + 18, g - 26, 2) + px3(PINE, pine, right - 26, g - 36, 3);
+      art += px3(STUMP, { w: "#e9c89a", b: "#8a5a33", B: "#6b4226", o: "#3b2616" }, right - 52, g - 10, 2);
       break;
     }
     case "deepsea": {
@@ -3549,8 +5579,8 @@ function homeProps(home, area) {
       break;
     }
     case "treetop": {
-      art += px(TREE, { g: "#4f9a55", G: "#7fc27a", b: "#7a4a24", o: "#24502b" }, left - 14, g - 46, 3);
-      art += px(BIRDHOUSE, { r: "#c92a2a", w: "#e9c89a", k: "#3b2616", b: "#8a5a33", o: "#3b2616" }, right - 28, g - 42, 3);
+      art += px3(TREE2, { g: "#4f9a55", G: "#7fc27a", b: "#7a4a24", o: "#24502b" }, left - 14, g - 46, 3);
+      art += px3(BIRDHOUSE, { r: "#c92a2a", w: "#e9c89a", k: "#3b2616", b: "#8a5a33", o: "#3b2616" }, right - 28, g - 42, 3);
       break;
     }
   }
@@ -3566,8 +5596,8 @@ function homeAmbient(home, area) {
   const right = area.x + area.w;
   switch (home) {
     case "onsen": {
-      const steam = [0, 1.2, 2.4].map((d, i) => `<g class="pf-amb-steam" style="animation-delay:-${d}s">${px(["x.", ".x", "x.", ".x", "x."], { x: "#d6e2ee" }, right - 50 + i * 16, g - 8, 3)}</g>`).join("");
-      const yuzu = `<g class="pf-amb-bob2">${px(YUZU, { y: "#fcc419", Y: "#ffe066", l: "#51cf66", o: "#8a6a00" }, right - 30, g + 6, 2)}</g>`;
+      const steam = [0, 1.2, 2.4].map((d, i) => `<g class="pf-amb-steam" style="animation-delay:-${d}s">${px3(["x.", ".x", "x.", ".x", "x."], { x: "#d6e2ee" }, right - 50 + i * 16, g - 8, 3)}</g>`).join("");
+      const yuzu = `<g class="pf-amb-bob2">${px3(YUZU, { y: "#fcc419", Y: "#ffe066", l: "#51cf66", o: "#8a6a00" }, right - 30, g + 6, 2)}</g>`;
       return {
         svg: steam + yuzu,
         css: `.pf-amb-steam{opacity:0;animation:pf-amb-steam 3.6s ease-out infinite}@keyframes pf-amb-steam{0%{transform:translate(0,0);opacity:0}25%{opacity:.7}100%{transform:translate(4px,-30px);opacity:0}}
@@ -3576,13 +5606,13 @@ function homeAmbient(home, area) {
     }
     case "forest":
       return {
-        svg: `<g class="pf-amb-crawl">${px(LADYBUG, { r: "#e03131", k: "#1a1a1a", o: "#1a1a1a" }, left + 6, g - 13, 2)}</g>`,
+        svg: `<g class="pf-amb-crawl">${px3(LADYBUG, { r: "#e03131", k: "#1a1a1a", o: "#1a1a1a" }, left + 6, g - 13, 2)}</g>`,
         css: `.pf-amb-crawl{animation:pf-amb-crawl 12s ease-in-out infinite alternate}@keyframes pf-amb-crawl{0%,10%{transform:translateX(0)}90%,100%{transform:translateX(26px)}}`
       };
     case "reef": {
       const bubbles = [0, 1.1, 2.3, 3.2].map((d, i) => `<rect class="pf-amb-rise" style="animation-delay:-${d}s" x="${[left + 30, right - 30, left + 60, right - 60][i]}" y="${g}" width="3" height="3" rx="1.5" fill="none" stroke="#d0ebff" stroke-width="1"/>`).join("");
-      const fish = `<g class="pf-amb-swim">${px(FISH, { y: "#ffd43b", k: "#1a1a1a", o: "#8a6a00" }, 0, area.y + 38, 2)}</g>`;
-      const weed = [0, 0.8].map((d, i) => `<g class="pf-amb-sway" style="animation-delay:-${d}s">${px(["g", "gg", ".g", "gg", "g.", "gg", ".g", "g", "g"], { g: "#2f9e44" }, right - 22 + i * 8, g - 26 + i * 6, 3)}</g>`).join("");
+      const fish = `<g class="pf-amb-swim">${px3(FISH, { y: "#ffd43b", k: "#1a1a1a", o: "#8a6a00" }, 0, area.y + 38, 2)}</g>`;
+      const weed = [0, 0.8].map((d, i) => `<g class="pf-amb-sway" style="animation-delay:-${d}s">${px3(["g", "gg", ".g", "gg", "g.", "gg", ".g", "g", "g"], { g: "#2f9e44" }, right - 22 + i * 8, g - 26 + i * 6, 3)}</g>`).join("");
       return {
         svg: weed + bubbles + fish,
         css: `.pf-amb-water{opacity:calc(.28 + var(--pf-stars) * .12)}.pf-amb-rays{opacity:calc(.1 - var(--pf-stars) * .08)}
@@ -3599,21 +5629,21 @@ function homeAmbient(home, area) {
     case "pinewood": {
       const hx = right - 70;
       return {
-        svg: `<clipPath id="pf-amb-burrow"><rect x="${hx - 2}" y="${g}" width="16" height="12"/></clipPath><rect x="${hx}" y="${g + 10}" width="12" height="3" rx="1" fill="#3b2616"/><g clip-path="url(#pf-amb-burrow)"><g class="pf-amb-peek">${px(MOUSE, { m: "#b8a898", k: "#1a1a1a", n: "#ff8fa3", o: "#5b4636" }, hx + 1, g + 10, 2)}</g></g>`,
+        svg: `<clipPath id="pf-amb-burrow"><rect x="${hx - 2}" y="${g}" width="16" height="12"/></clipPath><rect x="${hx}" y="${g + 10}" width="12" height="3" rx="1" fill="#3b2616"/><g clip-path="url(#pf-amb-burrow)"><g class="pf-amb-peek">${px3(MOUSE, { m: "#b8a898", k: "#1a1a1a", n: "#ff8fa3", o: "#5b4636" }, hx + 1, g + 10, 2)}</g></g>`,
         css: `.pf-amb-peek{animation:pf-amb-peek 8s ease-in-out infinite}@keyframes pf-amb-peek{0%,50%,100%{transform:none}58%,78%{transform:translateY(-9px)}}`
       };
     }
     case "deepsea": {
       const jelly = outlined([".jjj.", "jJjjj", "jjjjj", "j.j.j", "j.j.j"]);
       return {
-        svg: `<g class="pf-amb-jelly">${px(jelly, { j: "#f3a6ff", J: "#ffffff", o: "#9b4fb3" }, right - 46, area.y + 40, 2)}</g>`,
+        svg: `<g class="pf-amb-jelly">${px3(jelly, { j: "#f3a6ff", J: "#ffffff", o: "#9b4fb3" }, right - 46, area.y + 40, 2)}</g>`,
         css: `.pf-amb-deep{opacity:calc(.62 + var(--pf-stars) * .13)}
 .pf-amb-jelly{animation:pf-amb-jelly 5s ease-in-out infinite}@keyframes pf-amb-jelly{0%,100%{transform:translate(0,0) scale(1,1)}25%{transform:translate(-4px,-10px) scale(1.1,.85)}50%{transform:translate(-6px,-18px) scale(.95,1.08)}75%{transform:translate(-2px,-8px)}}`
       };
     }
     case "river": {
       const ripples = [0, 1, 2].map((i) => `<rect class="pf-amb-flow" style="animation-delay:-${i * 1.7}s" x="${left}" y="${g + 13 + i % 2 * 4}" width="10" height="1" fill="#d0ebff"/>`).join("");
-      const leaf2 = `<g class="pf-amb-flow" style="animation-duration:9s;animation-delay:-3s">${px(["..gg", ".ggg", "ggg.", "g..."], { g: "#51cf66" }, left, g + 9, 2)}</g>`;
+      const leaf2 = `<g class="pf-amb-flow" style="animation-duration:9s;animation-delay:-3s">${px3(["..gg", ".ggg", "ggg.", "g..."], { g: "#51cf66" }, left, g + 9, 2)}</g>`;
       return {
         svg: ripples + leaf2,
         css: `.pf-amb-flow{animation:pf-amb-flow 5s linear infinite}@keyframes pf-amb-flow{from{transform:translateX(-12px)}to{transform:translateX(${area.w}px)}}`
@@ -3621,7 +5651,7 @@ function homeAmbient(home, area) {
     }
     case "treetop":
       return {
-        svg: `<g class="pf-amb-feather">${px(FEATHER, { f: "#ffffff" }, left + 24, area.y + 30, 2)}</g>`,
+        svg: `<g class="pf-amb-feather">${px3(FEATHER, { f: "#ffffff" }, left + 24, area.y + 30, 2)}</g>`,
         css: `.pf-amb-feather{animation:pf-amb-feather 9s ease-in-out infinite}@keyframes pf-amb-feather{0%{transform:translate(0,0);opacity:0}10%{opacity:1}30%{transform:translate(12px,26px)}55%{transform:translate(-2px,54px)}80%{transform:translate(10px,82px);opacity:1}95%,100%{transform:translate(4px,96px);opacity:0}}`
       };
   }
@@ -3716,10 +5746,10 @@ function props(species, area) {
   }
   return b.toString();
 }
-function tuft(b, x, ground, color) {
-  b.add(color, x, ground - 5, 2, 5).add(color, x - 3, ground - 3, 2, 3).add(color, x + 3, ground - 4, 2, 4);
+function tuft(b, x, ground2, color) {
+  b.add(color, x, ground2 - 5, 2, 5).add(color, x - 3, ground2 - 3, 2, 3).add(color, x + 3, ground2 - 4, 2, 4);
 }
-function fern(b, x, ground) {
+function fern(b, x, ground2) {
   const fronds = [
     [-4, -2, 5],
     [-2, -4, 6],
@@ -3729,12 +5759,12 @@ function fern(b, x, ground) {
   ];
   for (const [dx, dy, steps] of fronds) {
     for (let j = 1; j <= steps; j++) {
-      b.add(j % 2 ? GREEN : DARK_GREEN, x + dx * j - 2, ground + dy * j, 4, 3);
+      b.add(j % 2 ? GREEN : DARK_GREEN, x + dx * j - 2, ground2 + dy * j, 4, 3);
     }
   }
-  b.add(DARK_GREEN, x - 1, ground - 4, 3, 4);
+  b.add(DARK_GREEN, x - 1, ground2 - 4, 3, 4);
 }
-var px2 = (grid, palette, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
+var px4 = (grid, palette, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
 var BEE = [".ww.", "ykyk", ".yk."];
 var PARROT = [".rr.", "rrwk", "rrry", ".gr.", ".gg.", ".bb."];
 var BIRD = [".kk.", "kkkw", "kkk.", ".y.."];
@@ -3756,7 +5786,7 @@ function ambient(species, area) {
       };
     }
     case "meadow": {
-      const bee = `<g class="pf-amb-bee"><g class="pf-fa" style="animation-duration:.2s">${px2(BEE, { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.2s">${px2(BEE.slice(1), { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 2, 2)}</g></g>`;
+      const bee = `<g class="pf-amb-bee"><g class="pf-fa" style="animation-duration:.2s">${px4(BEE, { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.2s">${px4(BEE.slice(1), { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 2, 2)}</g></g>`;
       return {
         svg: `<g transform="translate(${right - 40} ${g - 26})">${bee}</g>`,
         css: `.pf-amb-bee{animation:pf-amb-bee 7s ease-in-out infinite}@keyframes pf-amb-bee{0%,100%{transform:translate(0,0)}20%{transform:translate(-14px,-8px)}40%{transform:translate(-4px,-16px)}60%{transform:translate(12px,-6px)}80%{transform:translate(4px,4px)}}`
@@ -3764,17 +5794,17 @@ function ambient(species, area) {
     }
     case "jungle":
       return {
-        svg: `<g transform="translate(${right - 22} ${g - 40})"><g class="pf-amb-bob">${px2(PARROT, { r: "#e03131", w: "#ffffff", k: "#1f2328", y: "#ffd43b", g: "#2f9e44", b: "#1c7ed6" }, 0, 0, 3)}</g></g>`,
+        svg: `<g transform="translate(${right - 22} ${g - 40})"><g class="pf-amb-bob">${px4(PARROT, { r: "#e03131", w: "#ffffff", k: "#1f2328", y: "#ffd43b", g: "#2f9e44", b: "#1c7ed6" }, 0, 0, 3)}</g></g>`,
         css: `.pf-amb-bob{transform-box:fill-box;transform-origin:50% 100%;animation:pf-amb-bob 5s steps(1) infinite}@keyframes pf-amb-bob{0%,60%{transform:none}64%{transform:rotate(-12deg)}72%{transform:none}76%{transform:rotate(-12deg)}84%,100%{transform:none}}`
       };
     case "savanna":
       return {
-        svg: `<g transform="translate(${right - 44} ${g - 64})"><g class="pf-amb-hop">${px2(BIRD, { k: "#5c3d2e", w: "#ffffff", y: "#f59f00" }, 0, 0, 2)}</g></g>`,
+        svg: `<g transform="translate(${right - 44} ${g - 64})"><g class="pf-amb-hop">${px4(BIRD, { k: "#5c3d2e", w: "#ffffff", y: "#f59f00" }, 0, 0, 2)}</g></g>`,
         css: `.pf-amb-hop{animation:pf-amb-hop 6s ease-in-out infinite}@keyframes pf-amb-hop{0%,30%{transform:none}35%{transform:translate(6px,-4px)}40%,65%{transform:translate(12px,0)}70%{transform:translate(6px,-4px)}75%,100%{transform:none}}`
       };
     case "farm":
       return {
-        svg: `<clipPath id="pf-amb-soil"><rect x="${left + 50}" y="${g}" width="12" height="16"/></clipPath><rect x="${left + 52}" y="${g + 14}" width="8" height="2" fill="#6b4226"/><g clip-path="url(#pf-amb-soil)"><g class="pf-amb-worm">${px2(WORM, { p: "#f783ac" }, left + 54, g + 14, 2)}</g></g>`,
+        svg: `<clipPath id="pf-amb-soil"><rect x="${left + 50}" y="${g}" width="12" height="16"/></clipPath><rect x="${left + 52}" y="${g + 14}" width="8" height="2" fill="#6b4226"/><g clip-path="url(#pf-amb-soil)"><g class="pf-amb-worm">${px4(WORM, { p: "#f783ac" }, left + 54, g + 14, 2)}</g></g>`,
         css: `.pf-amb-worm{transform-box:fill-box;transform-origin:50% 100%;animation:pf-amb-worm 9s ease-in-out infinite}@keyframes pf-amb-worm{0%,55%,100%{transform:none}62%,80%{transform:translateY(-10px)}70%{transform:translateY(-10px) rotate(8deg)}}`
       };
     case "pond": {
@@ -3782,7 +5812,7 @@ function ambient(species, area) {
       const cy = g + 13;
       const ripple = (d) => `<ellipse class="pf-amb-ripple" style="animation-delay:-${d}s" cx="${cx}" cy="${cy}" rx="8" ry="2.5" fill="none" stroke="#d0ebff" stroke-width="1"/>`;
       return {
-        svg: `${ripple(0)}${ripple(1.5)}<g class="pf-amb-fish">${px2(FISH2, { o: "#ff922b" }, cx - 6, cy - 2, 2)}</g>`,
+        svg: `${ripple(0)}${ripple(1.5)}<g class="pf-amb-fish">${px4(FISH2, { o: "#ff922b" }, cx - 6, cy - 2, 2)}</g>`,
         css: `.pf-amb-ripple{transform-box:fill-box;transform-origin:center;animation:pf-amb-ripple 3s ease-out infinite}@keyframes pf-amb-ripple{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.6);opacity:0}}
 .pf-amb-fish{opacity:0;transform-box:fill-box;transform-origin:center;animation:pf-amb-fish 8s ease-in-out infinite}@keyframes pf-amb-fish{0%,70%{opacity:0;transform:translate(-8px,4px) rotate(-40deg)}72%{opacity:1}80%{transform:translate(0,-14px) rotate(0)}88%{opacity:1;transform:translate(8px,2px) rotate(40deg)}90%,100%{opacity:0;transform:translate(8px,4px) rotate(40deg)}}`
       };
@@ -3825,10 +5855,10 @@ function careOverlay(care, w, h, scale) {
   if (care.dirt >= 3) {
     const cx = w / 2;
     const cy = h * 0.2;
-    for (const [i, r] of [w * 0.45, w * 0.6, w * 0.38].entries()) {
+    for (const [i, r2] of [w * 0.45, w * 0.6, w * 0.38].entries()) {
       out.push(
         // Rotating around the group's own origin, which sits on the head.
-        `<g transform="translate(${cx} ${cy})"><g class="pf-orbit" style="animation-delay:-${(i * 0.7).toFixed(1)}s;animation-duration:${(1.8 + i * 0.5).toFixed(1)}s"><g class="pf-buzz"><rect x="${Math.round(r)}" y="0" width="3" height="2" fill="#1a1a1a"/><rect x="${Math.round(r)}" y="-2" width="2" height="2" fill="#ffffff" opacity=".8"/></g></g></g>`
+        `<g transform="translate(${cx} ${cy})"><g class="pf-orbit" style="animation-delay:-${(i * 0.7).toFixed(1)}s;animation-duration:${(1.8 + i * 0.5).toFixed(1)}s"><g class="pf-buzz"><rect x="${Math.round(r2)}" y="0" width="3" height="2" fill="#1a1a1a"/><rect x="${Math.round(r2)}" y="-2" width="2" height="2" fill="#ffffff" opacity=".8"/></g></g></g>`
       );
     }
   }
@@ -3926,7 +5956,7 @@ var TUB = outlined([
 var TUB_COLORS = { h: "#ffffff", w: "#eef3f8", s: "#c3cfdb", g: "#e0a800", o: "#51606f" };
 var SUDS = outlined(["..ww.ww..", ".wwhwwww.", "wwwwwwhww", "wbwwwwwbw", ".bbwbbbb."]);
 var SUDS_COLORS = { w: "#ffffff", h: "#ffffff", b: "#cfe3f5", o: "#9fb6cc" };
-var DUCK = outlined(["..yy...", ".yyyk..", ".yyyyrr", "yyyyy..", "yyyyyyy", ".yyyyy."]);
+var DUCK2 = outlined(["..yy...", ".yyyk..", ".yyyyrr", "yyyyy..", "yyyyyyy", ".yyyyy."]);
 var DUCK_COLORS = { y: "#ffd23f", k: "#1a1a1a", r: "#f28c28", o: "#8a5a00" };
 var SHOWER_HEAD = outlined(["cccccc", "cCCCCc", ".cccc."]);
 var SHOWER_COLORS = { c: "#b8c4d0", C: "#8d9aa8", o: "#51606f" };
@@ -3935,12 +5965,12 @@ var BALL_B = outlined([".yyyy.", "ywyyyy", "yywyyy", "yyyywy", "yyyyyw", ".yyyy.
 var BALL_COLORS = { y: "#c6e33a", w: "#ffffff", o: "#5f7a12" };
 var HAND = outlined(["..ssss....", ".sssssss..", "sssssssccc", "sssssssccc", ".ssssss.cc", "..sss....."]);
 var HAND_COLORS = { s: "#f2c29b", c: "#4c6ef5", o: "#8a5a3c" };
-var px3 = (grid, colors, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], colors, { x, y, scale });
+var px5 = (grid, colors, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], colors, { x, y, scale });
 function shadow(x, y, w) {
   return `<rect x="${x}" y="${y}" width="${w}" height="6" rx="3" opacity=".3" style="fill:var(--pf-ground-dark)"/>`;
 }
-var bowl = (x, ground, heap = 0) => (heap === null ? "" : px3(HEAPS[heap], KIBBLE, x + 3, ground - 26, 3)) + px3(BOWL, BOWL_COLORS, x, ground - 21, 3);
-var ball = (x, ground) => px3(BALL_A, BALL_COLORS, x, ground - 16, 2);
+var bowl = (x, ground2, heap = 0) => (heap === null ? "" : px5(HEAPS[heap], KIBBLE, x + 3, ground2 - 26, 3)) + px5(BOWL, BOWL_COLORS, x, ground2 - 21, 3);
+var ball = (x, ground2) => px5(BALL_A, BALL_COLORS, x, ground2 - 16, 2);
 var MEAL = 6;
 function feed(sprite, w, h, scale, stage, species) {
   const pct3 = (t) => `${+(t / MEAL * 100).toFixed(2)}%`;
@@ -3953,7 +5983,7 @@ function feed(sprite, w, h, scale, stage, species) {
   const bagX = bowlX + bowlW - 14;
   const bagY = stage.ground - 92;
   const treat = TREATS[species.id] ?? TREATS.crab;
-  const bag = `<g class="pf-bag"><g transform="translate(${bagX} ${bagY})">${px3(BAG, BAG_COLORS, 0, 0, 3)}${px3(treat.grid, treat.colors, 18 - treat.grid[0].length * 3 / 2, 18 - treat.grid.length * 3 / 2 + 3, 3)}</g></g>`;
+  const bag = `<g class="pf-bag"><g transform="translate(${bagX} ${bagY})">${px5(BAG, BAG_COLORS, 0, 0, 3)}${px5(treat.grid, treat.colors, 18 - treat.grid[0].length * 3 / 2, 18 - treat.grid.length * 3 / 2 + 3, 3)}</g></g>`;
   const spout = { x: bagX - 2, y: bagY + 20 };
   const kibble = Array.from({ length: 10 }, (_, i) => {
     const t = 0.55 + i * 0.09;
@@ -3962,7 +5992,7 @@ function feed(sprite, w, h, scale, stage, species) {
     return `<rect class="pf-kib" style="--dx:${dx}px;--dy:${dy}px;animation-delay:${t}s" x="${spout.x}" y="${spout.y}" width="3" height="3" fill="${i % 2 ? KIBBLE.K : KIBBLE.k}"/>`;
   }).join("");
   const heapShown = (level, from, to) => `.pf-heap${level}{opacity:0;animation:pf-heap${level} ${MEAL}s steps(1) infinite}@keyframes pf-heap${level}{0%{opacity:0}${pct3(from)}{opacity:1}${pct3(to)}{opacity:0}100%{opacity:0}}`;
-  const heaps = HEAPS.map((heap, i) => `<g class="pf-heap${i}">${px3(heap, KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`).reverse().join("");
+  const heaps = HEAPS.map((heap, i) => `<g class="pf-heap${i}">${px5(heap, KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`).reverse().join("");
   const bites = [2.1, 2.6, 3.1, 3.6, 4.1];
   const dip = side ? "translateY(4px) rotate(10deg)" : "rotate(14deg) translateY(3px)";
   const chompFrames = ["0%{transform:none}", ...bites.flatMap((b) => [`${pct3(b)}{transform:none}`, `${pct3(b + 0.2)}{transform:${dip}}`, `${pct3(b + 0.4)}{transform:none}`]), "100%{transform:none}"].join("");
@@ -3974,7 +6004,7 @@ function feed(sprite, w, h, scale, stage, species) {
   const tongue = `<rect class="pf-lick" x="${mouth.x - scale}" y="${mouth.y - scale / 2}" width="${2 * scale}" height="${1.5 * scale}" rx="${scale / 2}" fill="#ff6b8b"/>`;
   const excited = emoteBubble("bang", w - 6, -4, "pf-want-food");
   const nom = bubble(pixelText("NOM"), w - 6, -4, "pf-nom");
-  const heart = `<g class="pf-yum">${px3(HEART, FX_PALETTE, w / 2 - 5, -10, 2)}</g>`;
+  const heart = `<g class="pf-yum">${px5(HEART, FX_PALETTE, w / 2 - 5, -10, 2)}</g>`;
   const css = [
     `.pf-bag{transform-box:fill-box;transform-origin:50% 50%;animation:pf-bag ${MEAL}s ease-in-out infinite}@keyframes pf-bag{0%{transform:translate(50px,-40px)}${pct3(0.35)}{transform:translate(0,0)}${pct3(0.55)},${pct3(1.45)}{transform:rotate(-65deg)}${pct3(1.6)}{transform:rotate(-10deg)}${pct3(1.9)},100%{transform:translate(50px,-40px)}}`,
     `.pf-kib{opacity:0;animation:pf-kib ${MEAL}s cubic-bezier(.4,0,1,1) infinite}@keyframes pf-kib{0%{opacity:1;transform:translate(0,0)}7%{opacity:1;transform:translate(var(--dx),var(--dy))}7.1%,100%{opacity:0}}`,
@@ -3994,9 +6024,9 @@ function feed(sprite, w, h, scale, stage, species) {
     `.pf-yum{opacity:0;animation:pf-yum ${MEAL}s ease-out infinite}@keyframes pf-yum{0%,${pct3(4.7)}{opacity:0;transform:translate(0,0)}${pct3(4.8)}{opacity:1}${pct3(5.8)},100%{opacity:0;transform:translate(4px,-24px)}}`
   ].join("\n");
   const pet2 = `<g class="pf-meal-walk">${shadow(box.x + w * 0.1, box.y + h - 2, w * 0.8)}<g transform="translate(${box.x} ${box.y})"><g class="pf-meal-bounce"><g class="pf-chomp">${sprite}${tongue}</g></g>${excited}${nom}${heart}</g></g>`;
-  const eaten = `<g class="pf-heap1b">${px3(HEAPS[1], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g><g class="pf-heap2b">${px3(HEAPS[2], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`;
+  const eaten = `<g class="pf-heap1b">${px5(HEAPS[1], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g><g class="pf-heap2b">${px5(HEAPS[2], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`;
   return {
-    svg: `${pet2}${heaps}${eaten}${px3(BOWL, BOWL_COLORS, bowlX, stage.ground - 21, 3)}${crumbs}${kibble}${bag}`,
+    svg: `${pet2}${heaps}${eaten}${px5(BOWL, BOWL_COLORS, bowlX, stage.ground - 21, 3)}${crumbs}${kibble}${bag}`,
     box,
     css
   };
@@ -4008,12 +6038,12 @@ function bath(sprite, w, h, scale, stage, species, asleep) {
   const tubY = stage.ground - tubH + 3;
   const box = { x: stage.cx - w / 2, y: Math.round(tubY + 4 - h * 0.7), w, h };
   const crown = { x: box.x + species.crownAnchor.x * scale, y: box.y + species.crownAnchor.y * scale };
-  const headSuds = `<g class="pf-suds">${px3(SUDS, SUDS_COLORS, crown.x - 11, crown.y - 13, 2)}</g>`;
-  const rimSuds = [-50, -30, 18, 40].map((dx, i) => `<g class="pf-suds" style="animation-delay:-${i * 0.4}s">${px3(SUDS, SUDS_COLORS, stage.cx + dx - 9, tubY - 9 + i % 2 * 2, 2)}</g>`).join("");
+  const headSuds = `<g class="pf-suds">${px5(SUDS, SUDS_COLORS, crown.x - 11, crown.y - 13, 2)}</g>`;
+  const rimSuds = [-50, -30, 18, 40].map((dx, i) => `<g class="pf-suds" style="animation-delay:-${i * 0.4}s">${px5(SUDS, SUDS_COLORS, stage.cx + dx - 9, tubY - 9 + i % 2 * 2, 2)}</g>`).join("");
   const pipeX = tubX + tubW - 12;
   const headY = Math.max(stage.ground - 128, box.y - 50);
   const pipe = `<rect x="${pipeX}" y="${headY + 2}" width="4" height="${tubY - headY}" fill="#e0a800"/><rect x="${stage.cx + 6}" y="${headY}" width="${pipeX - stage.cx - 2}" height="4" fill="#e0a800"/><rect x="${pipeX + 4}" y="${headY + 2}" width="1" height="${tubY - headY}" fill="#8a6a00"/>`;
-  const head = px3(SHOWER_HEAD, SHOWER_COLORS, stage.cx - 12, headY + 1, 3);
+  const head = px5(SHOWER_HEAD, SHOWER_COLORS, stage.cx - 12, headY + 1, 3);
   const fall = box.y - headY - 26;
   const drops = [-9, -4, 1, 6, 11].map((dx, i) => `<rect class="pf-drop" style="--fall:${fall}px;animation-delay:-${i * 0.29 % 0.7}s" x="${stage.cx + dx}" y="${headY + 16}" width="2" height="4" fill="#7cc4f2"/>`).join("");
   const bubbles = [
@@ -4023,13 +6053,13 @@ function bath(sprite, w, h, scale, stage, species, asleep) {
     [48, -4, 0.5],
     [-42, 3, 2.3]
   ].map(
-    ([x, dx, delay]) => `<g class="pf-bubble" style="--dx:${dx}px;animation-delay:-${delay}s">${px3(outlined([".b.", "bhb", ".b."]), { b: "#dff1ff", h: "#ffffff", o: "#8ec5ea" }, stage.cx + x - 4, tubY - 6, 2)}</g>`
+    ([x, dx, delay]) => `<g class="pf-bubble" style="--dx:${dx}px;animation-delay:-${delay}s">${px5(outlined([".b.", "bhb", ".b."]), { b: "#dff1ff", h: "#ffffff", o: "#8ec5ea" }, stage.cx + x - 4, tubY - 6, 2)}</g>`
   ).join("");
-  const steam = [-40, -24, 32].map((x, i) => `<g class="pf-steam" style="animation-delay:-${i * 1.3}s">${px3(["x.", ".x", "x.", ".x"], { x: "#ffffff" }, stage.cx + x, tubY - 16, 2)}</g>`).join("");
-  const duck = `<g class="pf-duck">${px3(DUCK, DUCK_COLORS, stage.cx + 24, tubY - 12, 2)}</g>`;
+  const steam = [-40, -24, 32].map((x, i) => `<g class="pf-steam" style="animation-delay:-${i * 1.3}s">${px5(["x.", ".x", "x.", ".x"], { x: "#ffffff" }, stage.cx + x, tubY - 16, 2)}</g>`).join("");
+  const duck = `<g class="pf-duck">${px5(DUCK2, DUCK_COLORS, stage.cx + 24, tubY - 12, 2)}</g>`;
   const pet2 = asleep ? sprite : `<g class="pf-scrub">${sprite}</g>`;
   return {
-    svg: `${shadow(tubX + 8, stage.ground + 1, tubW - 16)}${pipe}${head}${steam}<g transform="translate(${box.x} ${box.y})">${pet2}</g>${headSuds}${asleep ? "" : drops}${px3(TUB, TUB_COLORS, tubX, tubY, 3)}${rimSuds}${duck}${bubbles}`,
+    svg: `${shadow(tubX + 8, stage.ground + 1, tubW - 16)}${pipe}${head}${steam}<g transform="translate(${box.x} ${box.y})">${pet2}</g>${headSuds}${asleep ? "" : drops}${px5(TUB, TUB_COLORS, tubX, tubY, 3)}${rimSuds}${duck}${bubbles}`,
     box
   };
 }
@@ -4072,7 +6102,7 @@ function play(sprite, w, h, scale, stage, species) {
   const mouth = { dx: a.mouth.x * scale - w / 2, dy: -(h - a.mouth.y * scale) - 2 };
   const steps = Array.from({ length: FETCH * 10 + 1 }, (_, i) => i / 10);
   const pct3 = (t) => `${+(t / FETCH * 100).toFixed(2)}%`;
-  const r = (n) => Math.round(n * 10) / 10;
+  const r2 = (n) => Math.round(n * 10) / 10;
   const facing = (t) => {
     const now = CHOREOGRAPHY.pet(t).x;
     const next = CHOREOGRAPHY.pet(Math.min(FETCH, t + 0.1)).x;
@@ -4087,16 +6117,16 @@ function play(sprite, w, h, scale, stage, species) {
   };
   const petFrames = steps.map((t) => {
     const p = CHOREOGRAPHY.pet(t);
-    return `${pct3(t)}{transform:translate(${r(p.x)}px,${r(p.y)}px)}`;
+    return `${pct3(t)}{transform:translate(${r2(p.x)}px,${r2(p.y)}px)}`;
   }).join("");
   const ballFrames = steps.map((t) => {
     const b = CHOREOGRAPHY.ball(t) ?? held(t);
-    return `${pct3(t)}{transform:translate(${r(b.x)}px,${r(b.y)}px)}`;
+    return `${pct3(t)}{transform:translate(${r2(b.x)}px,${r2(b.y)}px)}`;
   }).join("");
   const shadowFrames = steps.map((t) => {
     const b = CHOREOGRAPHY.ball(t) ?? held(t);
     const k = Math.max(0.35, 1 + b.y / 80);
-    return `${pct3(t)}{transform:translateX(${r(b.x)}px) scale(${r(k)});opacity:${t < 0.35 || t > 5.5 ? 0 : r(0.35 * k)}}`;
+    return `${pct3(t)}{transform:translateX(${r2(b.x)}px) scale(${r2(k)});opacity:${t < 0.35 || t > 5.5 ? 0 : r2(0.35 * k)}}`;
   }).join("");
   const faceFrames = side ? steps.map((t) => `${pct3(t)}{transform:scaleX(${facing(t)})}`).join("") : "";
   const css = [
@@ -4114,13 +6144,13 @@ function play(sprite, w, h, scale, stage, species) {
   const box = { x: stage.cx - w / 2, y: stage.ground - h + scale, w, h };
   const ballSize = BALL_A[0].length * 2;
   const ballAt = { x: stage.cx - ballSize / 2, y: stage.ground - ballSize };
-  const ballSvg = `<g class="pf-fetch-ball"><g class="pf-ball-a">${px3(BALL_A, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g><g class="pf-ball-b">${px3(BALL_B, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g></g>`;
+  const ballSvg = `<g class="pf-fetch-ball"><g class="pf-ball-a">${px5(BALL_A, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g><g class="pf-ball-b">${px5(BALL_B, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g></g>`;
   const ballShadow = `<g class="pf-fetch-shadow"><rect x="${stage.cx - 6}" y="${stage.ground + 2}" width="12" height="4" rx="2" style="fill:var(--pf-ground-dark)"/></g>`;
-  const hand = `<g class="pf-hand">${px3(HAND, HAND_COLORS, stage.cx + 86, stage.ground - 72, 2)}</g>`;
+  const hand = `<g class="pf-hand">${px5(HAND, HAND_COLORS, stage.cx + 86, stage.ground - 72, 2)}</g>`;
   const dust = [1.1, 1.5, 1.9, 3.4, 3.8, 4.2].map((t) => {
     const p = CHOREOGRAPHY.pet(t);
     const behind = t < 3 ? w / 2 : -w / 2;
-    return `<g class="pf-dust" style="animation-delay:${t - FETCH}s">${px3(outlined([".dd.", "dddd", ".dd."]), { d: "#e9e3d5", o: "#b9ad93" }, stage.cx + p.x + behind - 4, stage.ground - 6, 2)}</g>`;
+    return `<g class="pf-dust" style="animation-delay:${t - FETCH}s">${px5(outlined([".dd.", "dddd", ".dd."]), { d: "#e9e3d5", o: "#b9ad93" }, stage.cx + p.x + behind - 4, stage.ground - 6, 2)}</g>`;
   }).join("");
   const catchBubble = emoteBubble("bang", w - 6, -4, "pf-catch");
   const body = side ? `<g class="pf-fetch-face">${sprite}</g>` : sprite;
@@ -4141,8 +6171,8 @@ function visitScene(visit2, state, sprite, scale, stage) {
 }
 
 // src/pet/life.ts
-var CYCLE = 24;
-var QUESTION = ["xx.", "..x", ".x.", "...", ".x."];
+var CYCLE2 = 24;
+var QUESTION2 = ["xx.", "..x", ".x.", "...", ".x."];
 var NOTE = ["..xx", "..x.", "..x.", "xxx.", "xx.."];
 var BANG = ["x", "x", "x", ".", "x"];
 var DOTS = [".....", ".....", ".....", ".....", "x.x.x"];
@@ -4156,7 +6186,7 @@ var SCRIPTS = {
       act: [14.2, 16],
       hops: [[19.2, 20.2]],
       emotes: [
-        { span: [3.4, 5.6], glyph: QUESTION },
+        { span: [3.4, 5.6], glyph: QUESTION2 },
         { span: [19, 20.3], glyph: NOTE }
       ]
     },
@@ -4210,7 +6240,7 @@ var SCRIPTS = {
       sniffs: [[5.3, 7]],
       shakes: [[10, 11.6]],
       emotes: [
-        { span: [7.2, 9.4], glyph: QUESTION },
+        { span: [7.2, 9.4], glyph: QUESTION2 },
         { span: [10, 11.6], glyph: pixelText("GRR") }
       ]
     }
@@ -4222,24 +6252,24 @@ var SCRIPTS = {
     }
   ]
 };
-var pct = (t) => `${+(t / CYCLE * 100).toFixed(3)}%`;
+var pct2 = (t) => `${+(t / CYCLE2 * 100).toFixed(3)}%`;
 function showKeyframes(name, spans) {
   const frames2 = ["0%{opacity:0}"];
-  for (const [a, b] of spans) frames2.push(`${pct(a)}{opacity:1}`, `${pct(b)}{opacity:0}`);
+  for (const [a, b] of spans) frames2.push(`${pct2(a)}{opacity:1}`, `${pct2(b)}{opacity:0}`);
   frames2.push("100%{opacity:0}");
   return `@keyframes ${name}{${frames2.join("")}}`;
 }
 function hideKeyframes(name, spans) {
   const frames2 = ["0%{opacity:1}"];
-  for (const [a, b] of spans) frames2.push(`${pct(a)}{opacity:0}`, `${pct(b)}{opacity:1}`);
+  for (const [a, b] of spans) frames2.push(`${pct2(a)}{opacity:0}`, `${pct2(b)}{opacity:1}`);
   frames2.push("100%{opacity:1}");
   return `@keyframes ${name}{${frames2.join("")}}`;
 }
 function poseKeyframes(name, spans, pose, ramp = 0.3) {
   const frames2 = ["0%{transform:none}"];
   for (const [a, b] of spans) {
-    frames2.push(`${pct(a)}{transform:none}`, `${pct(Math.min(a + ramp, b))}{transform:${pose(0)}}`);
-    frames2.push(`${pct(Math.max(b - ramp, a))}{transform:${pose(1)}}`, `${pct(b)}{transform:none}`);
+    frames2.push(`${pct2(a)}{transform:none}`, `${pct2(Math.min(a + ramp, b))}{transform:${pose(0)}}`);
+    frames2.push(`${pct2(Math.max(b - ramp, a))}{transform:${pose(1)}}`, `${pct2(b)}{transform:none}`);
   }
   frames2.push("100%{transform:none}");
   return `@keyframes ${name}{${frames2.join("")}}`;
@@ -4248,9 +6278,9 @@ function beatKeyframes(name, spans, values) {
   const frames2 = ["0%{transform:none}"];
   for (const [a, b] of spans) {
     const step = (b - a) / values.length;
-    frames2.push(`${pct(a)}{transform:none}`);
-    values.forEach((v, i) => frames2.push(`${pct(a + step * (i + 0.5))}{transform:${v}}`));
-    frames2.push(`${pct(b)}{transform:none}`);
+    frames2.push(`${pct2(a)}{transform:none}`);
+    values.forEach((v, i) => frames2.push(`${pct2(a + step * (i + 0.5))}{transform:${v}}`));
+    frames2.push(`${pct2(b)}{transform:none}`);
   }
   frames2.push("100%{transform:none}");
   return `@keyframes ${name}{${frames2.join("")}}`;
@@ -4264,7 +6294,7 @@ function faceKeyframes(name, path) {
     const next = x1 > x0 ? 1 : x1 < x0 ? -1 : facing;
     if (next !== facing) {
       facing = next;
-      frames2.push(`${pct(t0)}{transform:scaleX(${facing})}`);
+      frames2.push(`${pct2(t0)}{transform:scaleX(${facing})}`);
     }
   }
   frames2.push(`100%{transform:scaleX(1)}`);
@@ -4335,14 +6365,14 @@ function lifeFor(mood, species, scale, w, h, date, login, { crossed = [] } = {})
   const a = anchors(species);
   const top = a.top * scale;
   const pathName = `pf-p-${id}`;
-  css.push(`@keyframes ${pathName}{${s.path.map(([t, x]) => `${pct(t)}{transform:translateX(${x}px)}`).join("")}}`);
-  css.push(`.${pathName}{animation:${pathName} ${CYCLE}s ease-in-out var(--pf-t0,0s) infinite}`);
+  css.push(`@keyframes ${pathName}{${s.path.map(([t, x]) => `${pct2(t)}{transform:translateX(${x}px)}`).join("")}}`);
+  css.push(`.${pathName}{animation:${pathName} ${CYCLE2}s ease-in-out var(--pf-t0,0s) infinite}`);
   const faceName = `pf-f-${id}`;
-  css.push(faceKeyframes(faceName, s.path), `.${faceName}{transform-box:fill-box;transform-origin:center;animation:${faceName} ${CYCLE}s steps(1) var(--pf-t0,0s) infinite}`);
+  css.push(faceKeyframes(faceName, s.path), `.${faceName}{transform-box:fill-box;transform-origin:center;animation:${faceName} ${CYCLE2}s steps(1) var(--pf-t0,0s) infinite}`);
   const body = (suffix, keyframes, timing = "ease-in-out") => {
     const name = `pf-b-${suffix}-${id}`;
     css.push(keyframes.replace("@keyframes X", `@keyframes ${name}`));
-    css.push(`.${name}{transform-box:fill-box;transform-origin:50% 100%;animation:${name} ${CYCLE}s ${timing} var(--pf-t0,0s) infinite}`);
+    css.push(`.${name}{transform-box:fill-box;transform-origin:50% 100%;animation:${name} ${CYCLE2}s ${timing} var(--pf-t0,0s) infinite}`);
     bodyClasses.push(name);
   };
   if (s.sits) body("sit", poseKeyframes("X", s.sits, () => "scale(1.05,.88)"));
@@ -4357,12 +6387,12 @@ function lifeFor(mood, species, scale, w, h, date, login, { crossed = [] } = {})
     const origin = ["turtle", "hedgehog", "swift", "otter"].includes(species.id) ? "center" : "50% 100%";
     const name = `pf-b-act-${id}`;
     css.push(beatKeyframes(name, [s.act], move.transform));
-    css.push(`.${name}{transform-box:fill-box;transform-origin:${origin};animation:${name} ${CYCLE}s ease-in-out var(--pf-t0,0s) infinite}`);
+    css.push(`.${name}{transform-box:fill-box;transform-origin:${origin};animation:${name} ${CYCLE2}s ease-in-out var(--pf-t0,0s) infinite}`);
     bodyClasses.push(name);
     if (move.particles) {
-      css.push(`.pf-life-burst{opacity:0;animation:pf-life-burst ${CYCLE}s ease-out var(--pf-t0,0s) infinite}`);
+      css.push(`.pf-life-burst{opacity:0;animation:pf-life-burst ${CYCLE2}s ease-out var(--pf-t0,0s) infinite}`);
       css.push(
-        `@keyframes pf-life-burst{0%,${pct(s.act[0])}{transform:translate(0,0);opacity:0}${pct(s.act[0] + 0.2)}{opacity:1}${pct(s.act[0] + 1.2)}{transform:translate(var(--dx),var(--dy));opacity:0}100%{opacity:0}}`
+        `@keyframes pf-life-burst{0%,${pct2(s.act[0])}{transform:translate(0,0);opacity:0}${pct2(s.act[0] + 0.2)}{opacity:1}${pct2(s.act[0] + 1.2)}{transform:translate(var(--dx),var(--dy));opacity:0}100%{opacity:0}}`
       );
       overlay.push(move.particles);
     }
@@ -4371,28 +6401,28 @@ function lifeFor(mood, species, scale, w, h, date, login, { crossed = [] } = {})
   if (yawns?.length) {
     const name = `pf-y-${id}`;
     alts.push({ cls: name, kind: "closed" });
-    css.push(showKeyframes(name, yawns), `.${name}{opacity:0;animation:${name} ${CYCLE}s steps(1) var(--pf-t0,0s) infinite}`);
+    css.push(showKeyframes(name, yawns), `.${name}{opacity:0;animation:${name} ${CYCLE2}s steps(1) var(--pf-t0,0s) infinite}`);
     const m = { x: a.mouth.x * scale, y: a.mouth.y * scale };
     overlay.push(`<rect class="${name}" x="${m.x - 1.5 * scale}" y="${m.y - scale}" width="${3 * scale}" height="${2.5 * scale}" rx="${scale}" fill="#3b1d1d"/>`);
-    css.push(showKeyframes(`pf-yz-${id}`, yawns), `.pf-yz-${id}{opacity:0;animation:pf-yz-${id} ${CYCLE}s steps(1) var(--pf-t0,0s) infinite}`);
+    css.push(showKeyframes(`pf-yz-${id}`, yawns), `.pf-yz-${id}{opacity:0;animation:pf-yz-${id} ${CYCLE2}s steps(1) var(--pf-t0,0s) infinite}`);
     overlay.push(`<g class="pf-yz-${id}">${renderPixels([{ x: 0, y: 0, grid: ZED }], FX_PALETTE, { x: w - scale, y: top - 12, scale: 2 })}</g>`);
   }
   if (crossed.length) {
     const name = `pf-x-${id}`;
     alts.push({ cls: name, kind: "crossed" });
-    css.push(showKeyframes(name, crossed), `.${name}{opacity:0;animation:${name} ${CYCLE}s steps(1) var(--pf-t0,0s) infinite}`);
+    css.push(showKeyframes(name, crossed), `.${name}{opacity:0;animation:${name} ${CYCLE2}s steps(1) var(--pf-t0,0s) infinite}`);
   }
   let eyes6 = null;
   if (alts.length) {
     eyes6 = { hide: `pf-yh-${id}`, alts };
-    css.push(hideKeyframes(eyes6.hide, [...yawns ?? [], ...crossed].sort((p, q) => p[0] - q[0])), `.${eyes6.hide}{animation:${eyes6.hide} ${CYCLE}s steps(1) var(--pf-t0,0s) infinite}`);
+    css.push(hideKeyframes(eyes6.hide, [...yawns ?? [], ...crossed].sort((p, q) => p[0] - q[0])), `.${eyes6.hide}{animation:${eyes6.hide} ${CYCLE2}s steps(1) var(--pf-t0,0s) infinite}`);
   }
   const chatter = seeded(`chat:${login}:${date}`);
   const talkative = mood === "idle" || mood === "happy";
   s.emotes?.forEach(({ span, glyph: plain }, i) => {
     const glyph = talkative && chatter() < 0.5 ? pixelText(CHATTER[Math.floor(chatter() * CHATTER.length)]) : plain;
     const name = `pf-e${i}-${id}`;
-    css.push(showKeyframes(name, [span]), `.${name}{opacity:0;animation:${name} ${CYCLE}s steps(1) var(--pf-t0,0s) infinite}`);
+    css.push(showKeyframes(name, [span]), `.${name}{opacity:0;animation:${name} ${CYCLE2}s steps(1) var(--pf-t0,0s) infinite}`);
     overlay.push(bubble(glyph, w - 6, top - 2, name));
   });
   if (mood === "happy") {
@@ -4402,7 +6432,7 @@ function lifeFor(mood, species, scale, w, h, date, login, { crossed = [] } = {})
   }
   if (mood === "hungry") {
     const name = `pf-want-${id}`;
-    css.push(showKeyframes(name, [[17.6, 24]]), `.${name}{opacity:0;animation:${name} ${CYCLE}s steps(1) var(--pf-t0,0s) infinite}`);
+    css.push(showKeyframes(name, [[17.6, 24]]), `.${name}{opacity:0;animation:${name} ${CYCLE2}s steps(1) var(--pf-t0,0s) infinite}`);
     const bx = w - 6;
     const by = top - 30;
     overlay.push(
@@ -4412,800 +6442,110 @@ function lifeFor(mood, species, scale, w, h, date, login, { crossed = [] } = {})
   if (mood === "sleeping") {
     const dream = DREAMS[Math.floor(seeded(`dream:${login}:${date}`)() * DREAMS.length)];
     const name = `pf-dream-${id}`;
-    css.push(showKeyframes(name, [[6, 12]]), `.${name}{opacity:0;animation:${name} ${CYCLE}s steps(1) var(--pf-t0,0s) infinite}`);
+    css.push(showKeyframes(name, [[6, 12]]), `.${name}{opacity:0;animation:${name} ${CYCLE2}s steps(1) var(--pf-t0,0s) infinite}`);
     const bx = w - 4;
     const by = top - 34;
-    const cloud2 = new RectBatch().add("#ffffff", bx, by, 28, 22).add("#ffffff", bx + 4, by - 3, 20, 3).add("#ffffff", bx + 4, by + 22, 20, 3);
+    const cloud3 = new RectBatch().add("#ffffff", bx, by, 28, 22).add("#ffffff", bx + 4, by - 3, 20, 3).add("#ffffff", bx + 4, by + 22, 20, 3);
     overlay.push(
-      `<g class="${name}"><rect x="${bx - 8}" y="${by + 26}" width="4" height="4" rx="2" fill="#ffffff" opacity=".9"/><rect x="${bx - 3}" y="${by + 19}" width="6" height="6" rx="3" fill="#ffffff" opacity=".9"/><g opacity=".92">${cloud2}</g>${renderPixels([{ x: 0, y: 0, grid: dream }], DREAM_COLORS, { x: bx + 6, y: by + 4, scale: 3 })}</g>`
+      `<g class="${name}"><rect x="${bx - 8}" y="${by + 26}" width="4" height="4" rx="2" fill="#ffffff" opacity=".9"/><rect x="${bx - 3}" y="${by + 19}" width="6" height="6" rx="3" fill="#ffffff" opacity=".9"/><g opacity=".92">${cloud3}</g>${renderPixels([{ x: 0, y: 0, grid: dream }], DREAM_COLORS, { x: bx + 6, y: by + 4, scale: 3 })}</g>`
     );
   }
   return { css: css.join("\n"), pathClass: pathName, faceClass: species.facing === "right" ? faceName : "", bodyClasses, overlay: overlay.join(""), eyes: eyes6 };
 }
-var emptyBowl = (x, ground) => bowl(x, ground, null);
+var emptyBowl = (x, ground2) => bowl(x, ground2, null);
 
-// src/pet/surprises/kit.ts
-var round = (n) => Math.round(n * 100) / 100;
-function px4(grid, palette, x, y, scale) {
-  return renderPixels([{ x: 0, y: 0, grid }], palette, { x: round(x), y: round(y), scale });
-}
-function text(value, x, y, scale, color, shadow3) {
-  const grid = pixelText(value);
-  return (shadow3 ? px4(grid, { x: shadow3 }, x + scale / 2, y + scale / 2, scale) : "") + px4(grid, { x: color }, x, y, scale);
-}
-var textSize = (value, scale) => ({ w: textWidth(value) * scale, h: 5 * scale });
-function banner({ text: value, color, shade, ink: ink2 = "#ffffff" }, scene2) {
-  const s = 2;
-  const t = textSize(value, s);
-  const w = t.w + 16;
-  const h = 16;
-  const x = round(scene2.x + (scene2.w - w) / 2);
-  const y = scene2.y + 7;
-  const tail2 = (tx, dir) => {
-    const outer = tx - dir * 10;
-    return `<path d="M${tx} ${y + 4}H${outer}L${outer + dir * 4} ${y + 12}L${outer} ${y + 20}H${tx}Z" fill="${shade}"/>`;
-  };
-  return `<g class="pf-s-banner">` + tail2(x + 6, 1) + tail2(x + w - 6, -1) + `<path d="M${x} ${y + h}l6 4v-4zM${x + w} ${y + h}l-6 4v-4z" fill="#000" opacity=".35"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}"/><rect x="${x}" y="${y}" width="${w}" height="2" fill="#fff" opacity=".35"/><clipPath id="pf-s-ribbon"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath><g clip-path="url(#pf-s-ribbon)"><rect class="pf-s-sheen" style="--w:${w + 30}px" x="${x - 20}" y="${y}" width="8" height="${h}" fill="#fff" opacity=".45" transform="skewX(-20)"/></g>` + text(value, x + 8, y + 3, s, ink2, shade) + `</g>`;
-}
-function drift(rng, scene2, count2, draw, { fall = scene2.h + 20, sway = 10, seconds = [5, 9], from = scene2.y - 10 } = {}) {
-  let out = "";
-  for (let i = 0; i < count2; i++) {
-    const x = round(scene2.x + 4 + rng() * (scene2.w - 12));
-    const t = round(seconds[0] + rng() * (seconds[1] - seconds[0]));
-    const delay = round(rng() * t);
-    const sx = Math.round((rng() - 0.5) * 2 * sway);
-    out += `<g class="pf-s-fall" style="--t:${t}s;--fy:${fall}px;--sx:${sx}px;animation-delay:-${delay}s"><g transform="translate(${x} ${from})">${draw(i)}</g></g>`;
-  }
-  return out;
-}
-var KIT_CSS = `
-.pf-s-banner{animation:pf-s-banner 3.2s ease-in-out infinite}
-@keyframes pf-s-banner{0%,100%{transform:none}50%{transform:translateY(1.5px)}}
-.pf-s-sheen{animation:pf-s-sheen 6s ease-in-out infinite}
-@keyframes pf-s-sheen{0%,55%{transform:translateX(0) skewX(-20deg)}100%{transform:translateX(var(--w)) skewX(-20deg)}}
-.pf-s-fall{animation:pf-s-fall var(--t) linear infinite}
-@keyframes pf-s-fall{0%{transform:translate(0,0)}50%{transform:translate(var(--sx),calc(var(--fy)/2))}100%{transform:translate(0,var(--fy))}}
-.pf-s-flip{transform-box:fill-box;transform-origin:center;animation:pf-s-flip .9s ease-in-out infinite}
-@keyframes pf-s-flip{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.15)}}
-.pf-s-blink{animation:pf-s-blink 1.2s steps(1) infinite}
-.pf-s-blink2{animation:pf-s-blink 1.2s steps(1) infinite;animation-delay:-.6s}
-@keyframes pf-s-blink{0%{opacity:1}50%{opacity:.2}}
-.pf-s-swing{transform-box:fill-box;transform-origin:50% 0;animation:pf-s-swing 2.8s ease-in-out infinite alternate}
-@keyframes pf-s-swing{from{transform:rotate(-6deg)}to{transform:rotate(6deg)}}
-.pf-s-float{animation:pf-s-float 2.6s ease-in-out infinite alternate}
-@keyframes pf-s-float{to{transform:translateY(-5px)}}
-.pf-s-flicker{animation:pf-s-flicker 1.6s steps(1) infinite}
-@keyframes pf-s-flicker{0%{opacity:1}20%{opacity:.6}24%{opacity:1}61%{opacity:.75}66%{opacity:1}}
-.pf-s-twinkle{transform-box:fill-box;transform-origin:center;animation:pf-s-twinkle 1.8s ease-in-out infinite}
-@keyframes pf-s-twinkle{0%,100%{opacity:.2;transform:scale(.5)}50%{opacity:1;transform:scale(1)}}
-.pf-s-spark{opacity:0;animation:pf-s-spark 3.6s ease-out infinite}
-@keyframes pf-s-spark{0%,8%{transform:translate(0,0);opacity:0}10%{opacity:1}60%{opacity:.9}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
-.pf-s-steam{animation:pf-s-steam 2.4s ease-out infinite}
-@keyframes pf-s-steam{0%{transform:translate(0,0);opacity:0}20%{opacity:.8}100%{transform:translate(3px,-14px);opacity:0}}
-`;
-function fireworks2(rng, scene2, colors, count2 = 3) {
-  let out = "";
-  for (let b = 0; b < count2; b++) {
-    const cx = Math.round(scene2.x + 30 + (scene2.w - 60) * (b + rng() * 0.6) / count2);
-    const cy = Math.round(scene2.y + 34 + rng() * 26);
-    const color = colors[b % colors.length];
-    const delay = `animation-delay:-${round(b * 1.2 + rng() * 0.4)}s`;
-    for (let i = 0; i < 12; i++) {
-      const angle = i / 12 * Math.PI * 2;
-      const r = 14 + rng() * 8;
-      const dx = Math.round(Math.cos(angle) * r);
-      const dy = Math.round(Math.sin(angle) * r + 6);
-      out += `<rect class="pf-s-spark" style="${delay};--dx:${dx}px;--dy:${dy}px" x="${cx}" y="${cy}" width="2" height="2" fill="${i % 3 ? color : "#fff"}"/>`;
-    }
-  }
-  return out;
-}
-var CONFETTI = ["#ff5c7a", "#ffd166", "#4cc9f0", "#7dff9b", "#c3a6ff", "#ff9f43"];
-function confetti(rng, scene2, count2, colors = CONFETTI) {
-  return drift(rng, scene2, count2, (i) => `<rect class="pf-s-flip" style="animation-delay:-${round(rng())}s" width="3" height="4" fill="${colors[i % colors.length]}"/>`, {
-    seconds: [4, 7],
-    sway: 14
-  });
-}
-
-// src/pet/surprises/wear.ts
-var SANTA_HAT = {
+// src/pet/night.ts
+var r = (n) => Math.round(n * 100) / 100;
+var NIGHTCAP = {
   grid: [
-    "....rrrr.....",
-    "..rrrrrrrr...",
-    ".rrRrrrrrrr..",
-    ".rRrrrrrr.rr.",
-    ".rrrrrrrr..ww",
-    "rrrrrrrrr..ww",
-    "wwwwwwwwww...",
-    "wwWwwwWwww..."
+    "........ww",
+    "......bbww",
+    ".....bwbb.",
+    "....bbbw..",
+    "...bwbbb..",
+    "..bbbwbb..",
+    ".bwbbbbwb.",
+    "wwwwwwwwww"
   ],
-  palette: { r: "#e03131", R: "#ff6b6b", w: "#ffffff", W: "#dfe6ee" },
+  palette: { b: "#6c7fd8", w: "#f8f9ff" },
   cx: 5,
-  sink: 2
-};
-var WITCH_HAT = {
-  grid: [
-    "........kk...",
-    ".......kkk...",
-    "......kkk....",
-    ".....kKkk....",
-    ".....kKkkk...",
-    "....kKkkkk...",
-    "....oooyoo...",
-    "kkkkkkkkkkkkk"
-  ],
-  palette: { k: "#3d2a5c", K: "#6a4c93", o: "#f28c28", y: "#ffd166" },
-  cx: 6.5,
   sink: 1
 };
-var TOP_HAT = {
-  grid: [
-    "..kkkkk..",
-    "..kKkkk..",
-    "..kKkkk..",
-    "..kKkkk..",
-    "..yyyyy..",
-    "kkkkkkkkk"
-  ],
-  palette: { k: "#1f2328", K: "#4b5563", y: "#ffd166" },
-  sink: 1
-};
-var PARTY_HAT = {
-  grid: [
-    "...w...",
-    "..wWw..",
-    "...p...",
-    "..pyp..",
-    "..ypy..",
-    ".pypyp.",
-    ".ypypy.",
-    "pypypyp"
-  ],
-  palette: { p: "#ff5c9a", y: "#ffd166", w: "#ffffff", W: "#4cc9f0" },
-  sink: 1
-};
-function glasses(species, scale, look) {
-  const eyes6 = eyeBoxes(species);
-  if (!eyes6.length) return "";
-  const s = scale;
-  const out = [];
-  const frame = look === "shades" ? "#111418" : "#1f2328";
-  const lenses = eyes6.map((e) => ({ x: (e.x - 0.5) * s, y: (e.y - 0.25) * s, w: (e.w + 1) * s, h: (e.h + 0.5) * s }));
-  const lw = Math.max(1, s / 2);
-  for (const l of lenses) {
-    if (look === "shades") {
-      out.push(`<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${s / 2}" fill="${frame}"/>`);
-      out.push(`<rect class="pf-s-glint" x="${l.x + s / 2}" y="${l.y + s / 2}" width="${Math.max(1, s / 2)}" height="${Math.max(1, s / 2)}" fill="#ffffff"/>`);
-    } else {
-      out.push(`<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${s / 3}" fill="#ffffff" fill-opacity=".18" stroke="${frame}" stroke-width="${lw}"/>`);
+var STARS2 = [
+  [22, 14, 0, 2],
+  [48, 36, 0.7, 3],
+  [84, 12, 1.3, 2],
+  [120, 30, 0.4, 3],
+  [150, 16, 1.1, 2],
+  [182, 46, 0.2, 2],
+  [36, 62, 1.5, 2],
+  [104, 52, 0.9, 2],
+  [168, 70, 0.3, 2]
+];
+function nightSky(s) {
+  const stars = STARS2.map(([x, y, d, size]) => `<rect class="pf-twinkle" style="animation-delay:-${d}s" x="${s.x + x}" y="${s.y + y}" width="${size}" height="${size}" fill="#fff8d6"/>`).join("");
+  const mx = s.x + 36;
+  const my = s.y + 34;
+  const moon2 = `<circle cx="${mx}" cy="${my}" r="22" fill="#fff3c4" opacity=".08"/><circle cx="${mx}" cy="${my}" r="16" fill="#fff3c4" opacity=".12"/><circle cx="${mx}" cy="${my}" r="11" fill="#fff1b8"/><circle cx="${mx + 5}" cy="${my - 3}" r="10" fill="#242a63"/>`;
+  return `<defs><linearGradient id="pf-night" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1e4d"/><stop offset=".7" stop-color="#2e2a66"/><stop offset="1" stop-color="#4a3a78"/></linearGradient><radialGradient id="pf-glow"><stop offset="0" stop-color="#ffd27a" stop-opacity=".55"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient></defs><rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" fill="url(#pf-night)"/>${stars}${moon2}`;
+}
+function nightShade(s) {
+  return `<rect x="${s.x}" y="${s.ground - 60}" width="${s.w}" height="${s.y + s.h - s.ground + 60}" fill="#141640" opacity=".38"/>`;
+}
+var LANTERN2 = outlined(["..k..", ".kkk.", "kyyyk", "kyYyk", "kyyyk", "kkkkk"]);
+function lanternAndFireflies(s) {
+  const lx = s.x + s.w - 34;
+  const ly = s.ground - 16;
+  const glow = `<circle class="pf-glow" cx="${lx + 7}" cy="${ly + 8}" r="30" fill="url(#pf-glow)"/>`;
+  const lantern2 = renderPixels([{ x: 0, y: 0, grid: LANTERN2 }], { k: "#3b2a1a", y: "#ffd27a", Y: "#fff3c4", o: "#1a120a" }, { x: lx, y: ly, scale: 2 });
+  const flies = [[30, 70, 0], [90, 40, 1.4], [150, 60, 2.2], [60, 96, 0.8]].map(([x, y, d]) => `<rect class="pf-firefly" style="animation-delay:-${d}s" x="${s.x + x}" y="${s.y + y}" width="2" height="2" fill="#fff59d"/>`).join("");
+  return glow + lantern2 + flies;
+}
+function cushion(x, ground2, w) {
+  const cw = w + 20;
+  const cx = x - 10;
+  const b = new RectBatch().add("#3e3576", cx + 4, ground2 - 8, cw - 8, 14).add("#3e3576", cx, ground2 - 4, cw, 8).add("#8a7ce0", cx + 5, ground2 - 7, cw - 10, 11).add("#8a7ce0", cx + 1, ground2 - 3, cw - 2, 5).add("#b3a8f0", cx + 8, ground2 - 6, cw - 16, 2);
+  return b.toString();
+}
+function quilt(w, h, scale, chin) {
+  const top = Math.max(Math.round(h * 0.62 / scale), chin) * scale;
+  const tile = 2 * scale;
+  const left = -scale / 2;
+  const right = w + scale / 2;
+  const bottom = h + scale / 2;
+  const b = new RectBatch();
+  b.add("#6b2d3a", left + scale, top - scale / 2, right - left - 2 * scale, scale / 2);
+  b.add("#6b2d3a", left, top, right - left, bottom - top);
+  let row = 0;
+  for (let y = top; y < bottom - scale / 2; y += tile, row++) {
+    let col = 0;
+    const inset = row === 0 ? scale : scale / 2;
+    for (let x = left + inset; x < right - inset; x += tile, col++) {
+      const light2 = (row + col) % 2 === 0;
+      b.add(light2 ? "#f4a3a0" : "#e27d7d", r(x), r(y), r(Math.min(tile, right - inset - x)), r(Math.min(tile, bottom - scale / 2 - y)));
     }
   }
-  const first = lenses[0];
-  const last = lenses[lenses.length - 1];
-  if (lenses.length > 1) {
-    const bx = first.x + first.w;
-    const by = first.y + s / 2;
-    out.push(`<rect x="${bx}" y="${by}" width="${last.x - bx}" height="${lw}" fill="${frame}"/>`);
-    if (look === "nerd") out.push(`<rect x="${round(bx + (last.x - bx) / 2 - s / 2)}" y="${by - s / 3}" width="${s}" height="${lw + 2 * s / 3}" fill="#f4f1e8"/>`);
-  } else {
-    out.push(`<rect x="${first.x - 3 * s}" y="${first.y + s / 2}" width="${3 * s}" height="${lw}" fill="${frame}"/>`);
-  }
-  if (look === "disguise") {
-    const a = anchors(species);
-    const side = lenses.length === 1;
-    for (const l of lenses) out.push(`<rect x="${l.x}" y="${l.y - s}" width="${l.w}" height="${s * 0.75}" fill="#2b1b12"/>`);
-    const nx = side ? last.x + last.w - s / 2 : (first.x + last.x + last.w) / 2 - 1.25 * s;
-    const ny = first.y + first.h - s / 2;
-    out.push(`<rect x="${round(nx)}" y="${round(ny)}" width="${2.5 * s}" height="${2 * s}" rx="${s}" fill="#f4a3a3"/>`);
-    out.push(`<rect x="${round(nx + s / 2)}" y="${round(ny + s / 3)}" width="${s * 0.75}" height="${s / 2}" fill="#fff" opacity=".6"/>`);
-    const mx = side ? nx - s / 2 : a.mouth.x * s - 2.5 * s;
-    const my = Math.max(ny + 2 * s, (a.mouth.y - 1.5) * s);
-    out.push(`<path d="M${round(mx)} ${round(my + s)}q${1.25 * s} ${-1.5 * s} ${2.5 * s} 0q${1.25 * s} ${-1.5 * s} ${2.5 * s} 0v${s / 2}q${-1.25 * s} ${-s / 2} ${-2.5 * s} 0q${-1.25 * s} ${-s / 2} ${-2.5 * s} 0z" fill="#2b1b12"/>`);
-  }
-  return out.join("");
+  b.add("#fff4e6", left + scale, top, right - left - 2 * scale, Math.max(1, scale / 2));
+  return b.toString();
 }
-function heldAt(species, scale, grid, palette, cls = "") {
-  const s = Math.max(2, Math.round(scale * 3 / 4));
-  const w = grid[0].length * s;
-  const h = grid.length * s;
-  const x = species.width * scale - w / 2;
-  const y = species.height * scale - h - scale;
-  const svg = `<g${cls ? ` class="${cls}"` : ""}>${px4(grid, palette, x, y, s)}</g>`;
-  return { svg, x, y, w, h };
-}
-var RED_ENVELOPE = ["rrrrr", "rdddr", "rrdrr", "ryyyr", "rryrr", "rrrrr", "rrrrr"];
-var RED_ENVELOPE_PALETTE = { r: "#e03131", d: "#b02525", y: "#ffd166" };
-var CANDY_PAIL = [".k..k.", "..kk..", "oooooo", "oyoyoo", "oooyoo", "oyyyoo", ".oooo."];
-var CANDY_PAIL_PALETTE = { k: "#3b2a1a", o: "#f28c28", y: "#3b1d00" };
-var COFFEE = ["cccc..", "bbbbb.", "bbbb.b", "bwbbb.", "bbbb..", ".bb..."];
-var COFFEE_PALETTE = { c: "#6f4e37", b: "#2f81f7", w: "#ffffff" };
-
-// src/pet/surprises/holidays.ts
-var TREE2 = [
-  ".....g.....",
-  "....ggg....",
-  "...gggGg...",
-  "....ggg....",
-  "...ggggg...",
-  "..gggggGg..",
-  "...ggggg...",
-  "..ggggggg..",
-  ".gggggggGg.",
-  "ggggggggggg",
-  ".....b.....",
-  ".....b....."
-];
-var STAR = ["..y..", ".yyy.", "yyyyy", ".y.y."];
-var LIGHTS = [[5, 1], [4, 3], [6, 5], [3, 5], [5, 7], [2, 8], [7, 8], [4, 9], [8, 9], [1, 9]];
-var XMAS2 = ["#ff4d4d", "#ffd166", "#7dd3fc", "#ff9ff3"];
-var GIFT_RED = ["..y..y..", "...yy...", "rrryyrrr", "rrryyrrr", "yyyyyyyy", "rrryyrrr", "rrryyrrr"];
-var GIFT_BLUE = [".w..w.", "..ww..", "bbwwbb", "wwwwww", "bbwwbb", "bbwwbb"];
-function christmas(c) {
-  const { scene: sc } = c;
-  const s = 4;
-  const tx = sc.x + 6;
-  const ty = sc.ground - TREE2.length * s + 2;
-  const lights = LIGHTS.map(
-    ([col, row], i) => `<rect class="${i % 2 ? "pf-s-blink" : "pf-s-blink2"}" x="${tx + col * s}" y="${ty + row * s}" width="${s - 1}" height="${s - 1}" fill="${XMAS2[i % XMAS2.length]}"/>`
+function bedtimeZs(box) {
+  const zed = outlined(ZED);
+  return [
+    [0.72, -4, 2, 0],
+    [0.72, -12, 2.5, 1.1],
+    [0.72, -22, 3, 2.2]
+  ].map(
+    ([fx2, dy, s, d]) => `<g class="pf-snooze" style="animation-delay:-${d}s">${renderPixels([{ x: 0, y: 0, grid: zed }], { z: "#ffffff", o: "#2a2d6b" }, { x: r(box.x + box.w * fx2 + (s - 2) * 6), y: r(box.y + dy), scale: s })}</g>`
   ).join("");
-  const star = `<g class="pf-s-twinkle">${px4(STAR, { y: "#ffd23f" }, tx + 5.5 * s - 7.5, ty - 4 * 3 + 2, 3)}</g>`;
-  const back = px4(TREE2, { g: "#2b8a3e", G: "#51cf66", b: "#7a4a24" }, tx, ty, s) + lights + star + px4(GIFT_RED, { r: "#e03131", y: "#ffd166" }, tx + 40, sc.ground - 17, 3) + px4(GIFT_BLUE, { b: "#4c6ef5", w: "#ffffff" }, tx + 22, sc.ground - 13, 3);
-  const snow = drift(c.rng, sc, 12, () => `<rect width="2" height="2" fill="#ffffff" opacity=".9"/>`, { seconds: [7, 11], sway: 8 });
-  return {
-    back,
-    front: snow,
-    hat: SANTA_HAT,
-    banner: { text: "MERRY CHRISTMAS", color: "#c92a2a", shade: "#6b1010" },
-    line: "Merry Christmas! \xB7 ho ho ho"
-  };
 }
-var PUMPKIN = ["....gg...", "..ooooo..", ".ooOoOoo.", "ooOooooOo", "ooOooooOo", "ooOooooOo", ".ooOoOoo.", "..ooooo.."];
-var PUMPKIN_FACE = [".........", ".........", ".........", "..y...y..", ".yy...yy.", "....y....", ".y.y.y.y.", "..yyyyy.."];
-var GHOST = ["..www..", ".wwwww.", "wwkwkww", "wwwwwww", "wwwkwww", "wwwwwww", "wwwwwww", "w.ww.ww"];
-var BAT_UP = "M0 0L3 2L5 1L7 2L10 0L8 4L5 3L2 4Z";
-var BAT_DOWN = "M0 4L3 2L5 1L7 2L10 4L8 3L5 4L2 3Z";
-function halloween(c) {
-  const { scene: sc } = c;
-  const g = sc.ground;
-  const moon = `<circle cx="${sc.x + 34}" cy="${sc.y + 50}" r="17" fill="#ffb347" opacity=".25"/><circle cx="${sc.x + 34}" cy="${sc.y + 50}" r="12" fill="#ffc46b"/><circle cx="${sc.x + 30}" cy="${sc.y + 47}" r="2" fill="#f0a63c"/><circle cx="${sc.x + 38}" cy="${sc.y + 54}" r="3" fill="#f0a63c"/>`;
-  const bat = (x, y, d) => `<g transform="translate(${x} ${y})"><path class="pf-fa" style="animation-duration:.5s;animation-delay:-${d}s" d="${BAT_UP}"/><path class="pf-fb" style="animation-duration:.5s;animation-delay:-${d}s" d="${BAT_DOWN}"/></g>`;
-  const bats2 = `<g class="pf-s-bats" fill="#1a0f24">${bat(0, sc.y + 40, 0)}${bat(16, sc.y + 50, 0.2)}${bat(30, sc.y + 36, 0.1)}${bat(48, sc.y + 46, 0.3)}</g>`;
-  const px0 = sc.x + sc.w - 40;
-  const pumpkin2 = px4(PUMPKIN, { o: "#f28c28", O: "#c9621a", g: "#3f7d3a" }, px0, g - 22, 3) + `<g class="pf-s-flicker">${px4(PUMPKIN_FACE, { y: "#ffe066" }, px0, g - 22, 3)}</g>`;
-  const ghost = `<g class="pf-s-ghost" opacity="0">${px4(GHOST, { w: "#f8f9fa", k: "#343a40" }, sc.x + 14, g - 50, 3)}</g>`;
-  const held = heldAt(c.species, c.scale, CANDY_PAIL, CANDY_PAIL_PALETTE);
-  return {
-    css: `.pf-s-bats{animation:pf-s-bats 13s linear infinite}
-@keyframes pf-s-bats{from{transform:translateX(${sc.x + sc.w + 10}px)}to{transform:translateX(${sc.x - 70}px)}}
-.pf-s-ghost{animation:pf-s-ghost 9s ease-in-out infinite}
-@keyframes pf-s-ghost{0%,20%{opacity:0;transform:translate(0,8px)}35%{opacity:.85;transform:translate(4px,-4px)}55%{opacity:.85;transform:translate(10px,0)}72%{opacity:.85;transform:translate(4px,-6px)}85%,100%{opacity:0;transform:translate(0,8px)}}`,
-    back: `<rect x="${sc.x}" y="${sc.y}" width="${sc.w}" height="${g - sc.y}" fill="#3b1a5a" opacity=".35"/>${moon}${bats2}${ghost}${pumpkin2}`,
-    hat: WITCH_HAT,
-    held: held.svg,
-    banner: { text: "TRICK OR TREAT", color: "#e8590c", shade: "#5c2200" },
-    line: "Trick or treat! \xB7 spooky season"
-  };
-}
-function newYear(c) {
-  const year = newYearFor(c.state.date);
-  return {
-    back: fireworks2(c.rng, c.scene, ["#ff5c7a", "#ffd166", "#4cc9f0", "#c3a6ff"], 4),
-    front: confetti(c.rng, c.scene, 22),
-    hat: TOP_HAT,
-    banner: { text: `HAPPY ${year}`, color: "#b8860b", shade: "#4d3800" },
-    line: `Happy New Year! \xB7 hello ${year}`
-  };
-}
-var LANTERN = [
-  "...yy...",
-  ".yyyyyy.",
-  ".rrrrrr.",
-  "hrrrrrrd",
-  "hrrrrrrd",
-  "hrryyrrd",
-  "hryyyyrd",
-  "hrryyrrd",
-  "hrrrrrrd",
-  ".rrrrrr.",
-  ".yyyyyy.",
-  "...yy...",
-  "..y..y..",
-  "..y..y..",
-  "..y..y.."
-];
-var LANTERN_PALETTE = { r: "#e63946", h: "#ff6b6b", d: "#b5202e", y: "#ffd166" };
-var COIN = [".yyy.", "yYyYy", "yy.yy", "yYyYy", ".yyy."];
-var CRACKER = ["y", "r", "r", "r", "y"];
-function lunarNewYear(c) {
-  const { scene: sc } = c;
-  const animal = zodiacFor(c.state.date);
-  const lantern2 = (x, string, delay) => `<g class="pf-s-swing" style="animation-delay:-${delay}s"><rect x="${x + 11}" y="${sc.y}" width="1" height="${string}" fill="#5b4636"/>${px4(LANTERN, LANTERN_PALETTE, x, sc.y + string, 3)}</g>`;
-  const crackers = new RectBatch();
-  const cx = sc.x + 8;
-  const cy = sc.ground + 8;
-  for (let i = 0; i < 7; i++) crackers.add("#8a5a33", cx + i * 5, cy + i % 2, 5, 1);
-  let pops = "";
-  for (let i = 0; i < 7; i++) {
-    pops += px4(CRACKER, { y: "#ffd166", r: "#e03131" }, cx + i * 5 + 1, cy - 4 + i % 2, 2);
-    if (i % 2 === 0) {
-      const d = round(i * 0.35);
-      for (const [dx, dy] of [[-6, -8], [0, -12], [6, -8], [-4, -3], [4, -3]]) {
-        pops += `<rect class="pf-s-spark" style="animation-duration:1.4s;animation-delay:-${d}s;--dx:${dx}px;--dy:${dy}px" x="${cx + i * 5 + 1}" y="${cy - 6}" width="2" height="2" fill="${dy < -6 ? "#ffd166" : "#ff6b6b"}"/>`;
-      }
-    }
-  }
-  const coins = drift(c.rng, sc, 8, () => px4(COIN, { y: "#ffd23f", Y: "#e0a800" }, 0, 0, 1.6), { seconds: [6, 10], sway: 6 });
-  return {
-    back: lantern2(sc.x + 6, 34, 0) + lantern2(sc.x + sc.w - 30, 40, 1.2) + crackers + pops,
-    front: coins,
-    held: heldAt(c.species, c.scale, RED_ENVELOPE, RED_ENVELOPE_PALETTE, "pf-s-float").svg,
-    banner: { text: `YEAR OF THE ${animal}`, color: "#c92a2a", shade: "#5c0a0a", ink: "#ffd166" },
-    line: `Lunar New Year \xB7 year of the ${animal}`
-  };
-}
-var RABBIT = [".x.x...", ".x.x...", ".xxx...", "xxxxxx.", ".xxxxxx", "..x..x."];
-var MOONCAKE = ["..cccccccc..", ".cCcCcCcCcc.", ".cccCCCCccc.", ".dddddddddd.", ".dddddddddd.", "wwwwwwwwwwww", ".wwwwwwwwww."];
-var ROUND_LANTERN = ["..yy..", ".oooo.", "oOoooo", "oOoooo", ".oooo.", "..yy..", "..y..."];
-function midAutumn(c) {
-  const { scene: sc } = c;
-  const mx = sc.x + sc.w - 38;
-  const my = sc.y + 60;
-  const moon = `<circle cx="${mx}" cy="${my}" r="30" fill="#fff4c2" opacity=".12"/><circle cx="${mx}" cy="${my}" r="25" fill="#fff4c2" opacity=".22"/><circle cx="${mx}" cy="${my}" r="20" fill="#fff1b8"/><circle cx="${mx - 9}" cy="${my - 8}" r="3" fill="#f5e08f"/><circle cx="${mx + 10}" cy="${my + 6}" r="4" fill="#f5e08f"/>` + px4(RABBIT, { x: "#e3c86b" }, mx - 6, my - 3, 2);
-  const lantern2 = (x, y, d) => `<g class="pf-s-swing" style="animation-delay:-${d}s"><rect x="${x + 5}" y="${sc.y}" width="1" height="${y - sc.y}" fill="#5b4636"/><g class="pf-s-flicker" style="animation-delay:-${d}s">${px4(ROUND_LANTERN, { o: "#ff922b", O: "#ffc078", y: "#ffd43b" }, x, y, 2)}</g></g>`;
-  const cake2 = px4(MOONCAKE, { c: "#d99a4e", C: "#a8652a", d: "#c07f3a", w: "#f1f3f5" }, sc.x + 12, sc.ground - 12, 2);
-  return {
-    back: moon + lantern2(sc.x + 10, sc.y + 40, 0) + lantern2(sc.x + 30, sc.y + 50, 0.8) + cake2,
-    banner: { text: "HAPPY MID-AUTUMN", color: "#e8590c", shade: "#6b2500", ink: "#fff3bf" },
-    line: "Mid-Autumn \xB7 mooncakes & a full moon"
-  };
-}
-var BALLOON = [".rr.rr.", "rhrrrrr", "rhrrrrr", ".rrrrr.", "..rrr..", "...r..."];
-function valentines(c) {
-  const { scene: sc, species, scale } = c;
-  const w = species.width * scale;
-  const h = species.height * scale;
-  const hand = { x: w - scale, y: h * 0.55 };
-  const bx = w + 2;
-  const by = -30;
-  const balloon = `<g class="pf-s-float"><path d="M${hand.x} ${hand.y}Q${w + 10} ${h * 0.2} ${bx + 10} ${by + 18}" fill="none" stroke="#8d96a0" stroke-width="1"/>` + px4(BALLOON, { r: "#ff4d6d", h: "#ff9fb2" }, bx, by, 3) + `</g>`;
-  const hearts = drift(c.rng, sc, 9, () => px4(HEART, { p: "#ff8fab" }, 0, 0, 2), { from: sc.ground + 8, fall: -(sc.h - 10), seconds: [6, 10], sway: 10 });
-  return {
-    back: `<rect x="${sc.x}" y="${sc.y}" width="${sc.w}" height="${sc.ground - sc.y}" fill="#ff8fab" opacity=".12"/>`,
-    front: hearts,
-    held: balloon,
-    banner: { text: "BE MY VALENTINE", color: "#e64980", shade: "#6b0f35" },
-    line: "Happy Valentine's Day \u2665"
-  };
-}
-var PIE = ["..cccccccc..", ".cCcCcCcCcc.", "cccccccccccc", "dddddddddddd", ".dddddddddd."];
-var DIGITS = "3.14159265358979323846264338327950288419716939937510";
-function piDay(c) {
-  const { scene: sc } = c;
-  const s = 2;
-  const t = textSize(DIGITS, s);
-  const ticker = `<g opacity=".35"><g class="pf-s-ticker" style="--w:${-t.w - 12}px">${text(DIGITS, sc.x + 4, sc.y + 36, s, "#ffffff")}${text(DIGITS, sc.x + 16 + t.w, sc.y + 36, s, "#ffffff")}</g></g>`;
-  const x = sc.x + 10;
-  const y = sc.ground - 12;
-  const flag = `<rect x="${x + 25}" y="${y - 20}" width="1" height="20" fill="#8a5a33"/><rect x="${x + 26}" y="${y - 20}" width="15" height="11" fill="#ffffff"/>${px4(pixelText("\u03C0"), { x: "#7048e8" }, x + 27.75, y - 18.25, 1.5)}`;
-  const steam = [0, 0.8, 1.6].map((d, i) => `<rect class="pf-s-steam" style="animation-delay:-${d}s" x="${x + 8 + i * 8}" y="${y - 5}" width="2" height="3" fill="#ffffff"/>`).join("");
-  return {
-    css: `.pf-s-ticker{animation:pf-s-ticker 26s linear infinite}@keyframes pf-s-ticker{to{transform:translateX(var(--w))}}`,
-    back: ticker + steam + px4(PIE, { c: "#f4a259", C: "#c8553d", d: "#adb5bd" }, x, y, 3) + flag,
-    banner: { text: "HAPPY \u03C0 DAY", color: "#7048e8", shade: "#2b1470" },
-    line: "Happy \u03C0 day \xB7 3.14159\u2026"
-  };
-}
-function aprilFools(c) {
-  return {
-    face: glasses(c.species, c.scale, "disguise"),
-    banner: { text: "APRIL FOOLS!", color: "#12b886", shade: "#064d38" },
-    line: `Nice disguise, ${c.state.petName}!`
-  };
-}
-function binaryColumn(bits) {
-  const rows = [];
-  for (const b of bits) rows.push(...pixelText(b), "...", "...");
-  return rows;
-}
-function programmersDay(c) {
-  const { scene: sc, rng } = c;
-  const bs = 1.5;
-  const span = 20 * 7 * bs;
-  const patterns = [0, 1].map((i) => {
-    const bits = Array.from({ length: 20 }, () => rng() < 0.5 ? "0" : "1").join("");
-    return `<g id="pf-s-bits${i}">${px4(binaryColumn(bits), { x: "#3fb950" }, 0, 0, bs)}</g>`;
-  }).join("");
-  let rain2 = `<defs>${patterns}</defs>`;
-  for (let x = sc.x + 4, i = 0; x < sc.x + sc.w - 4; x += 16, i++) {
-    const t = round(5 + rng() * 5);
-    const id = `#pf-s-bits${i % 2}`;
-    rain2 += `<g class="pf-s-code" style="--t:${t}s;animation-delay:-${round(rng() * t)}s"><use href="${id}" x="${x}" y="${sc.y - span}"/><use href="${id}" x="${x}" y="${sc.y}"/></g>`;
-  }
-  const mug = heldAt(c.species, c.scale, COFFEE, COFFEE_PALETTE);
-  const steam = [0, 1.2].map((d, i) => `<rect class="pf-s-steam" style="animation-delay:-${d}s" x="${mug.x + 2 + i * 5}" y="${mug.y - 4}" width="2" height="3" fill="#ffffff"/>`).join("");
-  return {
-    css: `.pf-s-code{animation:pf-s-code var(--t) linear infinite}@keyframes pf-s-code{from{transform:translateY(0)}to{transform:translateY(${span}px)}}`,
-    back: `<rect x="${sc.x}" y="${sc.y}" width="${sc.w}" height="${sc.ground - sc.y}" fill="#0d1117" opacity=".35"/><clipPath id="pf-s-sky"><rect x="${sc.x}" y="${sc.y}" width="${sc.w}" height="${sc.ground - sc.y}"/></clipPath><g clip-path="url(#pf-s-sky)" opacity=".7">${rain2}</g>`,
-    face: glasses(c.species, c.scale, "nerd"),
-    held: mug.svg + steam,
-    banner: { text: "PROGRAMMER'S DAY", color: "#1a7f37", shade: "#07300f" },
-    line: "Programmer's Day \xB7 256 = 0x100"
-  };
-}
-var HOLIDAY_ART = {
-  "new-year": newYear,
-  "lunar-new-year": lunarNewYear,
-  valentines,
-  "pi-day": piDay,
-  "april-fools": aprilFools,
-  "programmers-day": programmersDay,
-  "mid-autumn": midAutumn,
-  halloween,
-  christmas
-};
-
-// src/pet/surprises/moments.ts
-function cake(years) {
-  const n = Math.max(1, Math.min(5, years));
-  const cols = Array.from({ length: n }, (_, i) => 7 - (n - 1) + 2 * i);
-  const row = (ch) => Array.from({ length: 14 }, (_, x) => cols.includes(x) ? ch : ".").join("");
-  return {
-    flames: [row("f"), ...Array(10).fill("..............")],
-    cake: [
-      "..............",
-      row("c"),
-      row("c"),
-      "..pppppppppp..",
-      ".pppppppppppp.",
-      ".pbpbppbpppbp.",
-      ".bbbbbbbbbbbb.",
-      ".bsbbbsbbbsbb.",
-      ".bbbbbbbbbbbb.",
-      "dddddddddddddd"
-    ]
-  };
-}
-var BALLOON2 = [".bbb.", "bhbbb", "bhbbb", "bbbbb", ".bbb.", "..b.."];
-function birthday(c) {
-  const { scene: sc } = c;
-  const years = c.state.moments?.birthday ?? 1;
-  const { cake: body, flames } = cake(years);
-  const cx = sc.x + 6;
-  const cy = sc.ground - body.length * 3 + 3;
-  const cakeSvg = px4(body, { c: "#74c0fc", p: "#ffc9de", b: "#c68b59", s: "#ff6b6b", d: "#dee2e6" }, cx, cy, 3) + `<g class="pf-s-flicker">${px4(flames, { f: "#ffd43b" }, cx, cy, 3)}</g>`;
-  let bunting = `<path d="M${sc.x} ${sc.y + 44}Q${sc.x + sc.w / 2} ${sc.y + 60} ${sc.x + sc.w} ${sc.y + 44}" fill="none" stroke="#8d96a0" stroke-width="1"/>`;
-  for (let i = 0; i < 11; i++) {
-    const x = sc.x + 6 + i * 18;
-    const t = (x - sc.x) / sc.w;
-    const y = sc.y + 44 + 16 * 2 * t * (1 - t);
-    const color = CONFETTI[i % CONFETTI.length];
-    bunting += `<path d="M${round(x)} ${round(y)}h8l-4 8z" fill="${color}"/>`;
-  }
-  const balloons = [
-    [sc.x + sc.w - 40, sc.y + 66, "#ff6b6b", "#ffa8a8", 0],
-    [sc.x + sc.w - 26, sc.y + 58, "#4dabf7", "#a5d8ff", 0.9]
-  ];
-  let air = "";
-  for (const [x, y, b, h, d] of balloons) {
-    air += `<g class="pf-s-float" style="animation-delay:-${d}s"><path d="M${x + 5} ${y + 12}q-3 12 1 ${sc.ground - y - 12}" fill="none" stroke="#8d96a0" stroke-width="1"/>${px4(BALLOON2, { b, h }, x, y, 2)}</g>`;
-  }
-  return {
-    back: bunting + air + cakeSvg,
-    front: confetti(c.rng, sc, 10),
-    hat: PARTY_HAT,
-    banner: { text: `${years} YEAR${years === 1 ? "" : "S"} ON GITHUB`, color: "#e64980", shade: "#5c0f30" },
-    line: `GitHub birthday \xB7 ${years} year${years === 1 ? "" : "s"} today`
-  };
-}
-function levelUpTitle(from, to) {
-  if (from < 3 && to >= 3) return "IT HATCHED!";
-  if (from < 15 && to >= 15) return "ALL GROWN UP!";
-  if (from < 50 && to >= 50) return "LEGENDARY!";
-  return "LEVEL UP!";
-}
-function levelUp(c) {
-  const { scene: sc, box, state } = c;
-  const from = state.moments?.levelUp ?? state.level - 1;
-  const pw = Math.round(box.w * 0.9);
-  const px0 = round(box.x + (box.w - pw) / 2);
-  const bottom = box.y + box.h;
-  const pillar = `<defs><linearGradient id="pf-s-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe066" stop-opacity="0"/><stop offset=".7" stop-color="#ffe066" stop-opacity=".55"/><stop offset="1" stop-color="#fff9db" stop-opacity=".9"/></linearGradient></defs><rect class="pf-s-pulse" x="${px0}" y="${sc.y}" width="${pw}" height="${bottom - sc.y}" fill="url(#pf-s-beam)"/>`;
-  let sparkles = "";
-  for (let i = 0; i < 6; i++) {
-    const x = round(px0 + 4 + c.rng() * (pw - 12));
-    const t2 = round(2.2 + c.rng() * 1.6);
-    sparkles += `<g class="pf-s-fall" style="--t:${t2}s;--fy:-${bottom - sc.y - 20}px;--sx:0px;animation-delay:-${round(c.rng() * t2)}s">${px4(SPARKLE, { s: "#fff3a0" }, x, bottom - 12, 1.5)}</g>`;
-  }
-  const label = `LV ${state.level}`;
-  const t = textSize(label, 2);
-  const top = anchors(c.species).top * c.scale;
-  const pop = `<g class="pf-s-pop">${text(label, round(box.w / 2 - t.w / 2), top - 26, 2, "#ffd43b", "#7a4f00")}</g>`;
-  return {
-    css: `.pf-s-pulse{animation:pf-s-pulse 1.6s ease-in-out infinite}@keyframes pf-s-pulse{0%,100%{opacity:.65}50%{opacity:1}}
-.pf-s-pop{animation:pf-s-pop 3s ease-out infinite}@keyframes pf-s-pop{0%{transform:translateY(8px);opacity:0}15%{transform:translateY(0);opacity:1}75%{opacity:1}100%{transform:translateY(-8px);opacity:0}}`,
-    follow: pillar + sparkles,
-    over: pop,
-    banner: { text: levelUpTitle(from, state.level), color: "#f59f00", shade: "#5c3a00" },
-    line: `Level up! \xB7 Lv.${from} \u2192 Lv.${state.level}`
-  };
-}
-var RAINBOW = ["#ff6b6b", "#ffa94d", "#ffd43b", "#69db7c", "#4dabf7", "#9775fa"];
-function welcomeBack(c) {
-  const { scene: sc } = c;
-  const days = c.state.moments?.welcomeBack ?? 7;
-  const cx = sc.x + sc.w / 2;
-  const cy = sc.ground;
-  const arcs = RAINBOW.map((color, i) => {
-    const r = 90 - i * 3.5;
-    return `<path d="M${round(cx - r)} ${cy}A${r} ${r} 0 0 1 ${round(cx + r)} ${cy}" fill="none" stroke="${color}" stroke-width="3.6"/>`;
-  }).join("");
-  const cloud2 = (x) => new RectBatch().add("#ffffff", x - 14, cy - 10, 28, 10).add("#ffffff", x - 8, cy - 16, 16, 6).add("#ffffff", x - 18, cy - 5, 36, 5).toString();
-  return {
-    css: `.pf-s-shimmer{animation:pf-s-shimmer 3s ease-in-out infinite}@keyframes pf-s-shimmer{0%,100%{opacity:.75}50%{opacity:.95}}`,
-    back: `<g class="pf-s-shimmer" opacity=".75">${arcs}</g>${cloud2(cx - 80)}${cloud2(cx + 80)}`,
-    front: confetti(c.rng, sc, 10),
-    banner: { text: "WELCOME BACK!", color: "#1c7ed6", shade: "#082c52" },
-    line: `Welcome back! \xB7 missed you ${days} days`
-  };
-}
-var MOMENT_ART = { birthday, "level-up": levelUp, "welcome-back": welcomeBack };
-
-// src/pet/surprises/postcard.ts
-var at = (pet2, x, y) => `<g transform="translate(${round(x)} ${round(y)})">${pet2.svg}</g>`;
-var PALM = ["gg.gg..", ".gggg.g", "gg.bggg", "...b..g", "...b...", "..b....", "..b....", "..b...."];
-var KERNEL = [
-  "..yyyyyyyyyy..",
-  ".yyyyyyyyyyyy.",
-  "yyhhyyyyyyyyyo",
-  "yyhhyyyyyyyyyo",
-  "yyhyyyyyyyyyyo",
-  ".yyyyyyyyyyyo.",
-  ".yyyyyyyyyyyo.",
-  "..yyyyyyyyyo..",
-  "..yyyyyyyyyo..",
-  "...yyyyyyyo...",
-  "....yyyyyo....",
-  ".....wwww.....",
-  "......ww......"
-];
-var PLACES = [
-  {
-    name: "NULL ISLAND",
-    ink: "#1971c2",
-    draw: (x, y, pet2) => {
-      const b = new RectBatch().add("#8fd3ff", x, y, 128, 36).add("#3a86c8", x, y + 36, 128, 20).add("#9fd4ff", x + 10, y + 42, 10, 1).add("#9fd4ff", x + 96, y + 46, 14, 1).add("#9fd4ff", x + 50, y + 51, 12, 1).add("#f4d58d", x + 30, y + 32, 60, 6).add("#f4d58d", x + 36, y + 30, 48, 2).add("#8a5a33", x + 14, y + 22, 2, 12).add("#ffffff", x + 6, y + 16, 19, 8);
-      return b + `<circle cx="${x + 112}" cy="${y + 12}" r="7" fill="#ffe066"/>` + text("0,0", x + 9, y + 17.5, 1, "#1f2328") + px4(PALM, { g: "#2f9e44", b: "#8a5a33" }, x + 76, y + 8, 3) + at(pet2, x + 32, y + 32 - pet2.height + 2);
-    }
-  },
-  {
-    name: "LOCALHOST",
-    ink: "#2b8a3e",
-    draw: (x, y, pet2) => {
-      const b = new RectBatch().add("#ffd8a8", x, y, 128, 44).add("#8ce99a", x, y + 44, 128, 12).add("#69db7c", x, y + 44, 128, 2).add("#f8f0e3", x + 70, y + 24, 40, 20).add("#ffffff", x + 73, y + 26, 34, 7).add("#8a5a33", x + 86, y + 34, 8, 10).add("#ffd43b", x + 74, y + 35, 7, 6).add("#ffd43b", x + 99, y + 35, 7, 6);
-      return `<circle cx="${x + 22}" cy="${y + 36}" r="9" fill="#ffa94d"/>` + b + `<path d="M${x + 66} ${y + 24}L${x + 90} ${y + 8}L${x + 114} ${y + 24}Z" fill="#c92a2a"/>` + text("127.0.0.1", x + 76, y + 27, 1, "#495057") + at(pet2, x + 30, y + 46 - pet2.height);
-    }
-  },
-  {
-    name: "THE CLOUD",
-    ink: "#1c7ed6",
-    draw: (x, y, pet2) => {
-      const b = new RectBatch().add("#74c0fc", x, y, 128, 56).add("#a5d8ff", x, y + 30, 128, 26).add("#ffffff", x + 8, y + 40, 112, 16).add("#ffffff", x + 18, y + 33, 44, 8).add("#ffffff", x + 70, y + 31, 40, 10).add("#ffffff", x + 28, y + 27, 22, 6).add("#ffffff", x + 92, y + 10, 24, 6).add("#ffffff", x + 97, y + 6, 12, 4).add("#495057", x + 84, y + 15, 14, 18).add("#343a40", x + 84, y + 15, 14, 2);
-      const leds = [0, 1, 2].map((i) => `<rect class="${i % 2 ? "pf-s-blink" : "pf-s-blink2"}" x="${x + 87}" y="${y + 19 + i * 5}" width="8" height="2" fill="#51cf66"/>`).join("");
-      return b + leds + at(pet2, x + 30, y + 34 - pet2.height + 2);
-    }
-  },
-  {
-    name: "STACK OVERFLOW",
-    ink: "#e8590c",
-    draw: (x, y, pet2) => {
-      const b = new RectBatch().add("#d0ebff", x, y, 128, 48).add("#ced4da", x, y + 48, 128, 8);
-      const boxes = [];
-      for (let i = 0; i < 5; i++) {
-        const bx = x + 74 + (i % 2 ? 3 : -2) + (i === 4 ? 4 : 0);
-        const by = y + 40 - i * 9;
-        boxes.push(`<rect x="${bx}" y="${by}" width="22" height="8" fill="${i % 2 ? "#ffa94d" : "#f76707"}" stroke="#7a3500" stroke-width="1"/>`);
-      }
-      const top = `<g class="pf-s-teeter"><rect x="${x + 80}" y="${y - 5}" width="22" height="8" fill="#f76707" stroke="#7a3500" stroke-width="1"/></g>`;
-      return b + boxes.join("") + top + at(pet2, x + 30, y + 48 - pet2.height + 1);
-    }
-  },
-  {
-    name: "PORT 8080",
-    ink: "#0b7285",
-    draw: (x, y, pet2) => {
-      const b = new RectBatch().add("#a5d8ff", x, y, 128, 34).add("#1971c2", x, y + 34, 128, 22).add("#74c0fc", x + 76, y + 44, 12, 1).add("#74c0fc", x + 104, y + 50, 14, 1).add("#8a5a33", x, y + 32, 64, 4).add("#6b4226", x + 6, y + 36, 3, 14).add("#6b4226", x + 34, y + 36, 3, 14).add("#6b4226", x + 58, y + 36, 3, 14).add("#8a5a33", x + 62, y + 22, 2, 10).add("#ffffff", x + 54, y + 15, 19, 8);
-      let tower = "";
-      for (let i = 0; i < 4; i++) tower += `<rect x="${x + 100}" y="${y + 10 + i * 6}" width="10" height="6" fill="${i % 2 ? "#ffffff" : "#e03131"}"/>`;
-      return b + tower + `<rect x="${x + 98}" y="${y + 34}" width="14" height="2" fill="#495057"/><rect x="${x + 99}" y="${y + 2}" width="12" height="8" fill="#343a40"/><rect class="pf-s-blink" x="${x + 101}" y="${y + 4}" width="8" height="4" fill="#ffe066"/>` + text("8080", x + 56, y + 16.5, 1, "#1f2328") + at(pet2, x + 6, y + 32 - pet2.height + 2);
-    }
-  },
-  {
-    name: "THE KERNEL",
-    ink: "#e67700",
-    draw: (x, y, pet2) => {
-      const b = new RectBatch().add("#3b1f5c", x, y, 128, 46).add("#5c3d2e", x, y + 46, 128, 10);
-      for (const [sx, sy] of [[8, 8], [30, 20], [52, 6], [112, 14], [120, 34], [60, 30]]) b.add("#ffffff", x + sx, y + sy, 1, 1);
-      return b + px4(KERNEL, { y: "#ffd43b", h: "#fff3bf", o: "#f59f00", w: "#fff9db" }, x + 76, y + 5, 3) + at(pet2, x + 30, y + 46 - pet2.height + 2);
-    }
-  }
-];
-function postcardPlace(login, date) {
-  return pick(seeded(`postcard:${login}:${date}`), PLACES);
-}
-var title = (name) => name.toLowerCase().replace(/\b[a-z]/g, (ch) => ch.toUpperCase());
-function postcard(c) {
-  const { scene: sc, state } = c;
-  const place = postcardPlace(state.login, state.date);
-  const pet2 = renderPetSprite({ ...state, mood: "happy", trick: void 0, care: void 0 }, 2, { lively: false });
-  const W3 = 140;
-  const H3 = 94;
-  const x = sc.x + 12;
-  const y = sc.y + 36;
-  const photo = { x: x + 6, y: y + 6 };
-  const greet = text("GREETINGS FROM", x + 8, y + 67, 1, "#8a6d4b");
-  const name = text(place.name, x + 8, y + 76, 2, place.ink, "#e9dfcc");
-  const stamp = `<g transform="rotate(6 ${x + W3 - 16} ${y + 14})"><rect x="${x + W3 - 28}" y="${y}" width="22" height="26" fill="#ffffff" stroke="#adb5bd" stroke-width="1" stroke-dasharray="2 1"/><rect x="${x + W3 - 25}" y="${y + 3}" width="16" height="20" fill="#ffe3e3"/>${px4(HEART, { p: "#e03131" }, x + W3 - 22, y + 9, 2)}</g><g fill="none" stroke="#495057" stroke-width="1" opacity=".55"><circle cx="${x + W3 - 34}" cy="${y + 20}" r="9"/><circle cx="${x + W3 - 34}" cy="${y + 20}" r="6"/><path d="M${x + W3 - 72} ${y + 16}q4 -3 8 0t8 0t8 0t8 0M${x + W3 - 72} ${y + 22}q4 -3 8 0t8 0t8 0t8 0"/></g>`;
-  const card = `<rect x="${x + 3}" y="${y + 3}" width="${W3}" height="${H3}" fill="#000000" opacity=".2"/><rect x="${x}" y="${y}" width="${W3}" height="${H3}" fill="#fffaf0" stroke="#d9cbb0" stroke-width="1"/><clipPath id="pf-s-photo"><rect x="${photo.x}" y="${photo.y}" width="128" height="56"/></clipPath><g clip-path="url(#pf-s-photo)">${place.draw(photo.x, photo.y, pet2)}</g>` + greet + name + stamp;
-  const line = `<path d="M${sc.x} ${y - 8}Q${sc.x + sc.w / 2} ${y - 2} ${sc.x + sc.w} ${y - 8}" fill="none" stroke="#8d96a0" stroke-width="1"/>`;
-  const peg = `<rect x="${x + W3 / 2 - 3}" y="${y - 9}" width="6" height="13" rx="1" fill="#d9a066"/><rect x="${x + W3 / 2 - 1}" y="${y - 9}" width="2" height="13" fill="#b07d4a"/>`;
-  const right = sc.x + sc.w;
-  const g = sc.ground;
-  const mailbox = `<rect x="${right - 18}" y="${g - 24}" width="4" height="24" fill="#8a5a33"/><rect x="${right - 27}" y="${g - 36}" width="22" height="13" rx="4" fill="#1c7ed6"/><rect x="${right - 25}" y="${g - 31}" width="12" height="2" fill="#0b3a66"/><rect x="${right - 6}" y="${g - 46}" width="2" height="12" fill="#e03131"/><rect x="${right - 6}" y="${g - 46}" width="7" height="5" fill="#e03131"/>`;
-  return {
-    css: `.pf-s-sway{transform-box:fill-box;transform-origin:50% 0;animation:pf-s-sway 4.5s ease-in-out infinite alternate}@keyframes pf-s-sway{from{transform:rotate(-2.5deg)}to{transform:rotate(2deg)}}
-.pf-s-teeter{transform-box:fill-box;transform-origin:0 100%;animation:pf-s-teeter 2.4s ease-in-out infinite alternate}@keyframes pf-s-teeter{from{transform:rotate(-4deg)}to{transform:rotate(14deg)}}`,
-    replace: `${line}${mailbox}<g class="pf-s-sway">${peg}${card}</g>`,
-    line: `Away \xB7 postcard from ${title(place.name)}`
-  };
-}
-
-// src/pet/surprises/rare.ts
-var CYCLE2 = 24;
-var pct2 = (t) => `${+(t / CYCLE2 * 100).toFixed(2)}%`;
-var shown = (name, from, to) => `.${name}{opacity:0;animation:${name} ${CYCLE2}s steps(1) infinite}@keyframes ${name}{0%{opacity:0}${pct2(from)}{opacity:1}${pct2(to)}{opacity:0}100%{opacity:0}}`;
-var SAUCER = [
-  "......cccccc......",
-  ".....cwCCCCCc.....",
-  "....cCCCCCCCCc....",
-  ".ssssssssssssssss.",
-  "sSSSSSSSSSSSSSSSSs",
-  ".ssssssssssssssss.",
-  "....dddddddddd...."
-];
-var SAUCER_LIGHTS = ["..................", "..................", "..................", "..................", ".y..r..g..y..r..g.", "..................", ".................."];
-function ufo(c) {
-  const { scene: sc, box } = c;
-  const s = 3;
-  const uw = SAUCER[0].length * s;
-  const ux = round(box.x + box.w / 2 - uw / 2);
-  const uy = sc.y + 16;
-  const under = uy + SAUCER.length * s;
-  const rise = Math.round(box.y + box.h / 2 - under - 4);
-  const beam = `<path class="pf-s-beam" d="M${ux + uw / 2 - 8} ${under}h16L${round(box.x + box.w + 6)} ${box.y + box.h}H${round(box.x - 6)}Z" fill="#b2f2bb" opacity="0"/>`;
-  const saucer = `<g class="pf-s-ufo">${px4(SAUCER, { c: "#99e9f2", C: "#66d9e8", w: "#ffffff", s: "#adb5bd", S: "#868e96", d: "#495057" }, ux, uy, s)}<g class="pf-s-blink">${px4(SAUCER_LIGHTS, { y: "#ffe066", r: "#ff6b6b", g: "#69db7c" }, ux, uy, s)}</g></g>`;
-  const top = anchors(c.species).top * c.scale;
-  const huh = bubble(pixelText("?!"), box.w - 6, top - 2, "pf-s-huh");
-  return {
-    css: `.pf-s-ufo{animation:pf-s-ufo ${CYCLE2}s ease-in-out infinite}
-@keyframes pf-s-ufo{0%{transform:translate(-160px,-50px)}12%{transform:translate(0,0)}20%{transform:translate(0,-3px)}30%{transform:translate(0,0)}50%{transform:translate(0,-3px)}72%{transform:translate(0,0)}86%,100%{transform:translate(180px,-60px)}}
-.pf-s-beam{animation:pf-s-beam ${CYCLE2}s steps(1) infinite}
-@keyframes pf-s-beam{0%{opacity:0}${pct2(4.3)}{opacity:.5}${pct2(4.6)}{opacity:.15}${pct2(4.9)}{opacity:.5}${pct2(16.4)}{opacity:0}100%{opacity:0}}
-.pf-s-abduct{transform-box:fill-box;transform-origin:center;animation:pf-s-abduct ${CYCLE2}s ease-in-out infinite}
-@keyframes pf-s-abduct{0%,${pct2(5.2)}{transform:none;opacity:1}${pct2(10)}{transform:translateY(-${rise}px) scale(.35) rotate(-24deg);opacity:1}${pct2(10.4)},${pct2(13)}{transform:translateY(-${rise}px) scale(.35);opacity:0}${pct2(13.4)}{transform:translateY(-${rise}px) scale(.35) rotate(20deg);opacity:1}${pct2(15.6)}{transform:none;opacity:1}100%{transform:none;opacity:1}}
-${shown("pf-s-huh", 15.8, 19.4)}`,
-    follow: beam + saucer,
-    bodyClass: "pf-s-abduct",
-    over: huh,
-    line: "Close encounter of the pet kind"
-  };
-}
-function friend(c) {
-  const { scene: sc, state } = c;
-  const id = pick(c.rng, Object.keys(SPECIES).filter((k) => k !== state.species && k !== c.species.id));
-  const buddy = getSpecies(id);
-  const s = 3;
-  const sprite = renderPetSprite({ ...state, species: id, stage: "baby", mood: "idle", trick: void 0, care: void 0 }, s, { lively: false });
-  const fw = sprite.width;
-  const fh = sprite.height;
-  const meet = sc.x + sc.w - fw - 18;
-  const y = sc.ground - fh - 4 + s;
-  const flip = buddy.facing === "right" ? ` transform="translate(${fw} 0) scale(-1 1)"` : "";
-  const hello = bubble(pixelText("HI!"), fw - 4, 0, "pf-s-hi");
-  const love = `<g class="pf-s-love">${px4(HEART, { p: "#ff5c7a" }, fw / 2 - 5, -12, 2)}</g>`;
-  return {
-    css: `.pf-s-friend{animation:pf-s-friend ${CYCLE2}s linear infinite}
-@keyframes pf-s-friend{0%{transform:translateX(${sc.x + sc.w + 4}px)}${pct2(4.6)}{transform:translateX(${meet}px)}${pct2(11)}{transform:translateX(${meet}px)}${pct2(20.5)},100%{transform:translateX(${sc.x - fw - 8}px)}}
-.pf-s-wave{animation:pf-s-wave ${CYCLE2}s ease-in-out infinite}
-@keyframes pf-s-wave{0%,${pct2(5)}{transform:none}${pct2(5.4)}{transform:translateY(-6px)}${pct2(5.8)}{transform:none}${pct2(6.2)}{transform:translateY(-6px)}${pct2(6.6)},100%{transform:none}}
-${shown("pf-s-hi", 5, 8)}
-${shown("pf-s-love", 8.2, 10.8)}`,
-    back: `<g class="pf-s-friend"><g transform="translate(0 ${y})"><g class="pf-s-wave"><g${flip}>${sprite.svg}</g>${hello}${love}</g></g></g>`,
-    line: `${buddy.defaultName} the ${id} dropped by`
-  };
-}
-var WINGS_OPEN = ["pp...pp", "pPp.pPp", ".ppkpp.", "..pkp..", ".pp.pp."];
-var WINGS_SHUT = [".......", "..p.p..", "..pkp..", "..pkp..", "...k..."];
-function butterfly(c) {
-  const { species, scale } = c;
-  const a = anchors(species);
-  const side = species.facing === "right";
-  const eye = a.eyes[0];
-  const nose = side ? { x: Math.min(species.width - 1, eye.x + 2), y: eye.y } : { x: a.eyes.reduce((sum, e) => sum + e.x, 0) / a.eyes.length, y: Math.max(...a.eyes.map((e) => e.y)) + 1 };
-  const bx = round(nose.x * scale - 7);
-  const by = round(nose.y * scale - 9);
-  const palette = { p: "#ffa94d", P: "#fff3bf", k: "#343a40" };
-  const wings2 = `<g class="pf-fa" style="animation-duration:.3s">${px4(WINGS_OPEN, palette, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.3s">${px4(WINGS_SHUT, palette, 0, 0, 2)}</g>`;
-  return {
-    css: `.pf-s-fly{animation:pf-s-fly ${CYCLE2}s ease-in-out infinite}
-@keyframes pf-s-fly{0%{transform:translate(-60px,-70px);opacity:0}3%{opacity:1}14%{transform:translate(50px,-50px)}26%{transform:translate(-24px,-44px)}38%{transform:translate(18px,-30px)}${pct2(10.8)}{transform:translate(0,-8px)}${pct2(11.3)},${pct2(16.3)}{transform:translate(0,0);opacity:1}${pct2(17.4)}{transform:translate(26px,-26px)}${pct2(19.4)}{transform:translate(80px,-80px);opacity:1}${pct2(19.5)},100%{transform:translate(-60px,-70px);opacity:0}}`,
-    held: `<g transform="translate(${bx} ${by})"><g class="pf-s-fly">${wings2}</g></g>`,
-    crossed: [[11.4, 16.3]],
-    line: "A butterfly landed on its nose"
-  };
-}
-function sunglasses(c) {
-  const { scene: sc } = c;
-  const sx = sc.x + sc.w - 30;
-  const sy = sc.y + 28;
-  let rays = "";
-  for (let i = 0; i < 8; i++) {
-    const angle = i / 8 * Math.PI * 2;
-    rays += `<rect x="${round(sx + Math.cos(angle) * 16 - 2)}" y="${round(sy + Math.sin(angle) * 16 - 2)}" width="4" height="4" fill="#ffd43b"/>`;
-  }
-  return {
-    css: `.pf-s-glint{animation:pf-s-glint 4s steps(1) infinite}@keyframes pf-s-glint{0%,78%{opacity:0}80%,90%{opacity:.9}92%,100%{opacity:0}}
-.pf-s-sun{transform-box:fill-box;transform-origin:center;animation:pf-s-sun 16s linear infinite}@keyframes pf-s-sun{to{transform:rotate(360deg)}}`,
-    back: `<g class="pf-s-sun">${rays}</g><circle cx="${sx}" cy="${sy}" r="10" fill="#ffd43b"/><circle cx="${sx - 3}" cy="${sy - 3}" r="3" fill="#fff3bf"/>`,
-    face: glasses(c.species, c.scale, "shades"),
-    line: "Summer mode \xB7 too cool for school"
-  };
-}
-var RARE_ART = { ufo, friend, butterfly, sunglasses };
-
-// src/pet/surprises/index.ts
-var isHoliday = (s) => HOLIDAYS.includes(s);
-function surpriseFor(state, season) {
-  if (state.surprise !== void 0) return state.surprise;
-  const holiday = holidayFor(state.date);
-  if (holiday) return holiday;
-  const m = state.moments ?? {};
-  if (m.birthday) return "birthday";
-  if (state.ranAway) return null;
-  if (m.levelUp !== void 0) return "level-up";
-  if (m.welcomeBack) return "welcome-back";
-  if (state.stage === "egg") return null;
-  const calm = state.mood === "idle" || state.mood === "happy";
-  const r = seeded(`surprise:${state.login}:${state.date}`)();
-  const weekday = (/* @__PURE__ */ new Date(`${state.date}T00:00:00Z`)).getUTCDay();
-  const weekend = weekday === 0 || weekday === 6;
-  if (calm && weekend && state.daysSinceLastContribution >= 1 && r < 0.5) return "postcard";
-  if (state.mood !== "sleeping" && r >= 0.95) return "ufo";
-  if (calm && r >= 0.87 && r < 0.95) return "friend";
-  if (calm && season === "spring" && r >= 0.6 && r < 0.87) return "butterfly";
-  if (calm && season === "summer" && r >= 0.6 && r < 0.87) return "sunglasses";
-  return null;
-}
-function disguiseFor(state) {
-  return pick(seeded(`fools:${state.login}:${state.date}`), Object.keys(SPECIES).filter((id) => id !== state.species));
-}
-function showSurprise(surprise2, ctx, where) {
-  const draw = isHoliday(surprise2) ? HOLIDAY_ART[surprise2] : surprise2 === "postcard" ? postcard : surprise2 in MOMENT_ART ? MOMENT_ART[surprise2] : RARE_ART[surprise2];
-  const art = { ...draw(ctx) };
-  if (where !== "pet") {
-    delete art.held;
-    delete art.over;
-    delete art.follow;
-    delete art.bodyClass;
-    delete art.crossed;
-    delete art.replace;
-    if (where !== "visit") {
-      delete art.hat;
-      delete art.face;
-    }
-  }
-  return { art, css: `${KIT_CSS}${art.css ?? ""}`, banner: art.banner ? banner(art.banner, ctx.scene) : "" };
-}
+var NIGHT_CSS = `
+.pf-glow{animation:pf-glow 2.8s ease-in-out infinite}
+@keyframes pf-glow{0%,100%{opacity:.85}45%{opacity:1}55%{opacity:.7}}
+.pf-firefly{animation:pf-firefly 4s ease-in-out infinite}
+@keyframes pf-firefly{0%,100%{opacity:.2;transform:translate(0,0)}50%{opacity:1;transform:translate(6px,-8px)}}
+.pf-snooze{opacity:0;animation:pf-snooze 3.3s ease-out infinite}
+@keyframes pf-snooze{0%{opacity:0;transform:translate(0,4px)}20%{opacity:1}100%{opacity:0;transform:translate(10px,-22px)}}
+`;
 
 // src/pet/render.ts
 var W2 = 480;
@@ -5248,6 +6588,7 @@ ${WEATHER_CSS}
 ${SCENERY_CSS}
 ${CARE_CSS}
 ${VISIT_CSS}
+${NIGHT_CSS}
 @media (prefers-reduced-motion:reduce){.pf *{animation:none!important}}
 `;
 var TRICK_PREVIEW_SHIFT = 7.6;
@@ -5258,7 +6599,7 @@ function compact(n) {
   if (n < 1e6) return `${Math.round(n / 1e3)}k`;
   return `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M`;
 }
-var STARS = [
+var STARS3 = [
   [28, 26, 0],
   [62, 44, 0.7],
   [96, 22, 1.3],
@@ -5269,13 +6610,13 @@ var STARS = [
 ];
 function skyLife() {
   const { x, y, w } = SCENE;
-  const cloud2 = (cx, cy, size) => new RectBatch().add("#ffffff", cx, cy, 14 * size, 4 * size).add("#ffffff", cx + 3 * size, cy - 3 * size, 7 * size, 3 * size).add("#ffffff", cx + 2 * size, cy + 4 * size, 11 * size, 2 * size).toString();
-  return `<g class="pf-day"><g class="pf-cloud" style="--from:${-x - 20}px;--to:${w + 10}px;animation-duration:70s;animation-delay:-20s">${cloud2(x, y + 30, 2)}</g><g class="pf-cloud" style="--from:${-x - 20}px;--to:${w + 10}px;animation-duration:95s;animation-delay:-70s">${cloud2(x, y + 58, 1.5)}</g></g><g class="pf-star"><g class="pf-shoot"><rect x="${x + w - 40}" y="${y + 14}" width="14" height="1.5" fill="#ffffff" transform="rotate(-25 ${x + w - 33} ${y + 15})"/></g></g>`;
+  const cloud3 = (cx, cy, size) => new RectBatch().add("#ffffff", cx, cy, 14 * size, 4 * size).add("#ffffff", cx + 3 * size, cy - 3 * size, 7 * size, 3 * size).add("#ffffff", cx + 2 * size, cy + 4 * size, 11 * size, 2 * size).toString();
+  return `<g class="pf-day"><g class="pf-cloud" style="--from:${-x - 20}px;--to:${w + 10}px;animation-duration:70s;animation-delay:-20s">${cloud3(x, y + 30, 2)}</g><g class="pf-cloud" style="--from:${-x - 20}px;--to:${w + 10}px;animation-duration:95s;animation-delay:-70s">${cloud3(x, y + 58, 1.5)}</g></g><g class="pf-star"><g class="pf-shoot"><rect x="${x + w - 40}" y="${y + 14}" width="14" height="1.5" fill="#ffffff" transform="rotate(-25 ${x + w - 33} ${y + 15})"/></g></g>`;
 }
 function scene(state, world2) {
   const { x, y, w, h } = SCENE;
   const beach = terrainFor(state.species) === "beach";
-  const stars = STARS.map(
+  const stars = STARS3.map(
     ([sx, sy, delay]) => `<rect class="pf-twinkle" style="animation-delay:-${delay}s" x="${sx}" y="${sy}" width="3" height="3" fill="#fff"/>`
   ).join("");
   let bumps = "";
@@ -5285,7 +6626,7 @@ function scene(state, world2) {
     [x + 150, GROUND_Y + 20],
     [x + 96, GROUND_Y + 24],
     [x + 176, GROUND_Y + 10]
-  ].map(([px5, py]) => `<rect x="${px5}" y="${py}" width="6" height="4" style="fill:var(--pf-ground-dark)"/>`).join("");
+  ].map(([px6, py]) => `<rect x="${px6}" y="${py}" width="6" height="4" style="fill:var(--pf-ground-dark)"/>`).join("");
   const overcast2 = world2.weather === "clear" ? "" : `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#1b2033" opacity=".28"/><g opacity=".85" fill="#6f7689"><rect x="${x + 6}" y="${y + 22}" width="66" height="12"/><rect x="${x + 20}" y="${y + 14}" width="30" height="10"/><rect x="${x + 110}" y="${y + 34}" width="80" height="12"/><rect x="${x + 128}" y="${y + 26}" width="36" height="10"/></g>`;
   return `
 <defs>
@@ -5300,19 +6641,20 @@ function scene(state, world2) {
 </defs>
 <g clip-path="url(#pf-clip)">
   <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#pf-sky)"/>
-  ${world2.weather === "clear" ? `<g class="pf-star">${stars}</g>${skyLife()}` : overcast2}
+  ${world2.night ? nightSky({ ...SCENE, ground: GROUND_Y }) : world2.weather === "clear" ? `<g class="pf-star">${stars}</g>${skyLife()}` : overcast2}
   <rect x="${x}" y="${GROUND_Y}" width="${w}" height="${y + h - GROUND_Y}" style="fill:var(--pf-ground)"/>
   <path d="${bumps}" style="fill:var(--pf-ground)"/>
   ${groundCover(state.species, AREA, y + h, LOOKS[world2.season].snow)}
   ${beach ? pebbles : ""}
   ${props(state.species, AREA)}
-  ${ambient(state.species, AREA).svg}`;
+  ${ambient(state.species, AREA).svg}
+  ${world2.night ? nightShade({ ...SCENE, ground: GROUND_Y }) : ""}`;
 }
 function foreground(world2, rng) {
   const look = LOOKS[world2.season];
   const particles2 = world2.weather === "rain" && world2.season !== "winter" ? rain(rng, AREA) : fallingParticles(look, rng, AREA);
   return [
-    world2.weather === "clear" ? fireflies(look, rng, AREA) : "",
+    world2.weather === "clear" && !world2.night ? fireflies(look, rng, AREA) : "",
     particles2,
     world2.weather === "fog" ? fog(AREA) : ""
   ].join("");
@@ -5370,8 +6712,9 @@ function pet(state, art = {}) {
   const w = species.width * scale;
   const h = species.height * scale;
   const life = lifeFor(state.mood, species, scale, w, h, state.date, state.login, { crossed: art.crossed });
-  const sprite = renderPetSprite(state, scale, { emote: false, eyes: life.eyes, hat: art.hat, face: art.face });
-  let body = sprite.svg + careOverlay(state.care, w, h, scale) + (art.held ?? "");
+  const asleep = state.mood === "sleeping";
+  const sprite = renderPetSprite(state, scale, { emote: false, eyes: life.eyes, hat: art.hat ?? (asleep ? NIGHTCAP : void 0), face: art.face });
+  let body = sprite.svg + careOverlay(state.care, w, h, scale) + (asleep ? quilt(w, h, scale, anchors(species).mouth.y) : "") + (art.held ?? "");
   if (life.faceClass) body = `<g class="${life.faceClass}">${body}</g>`;
   for (const cls of life.bodyClasses) body = `<g class="${cls}">${body}</g>`;
   if (art.bodyClass) body = `<g class="${art.bodyClass}">${body}</g>`;
@@ -5380,7 +6723,7 @@ function pet(state, art = {}) {
   const sparkles = state.stage === "legendary" ? legendarySparkles({ x: 0, y: 0, w, h }) : "";
   const props2 = state.mood === "hungry" ? emptyBowl(box.x + w + 12, GROUND_Y) : "";
   return {
-    svg: `${props2}<g class="${life.pathClass}">${art.follow ?? ""}${shadow2(box, state.mood)}<g transform="translate(${box.x} ${box.y})"><g class="${inner}">${body}</g>${life.overlay}${art.over ?? ""}${sparkles}</g></g>`,
+    svg: `${props2}<g class="${life.pathClass}">${art.follow ?? ""}${asleep ? cushion(box.x, GROUND_Y + scale, w) : shadow2(box, state.mood)}<g transform="translate(${box.x} ${box.y})"><g class="${inner}">${body}</g>${life.overlay}${art.over ?? ""}${sparkles}</g></g>`,
     box,
     css: life.css + (sprite.css ?? "")
   };
@@ -5412,7 +6755,7 @@ function effects(state, box) {
   if (state.mood === "sleeping" && left.includes("play")) out.push(ball(SCENE.x + SCENE.w - 26, GROUND_Y));
   if (activeVisit(state) && state.mood !== "sleeping") return state.stage === "legendary" ? legendarySparkles(box) : "";
   if (state.stage !== "egg") {
-    if (state.mood === "sleeping") out.push(zzz(box));
+    if (state.mood === "sleeping") out.push(bedtimeZs(box));
     return out.join("");
   }
   switch (state.mood) {
@@ -5540,7 +6883,8 @@ function surprise(state, season) {
 function renderPetCard(original, options = {}) {
   const world2 = {
     season: options.season ?? seasonFor(original.date, options.hemisphere),
-    weather: weatherFor(original.daysSinceLastContribution)
+    weather: original.mood === "sleeping" && !original.ranAway ? "clear" : weatherFor(original.daysSinceLastContribution),
+    night: original.mood === "sleeping" && !original.ranAway
   };
   const today = surprise(original, world2.season);
   const state = today?.state ?? original;
@@ -5549,11 +6893,11 @@ function renderPetCard(original, options = {}) {
   const visitors = original.ranAway ? 0 : original.care?.visitors?.length ?? 0;
   const turns = visitors > 1 ? visitors : 0;
   const filter = themeFilter(options.theme);
-  const title2 = `${original.petName}, ${original.login}'s ProfileForge pet`;
+  const title = `${original.petName}, ${original.login}'s ProfileForge pet`;
   const desc = `Level ${original.level} ${original.className} ${original.species}, feeling ${original.mood}. ${original.streak}-day streak.`;
   const border = options.hideBorder ? "" : `<rect x=".5" y=".5" width="${W2 - 1}" height="${H2 - 1}" rx="10" fill="none" style="stroke:var(--pf-border)"/>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" class="pf"${original.trick ? ` style="--pf-t0:-${TRICK_PREVIEW_SHIFT}s"` : ""} width="${W2}" height="${H2}" viewBox="0 0 ${W2} ${H2}" role="img" aria-labelledby="pf-title pf-desc">
-<title id="pf-title">${escapeXml(title2)}</title>
+<title id="pf-title">${escapeXml(title)}</title>
 <desc id="pf-desc">${escapeXml(desc)}</desc>
 <style>${themeCss(options.theme)}
 .pf-name{font:700 20px ${SANS2};fill:var(--pf-title)}
@@ -5586,6 +6930,7 @@ ${filter.defs}
 <rect width="${W2}" height="${H2}" rx="10" style="fill:var(--pf-bg)"/>
 ${border}
 ${scene(original, world2)}
+  ${world2.night ? lanternAndFireflies({ ...SCENE, ground: GROUND_Y }) : ""}
   ${art.back ?? ""}
   <g${filter.attr}>
   ${creature.svg}
@@ -5695,8 +7040,8 @@ async function prepareCare({ workspace, file, token, repo, now, house, rules = D
 async function ensureHouse(prepared, token, repo, petName, f = fetch) {
   const { state } = prepared.care;
   if (state.house.issue !== null) return null;
-  const { title: title2, body } = houseIssue(petName, prepared.care.rules);
-  const number = await createIssue(token, repo, title2, body, f);
+  const { title, body } = houseIssue(petName, prepared.care.rules);
+  const number = await createIssue(token, repo, title, body, f);
   state.house.issue = number;
   await save(prepared.file, state);
   return number;
