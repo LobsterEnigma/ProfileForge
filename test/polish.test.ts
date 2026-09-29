@@ -46,7 +46,9 @@ describe("panel and sky", () => {
     expect(svg.match(/class="pf-e"/g)).toHaveLength(1);
     expect(svg).toContain('class="pf-today"');
     // A big day is solid, a light one faint.
-    expect(svg).toMatch(/class="pf-d"[^>]*opacity="0\.45"/);
+    expect(svg).toMatch(/class="pf-d"[^>]*opacity="0\.55"/);
+    // An empty today waits with a soft pulse instead.
+    expect(renderPetCard(demoState("idle"))).toContain('class="pf-wait"');
     // Without the daily numbers it falls back to a plain ratio bar.
     const plain = renderPetCard({ ...demoState("happy"), recent: undefined });
     expect(plain).not.toContain('class="pf-today"');

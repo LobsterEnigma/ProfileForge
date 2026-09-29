@@ -7681,13 +7681,16 @@ function daysBar(state, y) {
   const days = state.recent;
   if (!days || days.length === 0) return bar("HP", state.activeDays14 / 14, `${state.activeDays14}/14d`, y, "var(--pf-hp)");
   const x0 = PANEL_X + 30;
-  const level = (n) => n <= 0 ? 0 : n <= 2 ? 0.45 : n <= 5 ? 0.7 : n <= 9 ? 0.88 : 1;
+  const level = (n) => n <= 0 ? 0 : n <= 2 ? 0.55 : n <= 5 ? 0.75 : n <= 9 ? 0.9 : 1;
   let segs = "";
   days.slice(-14).forEach((n, i, all) => {
     const x = x0 + i * 10;
     const o = level(n);
-    segs += `<rect class="${o ? "pf-d" : "pf-e"}" x="${x}" y="${y - 9}" width="8" height="10" rx="1.5"${o && o < 1 ? ` opacity="${o}"` : ""}/>`;
-    if (i === all.length - 1) segs += `<rect class="pf-today" x="${x - 1}" y="${y - 10}" width="10" height="12" rx="2" fill="none" style="stroke:var(--pf-hp)" stroke-width="1.2"/>`;
+    let seg = `<rect class="${o ? "pf-d" : "pf-e"}" x="${x}" y="${y - 9}" width="8" height="10" rx="1.5"${o && o < 1 ? ` opacity="${o}"` : ""}/>`;
+    if (i === all.length - 1) {
+      seg = o ? `<g class="pf-today">${seg}</g>` : `${seg}<rect class="pf-wait" x="${x}" y="${y - 9}" width="8" height="10" rx="1.5"/>`;
+    }
+    segs += seg;
   });
   return `
   <text x="${PANEL_X}" y="${y}" class="pf-label">HP</text>${segs}
@@ -7825,8 +7828,10 @@ function renderPetCard(original, options = {}) {
 .pf-glint{animation:pf-glint 5s ease-in-out infinite}
 @keyframes pf-glint{0%,60%{transform:translateX(0);opacity:0}64%{opacity:.6}96%{opacity:.6}100%{transform:translateX(var(--w));opacity:0}}
 .pf-d{fill:var(--pf-hp)}.pf-e{fill:var(--pf-bar-empty)}
-.pf-today{animation:pf-today 2s ease-in-out infinite}
-@keyframes pf-today{0%,100%{opacity:.25}50%{opacity:1}}
+.pf-today{animation:pf-today 2.4s ease-in-out infinite}
+@keyframes pf-today{0%,100%{opacity:1}50%{opacity:.55}}
+.pf-wait{fill:var(--pf-hp);animation:pf-wait 2.4s ease-in-out infinite}
+@keyframes pf-wait{0%,100%{opacity:0}50%{opacity:.4}}
 .pf-charge{animation:pf-charge 2.4s ease-in-out infinite}
 @keyframes pf-charge{0%,100%{opacity:.12}50%{opacity:.45}}
 ${CSS2}${turnCss(turns)}${ambient(original.species, AREA).css}${creature.css ?? ""}${today?.shown.css ?? ""}</style>

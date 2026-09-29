@@ -39,7 +39,7 @@ describe("pruning unused CSS", () => {
       selfContained(renderPetCard(demoState("idle", "adult", undefined, species, { visit: "all" })));
     }
     for (const surprise of SURPRISES) selfContained(renderPetCard(demoState("idle", "adult", undefined, "crab", { surprise })));
-  });
+  }, 60_000); // hundreds of cards: give it room when the suite runs in parallel
 
   it("leaves the city self-contained", () => {
     const city = computeCityState(demoProfile());
