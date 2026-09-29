@@ -59,6 +59,26 @@ describe("publishing to an output branch", () => {
     expect(git(work, "log", "--format=%s")).toBe("hello");
   });
 
+  it("keeps another tool's files that share the branch", async () => {
+    const { remote, work } = await repo();
+    // The snake got there first: a branch with its own SVG.
+    const seed = join(work, "..", "snake");
+    git(join(work, ".."), "clone", "--quiet", remote, seed);
+    git(seed, "checkout", "--quiet", "--orphan", "output");
+    git(seed, "rm", "-rf", "--quiet", ".");
+    await writeFile(join(seed, "snake.svg"), "<svg>snake</svg>");
+    git(seed, "add", "snake.svg");
+    git(seed, "commit", "--quiet", "-m", "snake");
+    git(seed, "push", "--quiet", "origin", "output");
+
+    prepareBranch(work, "output");
+    const pet = await write(work, "profile/pet.svg", "<svg>pet</svg>");
+    expect(await publishToBranch(work, "output", [pet], "feed")).toBe("pushed");
+    expect(git(remote, "ls-tree", "-r", "--name-only", "output").split("\n")).toEqual(["profile/pet.svg", "snake.svg"]);
+    expect(git(remote, "show", "output:snake.svg")).toBe("<svg>snake</svg>");
+    expect(git(remote, "rev-list", "--count", "output")).toBe("1");
+  });
+
   it("reads the care log back from the branch", async () => {
     const { work } = await repo();
     const care = await write(work, "profile/care.json", '{"visits":1}');

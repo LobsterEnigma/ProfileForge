@@ -1,7 +1,8 @@
 /**
  * Getting the SVGs (and the care log) into the repository: either as a commit on the branch
  * that was checked out, or, with `branch`, onto a separate branch that's replaced by a single
- * commit every run, so the profile's main branch never gets a bot commit.
+ * commit every run, so the profile's main branch never gets a bot commit. Use a branch of its
+ * own: tools like the contribution snake replace their `output` branch wholesale too.
  */
 import { execFileSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -53,21 +54,23 @@ export function readFromBranch(workspace: string, branch: string, path: string):
 }
 
 /**
- * Replaces `branch` with a single commit holding exactly `files` (at their paths in the
- * workspace), without touching the working tree or the checked-out branch. Skips the push when
- * the files are unchanged.
+ * Replaces `branch` with a single commit holding `files` (at their paths in the workspace),
+ * without touching the working tree or the checked-out branch. Anything else already on the
+ * branch (another tool's files) is kept as it was. Skips the push when nothing changed.
  */
 export async function publishToBranch(workspace: string, branch: string, files: string[], message: string): Promise<"pushed" | "unchanged"> {
   const dir = await mkdtemp(join(tmpdir(), "pf-index-"));
   try {
     const env = { GIT_INDEX_FILE: join(dir, "index") };
+    const previous = tryGit(workspace, ["rev-parse", "--verify", "--quiet", `${remoteRef(branch)}^{tree}`]);
+    if (previous) git(workspace, ["read-tree", previous], env);
     for (const file of files) {
       const path = relative(workspace, file).split("\\").join("/");
       const blob = git(workspace, ["hash-object", "-w", "--", file]);
       git(workspace, ["update-index", "--add", "--cacheinfo", `100644,${blob},${path}`], env);
     }
     const tree = git(workspace, ["write-tree"], env);
-    if (tryGit(workspace, ["rev-parse", `${remoteRef(branch)}^{tree}`]) === tree) return "unchanged";
+    if (previous === tree) return "unchanged";
     const commit = git(workspace, ["commit-tree", tree, "-m", message], BOT);
     git(workspace, ["push", "--force", "--quiet", "origin", `${commit}:refs/heads/${branch}`]);
     return "pushed";

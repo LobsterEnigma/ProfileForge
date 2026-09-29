@@ -45,10 +45,11 @@ inputs:
     default: "chore: feed the ProfileForge pet"
   branch:
     description: |
-      Publish the SVGs (and the care log) to this branch instead, e.g. "output". It's replaced by
-      a single commit every run, so your profile's main branch never gets a bot commit. Point your
-      README at https://raw.githubusercontent.com/OWNER/OWNER/output/path.svg. Empty (default):
-      commit to the branch the workflow runs on.
+      Publish the SVGs (and the care log) to this branch instead, e.g. "profileforge". It's
+      replaced by a single commit every run, so your profile's main branch never gets a bot
+      commit. Give it a branch of its own (the contribution snake uses "output"). Point your
+      README at https://raw.githubusercontent.com/OWNER/OWNER/profileforge/path.svg. Empty
+      (default): commit to the branch the workflow runs on.
     default: ""
 
 outputs:

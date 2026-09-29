@@ -214,7 +214,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ${REPO}@v1
         with:${c.clean ? `
-          branch: output` : ""}${care ? `
+          branch: profileforge` : ""}${care ? `
           care: true${houseNumber(c) ? `
           care_issue: ${houseNumber(c)}` : ""}${careActions(c) ? `
           care_actions: ${careActions(c)}` : ""}${c.actions.includes("bath") && !c.dirty ? `
@@ -244,7 +244,7 @@ function careLinks(c: Config): string {
 function readme(c: Config): string {
   const login = LOGIN_RE.test(c.login) ? c.login : "your-login";
   // With an output branch the SVGs aren't on main, so link them from that branch.
-  const src = (file: string) => (c.clean ? `https://raw.githubusercontent.com/${login}/${login}/output/${FOLDER}/${file}` : `./${FOLDER}/${file}`);
+  const src = (file: string) => (c.clean ? `https://raw.githubusercontent.com/${login}/${login}/profileforge/${FOLDER}/${file}` : `./${FOLDER}/${file}`);
   return [
     c.pet && `![My ProfileForge pet](${src("pet.svg")})`,
     c.pet && c.care && careLinks(c),

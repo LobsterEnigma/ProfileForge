@@ -69,12 +69,12 @@ jobs:
 
 With the [API](#option-b-deploy-your-own-api-to-vercel), the same options go into the URL: `…/api/pet?user=you&name=Biscuit&theme=dark`.
 
-**Keep your profile's history clean.** By default every update is a commit on your main branch. Add `branch: output` and the cards (and the care log) go to an `output` branch instead, replaced by a single commit each run, so your main branch never gets a bot commit:
+**Keep your profile's history clean.** By default every update is a commit on your main branch. Add `branch: profileforge` and the cards (and the care log) go to a `profileforge` branch instead, replaced by a single commit each run, so your main branch never gets a bot commit. Give it a branch of its own: tools like the contribution snake replace their `output` branch wholesale on every run.
 
 ```yaml
       - uses: LobsterEnigma/ProfileForge@v1
         with:
-          branch: output
+          branch: profileforge
           outputs: |
             profileforge/pet.svg
             profileforge/city.svg?widget=city
@@ -83,8 +83,8 @@ With the [API](#option-b-deploy-your-own-api-to-vercel), the same options go int
 Then point your README at that branch (and delete the old SVGs from main if you had some):
 
 ```md
-![My ProfileForge pet](https://raw.githubusercontent.com/<you>/<you>/output/profileforge/pet.svg)
-![My ProfileForge city](https://raw.githubusercontent.com/<you>/<you>/output/profileforge/city.svg)
+![My ProfileForge pet](https://raw.githubusercontent.com/<you>/<you>/profileforge/profileforge/pet.svg)
+![My ProfileForge city](https://raw.githubusercontent.com/<you>/<you>/profileforge/profileforge/city.svg)
 ```
 
 <details>
@@ -97,7 +97,7 @@ Then point your README at that branch (and delete the old SVGs from main if you 
 | `github_token` | `${{ github.token }}` | The built-in token can read public contributions. |
 | `commit` | `true` | Commit and push the SVGs (only when they changed). |
 | `commit_message` | `chore: feed the ProfileForge pet` | |
-| `branch` | | Publish to this branch instead (e.g. `output`), replaced by one commit each run, so main stays clean. It can't be the branch the workflow runs on. |
+| `branch` | | Publish to this branch instead (e.g. `profileforge`), replaced by one commit each run, so main stays clean. Use a branch of its own; it can't be the branch the workflow runs on. |
 | `care` | `false` | `true` gives your pet a house where visitors feed, bathe and play with it. See [Let visitors care for it](#let-visitors-care-for-it). |
 | `care_issue` | | The house issue's number, if you opened it yourself. Otherwise the first run opens one. |
 | `care_actions` | `feed,bath,play` | What visitors may do in the house. |

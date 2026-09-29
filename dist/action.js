@@ -7987,13 +7987,15 @@ async function publishToBranch(workspace, branch, files, message) {
   const dir = await mkdtemp(join(tmpdir(), "pf-index-"));
   try {
     const env = { GIT_INDEX_FILE: join(dir, "index") };
+    const previous = tryGit(workspace, ["rev-parse", "--verify", "--quiet", `${remoteRef(branch)}^{tree}`]);
+    if (previous) git(workspace, ["read-tree", previous], env);
     for (const file of files) {
       const path = relative2(workspace, file).split("\\").join("/");
       const blob = git(workspace, ["hash-object", "-w", "--", file]);
       git(workspace, ["update-index", "--add", "--cacheinfo", `100644,${blob},${path}`], env);
     }
     const tree = git(workspace, ["write-tree"], env);
-    if (tryGit(workspace, ["rev-parse", `${remoteRef(branch)}^{tree}`]) === tree) return "unchanged";
+    if (previous === tree) return "unchanged";
     const commit = git(workspace, ["commit-tree", tree, "-m", message], BOT);
     git(workspace, ["push", "--force", "--quiet", "origin", `${commit}:refs/heads/${branch}`]);
     return "pushed";
