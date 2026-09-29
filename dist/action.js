@@ -1,7 +1,7 @@
 // src/action/main.ts
-import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
-import { relative as relative2 } from "node:path";
+import { mkdir as mkdir3, writeFile as writeFile3 } from "node:fs/promises";
+import { dirname as dirname3, relative as relative3 } from "node:path";
 
 // src/city/layout.ts
 var W = 800;
@@ -7947,6 +7947,74 @@ async function answerCare(token, repo, prepared, petName, f = fetch) {
   return warnings;
 }
 
+// src/action/publish.ts
+import { execFileSync } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, relative as relative2 } from "node:path";
+var BOT = {
+  GIT_AUTHOR_NAME: "github-actions[bot]",
+  GIT_AUTHOR_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com",
+  GIT_COMMITTER_NAME: "github-actions[bot]",
+  GIT_COMMITTER_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
+};
+function git(cwd, args, env = {}) {
+  return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...env } }).trim();
+}
+function tryGit(cwd, args) {
+  try {
+    return git(cwd, args);
+  } catch {
+    return null;
+  }
+}
+function validBranch(name) {
+  return /^[A-Za-z0-9._][A-Za-z0-9._/-]{0,99}$/.test(name) && !name.includes("..") && !name.endsWith("/") && !name.endsWith(".lock");
+}
+var remoteRef = (branch) => `refs/remotes/origin/${branch}`;
+function prepareBranch(workspace, branch) {
+  if (!validBranch(branch)) throw new Error(`branch "${branch}" is not a valid branch name`);
+  const current = tryGit(workspace, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  if (current === branch) {
+    throw new Error(`branch "${branch}" is the branch this workflow runs on; pick another one (e.g. "output") so it isn't overwritten`);
+  }
+  return tryGit(workspace, ["fetch", "--quiet", "--depth=1", "origin", `+refs/heads/${branch}:${remoteRef(branch)}`]) !== null;
+}
+function readFromBranch(workspace, branch, path) {
+  return tryGit(workspace, ["show", `${remoteRef(branch)}:${path}`]);
+}
+async function publishToBranch(workspace, branch, files, message) {
+  const dir = await mkdtemp(join(tmpdir(), "pf-index-"));
+  try {
+    const env = { GIT_INDEX_FILE: join(dir, "index") };
+    for (const file of files) {
+      const path = relative2(workspace, file).split("\\").join("/");
+      const blob = git(workspace, ["hash-object", "-w", "--", file]);
+      git(workspace, ["update-index", "--add", "--cacheinfo", `100644,${blob},${path}`], env);
+    }
+    const tree = git(workspace, ["write-tree"], env);
+    if (tryGit(workspace, ["rev-parse", `${remoteRef(branch)}^{tree}`]) === tree) return "unchanged";
+    const commit = git(workspace, ["commit-tree", tree, "-m", message], BOT);
+    git(workspace, ["push", "--force", "--quiet", "origin", `${commit}:refs/heads/${branch}`]);
+    return "pushed";
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+function commitAndPush(workspace, files, message) {
+  const paths = files.map((f) => relative2(workspace, f));
+  git(workspace, ["add", "--", ...paths]);
+  if (!git(workspace, ["status", "--porcelain", "--", ...paths])) return "unchanged";
+  git(workspace, ["commit", "-m", message, "--", ...paths], BOT);
+  try {
+    git(workspace, ["push"]);
+  } catch {
+    git(workspace, ["pull", "--rebase"]);
+    git(workspace, ["push"]);
+  }
+  return "pushed";
+}
+
 // src/action/log.ts
 function escapeCommand(text2) {
   return text2.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
@@ -7962,36 +8030,6 @@ function appendTo(envFile, text2) {
   const path = process.env[envFile];
   if (path) appendFileSync(path, text2 + "\n");
 }
-function git(cwd, ...args) {
-  return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-}
-function commitAndPush(workspace, files, message) {
-  const paths = files.map((f) => relative2(workspace, f));
-  git(workspace, "add", "--", ...paths);
-  if (!git(workspace, "status", "--porcelain", "--", ...paths)) {
-    console.log("Pet unchanged since last run, nothing to commit.");
-    return;
-  }
-  git(
-    workspace,
-    "-c",
-    "user.name=github-actions[bot]",
-    "-c",
-    "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-    "commit",
-    "-m",
-    message,
-    "--",
-    ...paths
-  );
-  try {
-    git(workspace, "push");
-  } catch {
-    git(workspace, "pull", "--rebase");
-    git(workspace, "push");
-  }
-  console.log(`Committed ${paths.join(", ")}`);
-}
 async function main() {
   const user = input("github_user_name");
   const token = input("github_token");
@@ -8000,13 +8038,23 @@ async function main() {
   if (!token) throw new Error("github_token is empty");
   const outputs = parseOutputs(input("outputs"));
   const repo = process.env.GITHUB_REPOSITORY ?? "";
+  const branch = input("commit") !== "false" ? input("branch") : "";
+  const branchExists = branch ? prepareBranch(workspace, branch) : false;
   let prepared;
   if (input("care") === "true") {
+    const careFile = input("care_file") || "profileforge/care.json";
+    if (!careFile.endsWith(".json")) throw new Error(`care_file "${careFile}" must be a .json file`);
+    const saved = branchExists ? readFromBranch(workspace, branch, careFile) : null;
+    if (saved !== null) {
+      const full = resolveInside(workspace, careFile);
+      await mkdir3(dirname3(full), { recursive: true });
+      await writeFile3(full, saved);
+    }
     const house2 = input("care_issue");
     if (house2 && !/^[1-9]\d{0,9}$/.test(house2)) throw new Error(`care_issue "${house2}" is not an issue number`);
     prepared = await prepareCare({
       workspace,
-      file: input("care_file") || "profileforge/care.json",
+      file: careFile,
       token,
       repo,
       now: /* @__PURE__ */ new Date(),
@@ -8018,7 +8066,7 @@ async function main() {
   const { files, state } = await generate({ user, token, outputs, workspace, care: prepared?.care });
   const mood = `${state.petName} is ${state.mood} \xB7 Lv.${state.level} ${state.className} (${state.stage})`;
   console.log(`\u{1F980} ${mood}`);
-  for (const f of files) console.log(`  wrote ${relative2(workspace, f)}`);
+  for (const f of files) console.log(`  wrote ${relative3(workspace, f)}`);
   let opened = null;
   if (prepared) {
     try {
@@ -8038,7 +8086,11 @@ level=${state.level}
 stage=${state.stage}`);
   if (input("commit") !== "false") {
     const toCommit = prepared ? [...files, prepared.file] : files;
-    commitAndPush(workspace, toCommit, input("commit_message") || "chore: feed the ProfileForge pet");
+    const message = input("commit_message") || "chore: feed the ProfileForge pet";
+    const result = branch ? await publishToBranch(workspace, branch, toCommit, message) : commitAndPush(workspace, toCommit, message);
+    const paths = toCommit.map((f) => relative3(workspace, f)).join(", ");
+    if (result === "unchanged") console.log("Pet unchanged since last run, nothing to commit.");
+    else console.log(branch ? `Published ${paths} to the ${branch} branch (one commit, history replaced)` : `Committed ${paths}`);
   }
   if (prepared) (await answerCare(token, repo, prepared, state.petName)).forEach(warn);
 }

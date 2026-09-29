@@ -2,14 +2,15 @@
  * GitHub Action entry point. Bundled into dist/action.js (`npm run build:action`),
  * so it runs with zero dependencies on the runner.
  */
-import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
-import { relative } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, relative } from "node:path";
 import { LOGIN_RE } from "../options.js";
 import { answerCare, ensureHouse, prepareCare, type Prepared } from "./care.js";
 import { houseLink } from "../care/commands.js";
 import { parseRules } from "../care/state.js";
-import { generate, parseOutputs } from "./generate.js";
+import { generate, parseOutputs, resolveInside } from "./generate.js";
+import { commitAndPush, prepareBranch, publishToBranch, readFromBranch } from "./publish.js";
 import { fail, warn } from "./log.js";
 
 function input(name: string): string {
@@ -19,33 +20,6 @@ function input(name: string): string {
 function appendTo(envFile: string, text: string): void {
   const path = process.env[envFile];
   if (path) appendFileSync(path, text + "\n");
-}
-
-function git(cwd: string, ...args: string[]): string {
-  return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-}
-
-function commitAndPush(workspace: string, files: string[], message: string): void {
-  const paths = files.map((f) => relative(workspace, f));
-  git(workspace, "add", "--", ...paths);
-  if (!git(workspace, "status", "--porcelain", "--", ...paths)) {
-    console.log("Pet unchanged since last run, nothing to commit.");
-    return;
-  }
-  git(
-    workspace,
-    "-c", "user.name=github-actions[bot]",
-    "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-    "commit", "-m", message, "--", ...paths,
-  );
-  try {
-    git(workspace, "push");
-  } catch {
-    // Someone pushed while we were rendering: replay our commit on top and retry once.
-    git(workspace, "pull", "--rebase");
-    git(workspace, "push");
-  }
-  console.log(`Committed ${paths.join(", ")}`);
 }
 
 async function main(): Promise<void> {
@@ -59,14 +33,27 @@ async function main(): Promise<void> {
   const outputs = parseOutputs(input("outputs"));
   const repo = process.env.GITHUB_REPOSITORY ?? "";
 
+  // With `branch`, everything goes to a separate branch, replaced by one commit each run.
+  const branch = input("commit") !== "false" ? input("branch") : "";
+  const branchExists = branch ? prepareBranch(workspace, branch) : false;
+
   // Visitors' care, if the owner turned it on: applied before rendering, answered after committing.
   let prepared: Prepared | undefined;
   if (input("care") === "true") {
+    const careFile = input("care_file") || "profileforge/care.json";
+    if (!careFile.endsWith(".json")) throw new Error(`care_file "${careFile}" must be a .json file`);
+    // The log lives on the output branch too; bring it back (a copy on main is the fallback).
+    const saved = branchExists ? readFromBranch(workspace, branch, careFile) : null;
+    if (saved !== null) {
+      const full = resolveInside(workspace, careFile);
+      await mkdir(dirname(full), { recursive: true });
+      await writeFile(full, saved);
+    }
     const house = input("care_issue");
     if (house && !/^[1-9]\d{0,9}$/.test(house)) throw new Error(`care_issue "${house}" is not an issue number`);
     prepared = await prepareCare({
       workspace,
-      file: input("care_file") || "profileforge/care.json",
+      file: careFile,
       token,
       repo,
       now: new Date(),
@@ -98,7 +85,11 @@ async function main(): Promise<void> {
 
   if (input("commit") !== "false") {
     const toCommit = prepared ? [...files, prepared.file] : files;
-    commitAndPush(workspace, toCommit, input("commit_message") || "chore: feed the ProfileForge pet");
+    const message = input("commit_message") || "chore: feed the ProfileForge pet";
+    const result = branch ? await publishToBranch(workspace, branch, toCommit, message) : commitAndPush(workspace, toCommit, message);
+    const paths = toCommit.map((f) => relative(workspace, f)).join(", ");
+    if (result === "unchanged") console.log("Pet unchanged since last run, nothing to commit.");
+    else console.log(branch ? `Published ${paths} to the ${branch} branch (one commit, history replaced)` : `Committed ${paths}`);
   }
 
   // Only now, with the visits saved, tell the visitors.
