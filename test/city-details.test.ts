@@ -33,7 +33,16 @@ describe("moon phase", () => {
 
   it("mirrors the moon in the southern hemisphere", () => {
     // Lit pixels at first quarter: right half up north, left half down south.
-    const litRects = (svg: string) => [...svg.split("</g>")[1]!.matchAll(/M(-?\d+) (-?\d+)h(\d+)/g)].map((m) => [+m[1]!, +m[2]!, +m[3]!]);
+    const litRects = (svg: string) => {
+      // Rects are "M x y h w v h h -w z", each move after the first relative to the last.
+      let x = 0;
+      let y = 0;
+      return [...svg.split("</g>")[1]!.matchAll(/([Mm])(-?\d+) (-?\d+)h(\d+)/g)].map((m) => {
+        x = m[1] === "M" ? +m[2]! : x + +m[2]!;
+        y = m[1] === "M" ? +m[3]! : y + +m[3]!;
+        return [x, y, +m[4]!];
+      });
+    };
     const north = litRects(pixelMoon(0, 0, 13, 2, 0.25));
     const south = litRects(pixelMoon(0, 0, 13, 2, 0.25, true));
     expect(north.every(([x]) => x! >= 0)).toBe(true);

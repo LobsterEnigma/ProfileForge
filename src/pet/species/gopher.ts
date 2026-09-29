@@ -1,35 +1,37 @@
 import { layer, mirror, type Grid } from "../../svg/pixel.js";
 import type { Species } from "./types.js";
 
-// Canvas: 16 × 17. A round blob with huge eyes, a snout and buck teeth.
+// Canvas: 16 × 17. The Go gopher: a round blue bean with huge eyes, a pale tummy, a beige
+// snout with a black nose and buck teeth, little ears, beige paws. Lit from the top left.
 
 const BODY: Grid = [
-  "..oooooooooo..",
-  ".oghhgggggggo.",
-  "oghggggggggggo",
-  "oggggggggggggo",
-  "oggggggggggggo",
-  "oggggggggggggo",
-  "oggggggggggggo",
-  "oggggggggggggo",
-  "oggggggggggggo",
-  "oggggggggggggo",
-  "oggggggggggggo",
-  ".oggggggggggo.",
-  "..oooooooooo..",
+  "....oooooo....",
+  "..oohhhgggoo..",
+  ".ohhgggggggdo.",
+  "ohhgggggggggdo",
+  "ohgggggggggggo",
+  "ogggggggggggdo",
+  "ogggggggggggdo",
+  "ogggggggggggdo",
+  "oggglllllgggdo",
+  "ogglllllllggdo",
+  "ogglllllllgddo",
+  ".ogglllllgddo.",
+  "..oddddddddo..",
+  "....oooooo....",
 ];
 
 /** Small and rounded, like the real gopher's. */
-const EAR: Grid = [".oo", "ogg"];
-const SNOUT: Grid = [".kk.", "ssss", ".ss."];
-const TEETH = layer(7, 11, ["ww"]);
+const EAR: Grid = [".oo", "ohd"];
+const SNOUT: Grid = ["..kk..", ".ssss.", "ssssss", ".SSSS."];
+const TEETH = layer(7, 12, ["ww"]);
 
-const ARM: Grid = ["oo", "og", "oo"];
-const FOOT: Grid = ["osso", "osso", "oooo"];
+const ARM: Grid = [".o", "os", "oS", ".o"];
+const FOOT: Grid = ["ossso", ".ooo."];
 
-const eyes = (grid: Grid) => [layer(2, 4, grid), layer(10, 4, grid)];
-const arms = (y = 8) => [layer(0, y, ARM), layer(14, y, mirror(ARM))];
-const feet = (leftY = 14) => [layer(3, leftY, FOOT), layer(9, 14, FOOT)];
+const eyes = (grid: Grid) => [layer(3, 4, grid), layer(9, 4, grid)];
+const arms = (y = 9) => [layer(0, y, ARM), layer(14, y, mirror(ARM))];
+const feet = (leftY = 15) => [layer(3, leftY, FOOT), layer(8, 15, FOOT)];
 
 export const gopher: Species = {
   id: "gopher",
@@ -39,8 +41,11 @@ export const gopher: Species = {
   palette: {
     o: "#1f4e5f",
     g: "#7fd5ea",
-    h: "#bdf0fa",
+    h: "#c9f3fb",
+    d: "#57b3cc",
+    l: "#d9f7fc",
     s: "#f3d6b2",
+    S: "#d9b48a",
     k: "#151515",
     w: "#ffffff",
     p: "#ff8fa3",
@@ -49,8 +54,10 @@ export const gopher: Species = {
     o: "#5a3d0a",
     g: "#f6c343",
     h: "#fff1a8",
+    d: "#d9a21c",
+    l: "#fde7a0",
   },
-  body: [layer(2, 1, EAR), layer(11, 1, mirror(EAR)), layer(1, 2, BODY), layer(6, 8, SNOUT)],
+  body: [layer(3, 1, EAR), layer(10, 1, mirror(EAR)), layer(1, 2, BODY), layer(5, 8, SNOUT)],
   eyes: {
     open: eyes([".oo.", "owko", "owwo", ".oo."]),
     happy: eyes(["....", ".oo.", "o..o", "...."]),
@@ -58,9 +65,9 @@ export const gopher: Species = {
     sad: eyes(["....", "oooo", "owko", ".oo."]),
   },
   mouths: {
-    smile: [layer(6, 10, ["o..o"]), TEETH],
+    smile: [layer(6, 11, ["o..o"]), TEETH],
     neutral: [TEETH],
-    frown: [layer(6, 11, ["o..o"]), TEETH],
+    frown: [layer(6, 12, ["o..o"]), TEETH],
   },
   blush: [layer(2, 9, ["pp"]), layer(12, 9, ["pp"])],
   limbs: {
@@ -72,15 +79,15 @@ export const gopher: Species = {
     // Waddling.
     idle: [
       [...arms(), ...feet()],
-      [...arms(), ...feet(13)],
+      [...arms(), ...feet(14)],
     ],
     hungry: [
-      [...arms(9), ...feet()],
-      [...arms(9), ...feet()],
+      [...arms(10), ...feet()],
+      [...arms(10), ...feet()],
     ],
     sleeping: [
-      [...arms(9), ...feet()],
-      [...arms(9), ...feet()],
+      [...arms(10), ...feet()],
+      [...arms(10), ...feet()],
     ],
   },
   crownAnchor: { x: 8, y: 1 },

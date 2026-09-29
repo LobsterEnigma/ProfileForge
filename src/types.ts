@@ -61,6 +61,8 @@ export interface PetState {
   xpNextLevel: number;
   /** Active days in the last 14. */
   activeDays14: number;
+  /** Contributions on each of the last 14 days, oldest first (drawn as the HP bar). */
+  recent?: number[];
   streak: number;
   daysSinceLastContribution: number;
   stats: PetStats;
@@ -121,4 +123,6 @@ export type Trick =
   | "item-get"
   | "bubblegum"
   | "sing"
+  | "laptop"
+  | "coffee"
   | "signature";

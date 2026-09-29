@@ -1,6 +1,8 @@
 import { RectBatch } from "../svg/batch.js";
+import { stepped } from "../svg/stepped.js";
 import { renderPixels, type Grid, type Palette } from "../svg/pixel.js";
 import { SNOW, type Area } from "../world/seasons.js";
+import { beachAmbient, beachProps } from "./beach.js";
 import { homeAmbient, homeProps, type Home } from "./homes.js";
 
 /**
@@ -30,7 +32,7 @@ export const terrainFor = (species: string): Terrain => (Object.hasOwn(TERRAIN, 
 
 /** Laid over the theme's ground color; fainter at night so dark themes stay dark. */
 const TINT: Record<Terrain, string | null> = {
-  beach: null,
+  beach: "#e9cf98",
   meadow: "#79b865",
   jungle: "#4f9a55",
   savanna: "#cfb25e",
@@ -53,12 +55,24 @@ const DARK_GREEN = "#2c6b3a";
 const WOOD = "#8a5a33";
 const DRY = "#b8953f";
 
-/** Terrain tint and snow cover, drawn right over the ground. */
+/** How tall each 2px blade of grass along the ground's edge stands. */
+const BLADES = [1, 3, 2, 0, 1, 4, 2, 1, 0, 2, 3, 1, 0, 1, 2, 5, 1, 0, 2, 1, 3, 0, 1, 2];
+
+/**
+ * The ground's top edge, terrain tint and snow cover, drawn right over the ground. Grassy homes
+ * get a fringe of blades; sandy ones a gently bumpy line.
+ */
 export function groundCover(species: string, area: Area, bottom: number, snowy: boolean): string {
-  const tint = TINT[terrainFor(species)];
-  const h = bottom - area.ground + 3;
-  let out = tint ? `<rect class="pf-tint" x="${area.x}" y="${area.ground - 3}" width="${area.w}" height="${h}" fill="${tint}"/>` : "";
-  if (snowy) out += `<rect x="${area.x}" y="${area.ground - 3}" width="${area.w}" height="${h}" fill="${SNOW}" opacity=".85"/>`;
+  const terrain = terrainFor(species);
+  const tint = TINT[terrain];
+  const g = area.ground;
+  const h = bottom - g;
+  // The beach's edge is under the sea; grassy homes get blades, the rest a gently bumpy line.
+  const blades = tint && terrain !== "beach";
+  const top = blades ? (x: number) => g - 2 - BLADES[(x / 2) % BLADES.length]! : (x: number) => (x % 16 < 8 ? g - 3 : undefined);
+  let out = stepped("var(--pf-ground)", area.x, area.w, top, () => g + 1);
+  if (tint) out += `<g class="pf-tint"><rect x="${area.x}" y="${g}" width="${area.w}" height="${h}" fill="${tint}"/>${blades ? stepped(tint, area.x, area.w, top, () => g) : ""}</g>`;
+  if (snowy) out += `<g opacity=".85"><rect x="${area.x}" y="${g - 2}" width="${area.w}" height="${h + 2}" fill="${SNOW}"/></g>`;
   return out;
 }
 
@@ -71,10 +85,7 @@ export function props(species: string, area: Area): string {
 
   switch (terrainFor(species)) {
     case "beach":
-      // A starfish and a shell in the sand.
-      b.add("#f4845f", left + 20, g + 12, 6, 2).add("#f4845f", left + 22, g + 10, 2, 6).add("#f4845f", left + 19, g + 15, 2, 2).add("#f4845f", left + 25, g + 15, 2, 2);
-      b.add("#f7c6d9", right - 30, g + 16, 8, 3).add("#f7c6d9", right - 28, g + 14, 4, 2).add("#e39bb6", right - 29, g + 17, 1, 2).add("#e39bb6", right - 25, g + 17, 1, 2);
-      break;
+      return beachProps(area);
     case "meadow":
       // A burrow on the right, grass tufts around.
       b.add("#7a5230", right - 42, g - 6, 30, 6).add("#7a5230", right - 38, g - 10, 22, 4).add("#3a2616", right - 32, g - 6, 10, 6);
@@ -146,26 +157,17 @@ const WORM: Grid = [".p", "pp", "p.", "pp", ".p"];
 const FISH: Grid = ["..oo..", "oooooo", ".oo.oo"];
 
 /**
- * Something alive in each home, drawn behind the pet: waves and a gull at the beach, a bee in
+ * Something alive in each home, drawn behind the pet: the sea and a gull at the beach, a bee in
  * the meadow, a parrot in the jungle, a bird on the acacia, a worm on the farm, ripples and a
  * jumping fish in the pond. Returns the drawing and the styles it needs.
  */
-export function ambient(species: string, area: Area): { svg: string; css: string } {
+export function ambient(species: string, area: Area, night = false): { svg: string; css: string } {
   const g = area.ground;
   const left = area.x;
   const right = area.x + area.w;
   switch (terrainFor(species)) {
-    case "beach": {
-      // The sea on the horizon, foam rolling in and out, and a gull gliding by.
-      const foam = [0, 1, 2].map((i) => `<rect class="pf-amb-foam" style="animation-delay:-${i * 1.3}s" x="${left + 20 + i * 62}" y="${g - 3}" width="${22 - i * 3}" height="2" fill="#ffffff"/>`).join("");
-      const gull = `<g class="pf-amb-gull"><path class="pf-fa" style="animation-duration:.8s" d="M0 2L3 0L5 2L7 0L10 2" fill="none" stroke="#5b6472" stroke-width="1.4"/><path class="pf-fb" style="animation-duration:.8s" d="M0 0L3 2L5 1L7 2L10 0" fill="none" stroke="#5b6472" stroke-width="1.4"/></g>`;
-      return {
-        svg: `<g class="pf-amb-sea"><rect x="${left}" y="${g - 9}" width="${area.w}" height="7" fill="#4ea8de"/><rect x="${left}" y="${g - 9}" width="${area.w}" height="1" fill="#9fd4ff"/></g>${foam}<g transform="translate(0 ${area.y + 30})">${gull}</g>`,
-        css: `.pf-amb-sea{opacity:calc(.9 - var(--pf-stars) * .35)}
-.pf-amb-foam{animation:pf-amb-foam 3.9s ease-in-out infinite}@keyframes pf-amb-foam{0%,100%{transform:translateX(0);opacity:.9}50%{transform:translateX(6px);opacity:.3}}
-.pf-amb-gull{animation:pf-amb-gull 26s linear infinite}@keyframes pf-amb-gull{0%{transform:translate(${left - 20}px,6px)}50%{transform:translate(${left + area.w / 2}px,0)}100%{transform:translate(${right + 20}px,8px)}}`,
-      };
-    }
+    case "beach":
+      return beachAmbient(area, night);
     case "meadow": {
       const bee = `<g class="pf-amb-bee"><g class="pf-fa" style="animation-duration:.2s">${px(BEE, { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.2s">${px(BEE.slice(1), { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 2, 2)}</g></g>`;
       return {

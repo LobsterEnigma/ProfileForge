@@ -147,6 +147,7 @@ function stateFor(profile: GitHubProfile, options: PetOptions): PetState {
     xpLevelStart: xpForLevel(level),
     xpNextLevel: xpForLevel(Math.min(level + 1, MAX_LEVEL)),
     activeDays14: lastDays(profile.calendar, 14).filter((d) => d.count > 0).length,
+    recent: lastDays(profile.calendar, 14).map((d) => d.count),
     streak: currentStreak(profile.calendar),
     daysSinceLastContribution: daysSinceLastContribution(profile.calendar),
     stats,

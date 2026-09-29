@@ -1,3 +1,5 @@
+import { pruneSvgStyle } from "../svg/css.js";
+import { autumnLeaf, BEANIE, landingDust, umbrella, WEAR_CSS } from "./wear.js";
 import type { Mood, PetState } from "../types.js";
 import { seeded, type Rng } from "../random.js";
 import { escapeXml } from "../svg/escape.js";
@@ -8,6 +10,7 @@ import { getSpecies } from "./species/index.js";
 import { renderPetSprite, SPRITE_CSS } from "./sprite.js";
 import { anchors } from "./behavior.js";
 import { COMMIT, FX_PALETTE, HEART, SPARKLE, ZED } from "./sprites.js";
+import { backdrop, BACKDROP_CSS } from "./backdrop.js";
 import { ambient, groundCover, props, SCENERY_CSS, terrainFor } from "./scenery.js";
 import { CARE_CSS, careOverlay, lineFor, visitorLine } from "./care-fx.js";
 import { activeVisit, activeVisits, ball, bowl, turnCss, VISIT_CSS, visitScene } from "./visits.js";
@@ -50,6 +53,8 @@ const CSS = `${SPRITE_CSS}
 .pf-jump-shadow{animation:pf-jump-shadow .9s ease-in-out infinite}
 @keyframes pf-jump-shadow{0%,70%,100%{transform:scaleX(1);opacity:.35}40%{transform:scaleX(.55);opacity:.15}}
 .pf-breathe{transform-box:fill-box;transform-origin:50% 100%;animation:pf-breathe 3.2s ease-in-out infinite}
+.pf-idle-breathe{transform-box:fill-box;transform-origin:50% 100%;animation:pf-idle-breathe 3.8s ease-in-out infinite}
+@keyframes pf-idle-breathe{0%,100%{transform:none}50%{transform:scale(1.015,.98)}}
 @keyframes pf-breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.93)}}
 .pf-shiver{animation:pf-shiver 2.6s linear infinite}
 @keyframes pf-shiver{0%,60%,80%,100%{transform:translateX(0)}64%,72%{transform:translateX(-2px)}68%,76%{transform:translateX(2px)}}
@@ -68,6 +73,7 @@ const CSS = `${SPRITE_CSS}
 ${SEASON_CSS}
 ${WEATHER_CSS}
 ${SCENERY_CSS}
+${BACKDROP_CSS}
 ${CARE_CSS}
 ${VISIT_CSS}
 ${NIGHT_CSS}
@@ -96,6 +102,9 @@ interface Box {
 // ── Scene ────────────────────────────────────────────────────────────────────
 
 /** The same world the city lives in: season from the date, weather from your activity. */
+/** Leaves that fall on a pet in autumn. */
+const LEAF_COLORS = ["#e76f51", "#f4a261", "#d62828", "#e9c46a"];
+
 interface World {
   season: Season;
   weather: Weather;
@@ -123,24 +132,12 @@ function skyLife(): string {
   );
 }
 
-function scene(state: PetState, world: World): string {
+function scene(state: PetState, world: World, filterAttr = ""): string {
   const { x, y, w, h } = SCENE;
-  const beach = terrainFor(state.species) === "beach";
   const stars = STARS.map(
     ([sx, sy, delay]) =>
       `<rect class="pf-twinkle" style="animation-delay:-${delay}s" x="${sx}" y="${sy}" width="3" height="3" fill="#fff"/>`,
   ).join("");
-  // A bumpy sand line: alternate 8px steps.
-  let bumps = "";
-  for (let bx = x; bx < x + w; bx += 16) bumps += `M${bx} ${GROUND_Y}h8v-3h-8z`;
-  const pebbles = [
-    [x + 22, GROUND_Y + 14],
-    [x + 150, GROUND_Y + 20],
-    [x + 96, GROUND_Y + 24],
-    [x + 176, GROUND_Y + 10],
-  ]
-    .map(([px, py]) => `<rect x="${px}" y="${py}" width="6" height="4" style="fill:var(--pf-ground-dark)"/>`)
-    .join("");
   // Bad weather: a darker sky and a couple of heavy clouds instead of stars.
   const overcast =
     world.weather === "clear"
@@ -160,15 +157,14 @@ function scene(state: PetState, world: World): string {
     <stop offset="0" stop-color="#d7deea" stop-opacity="0"/><stop offset=".5" stop-color="#d7deea"/><stop offset="1" stop-color="#d7deea" stop-opacity="0"/>
   </linearGradient>
 </defs>
-<g clip-path="url(#pf-clip)">
+<g clip-path="url(#pf-clip)"${filterAttr}>
   <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#pf-sky)"/>
   ${world.night ? nightSky({ ...SCENE, ground: GROUND_Y }) : world.weather === "clear" ? `<g class="pf-star">${stars}</g>${skyLife()}` : overcast}
+  ${backdrop(terrainFor(state.species), AREA, world.night, world.season)}
   <rect x="${x}" y="${GROUND_Y}" width="${w}" height="${y + h - GROUND_Y}" style="fill:var(--pf-ground)"/>
-  <path d="${bumps}" style="fill:var(--pf-ground)"/>
   ${groundCover(state.species, AREA, y + h, LOOKS[world.season].snow)}
-  ${beach ? pebbles : ""}
   ${props(state.species, AREA)}
-  ${ambient(state.species, AREA).svg}
+  ${ambient(state.species, AREA, world.night).svg}
   ${world.night ? nightShade({ ...SCENE, ground: GROUND_Y }) : ""}`;
 }
 
@@ -233,7 +229,7 @@ function goodbye(): { svg: string; box: Box } {
   return { svg: `${b}<g opacity=".3">${steps}</g>`, box: { x: cx - 16, y: GROUND_Y - 52, w: 32, h: 56 } };
 }
 
-function pet(state: PetState, art: Art = {}): { svg: string; box: Box; css?: string } {
+function pet(state: PetState, art: Art = {}, world?: World): { svg: string; box: Box; css?: string } {
   // Away on a trip: the postcard takes its place.
   if (art.replace) return { svg: art.replace, box: { x: SCENE.x, y: SCENE.y, w: 0, h: 0 } };
   if (state.ranAway) return goodbye();
@@ -271,19 +267,25 @@ function pet(state: PetState, art: Art = {}): { svg: string; box: Box; css?: str
   const life = lifeFor(state.mood, species, scale, w, h, state.date, state.login, { crossed: art.crossed });
   // Bedtime: tucked under a quilt with a nightcap on (unless it's wearing a holiday hat).
   const asleep = state.mood === "sleeping";
-  const sprite = renderPetSprite(state, scale, { emote: false, eyes: life.eyes, hat: art.hat ?? (asleep ? NIGHTCAP : undefined), face: art.face });
+  // Dressed for the weather: a nightcap in bed, a beanie in winter, an umbrella in the rain.
+  const winter = world?.season === "winter";
+  const sprite = renderPetSprite(state, scale, { emote: false, eyes: life.eyes, hat: art.hat ?? (asleep ? NIGHTCAP : winter ? BEANIE : undefined), face: art.face });
+  const rainy = world?.weather === "rain" && !asleep;
+  const leaf = world?.season === "autumn" && !asleep && !art.hat ? autumnLeaf(species, scale, LEAF_COLORS[(state.date.charCodeAt(9) + state.login.length) % LEAF_COLORS.length]!) : "";
+  const dust = state.mood === "happy" ? landingDust(w, h) : "";
   let body = sprite.svg + careOverlay(state.care, w, h, scale) + (asleep ? quilt(w, h, scale, anchors(species).mouth.y) : "") + (art.held ?? "");
   if (life.faceClass) body = `<g class="${life.faceClass}">${body}</g>`;
   for (const cls of life.bodyClasses) body = `<g class="${cls}">${body}</g>`;
   if (art.bodyClass) body = `<g class="${art.bodyClass}">${body}</g>`;
   const box = positionFor(w, h, scale);
-  const inner = state.mood === "happy" ? "pf-jump" : state.mood === "sleeping" ? "pf-breathe" : "";
+  // Even standing still it breathes: a slow, slight rise and fall.
+  const inner = state.mood === "happy" ? "pf-jump" : state.mood === "sleeping" ? "pf-breathe" : "pf-idle-breathe";
   const sparkles = state.stage === "legendary" ? legendarySparkles({ x: 0, y: 0, w, h }) : "";
   const props = state.mood === "hungry" ? emptyBowl(box.x + w + 12, GROUND_Y) : "";
   return {
-    svg: `${props}<g class="${life.pathClass}">${art.follow ?? ""}${asleep ? cushion(box.x, GROUND_Y + scale, w) : shadow(box, state.mood)}<g transform="translate(${box.x} ${box.y})"><g class="${inner}">${body}</g>${life.overlay}${art.over ?? ""}${sparkles}</g></g>`,
+    svg: `${props}<g class="${life.pathClass}">${art.follow ?? ""}${asleep ? cushion(box.x, GROUND_Y + scale, w) : shadow(box, state.mood)}<g transform="translate(${box.x} ${box.y})">${dust}<g class="${inner}">${body}${leaf}</g>${rainy ? umbrella(species, scale) : ""}${life.overlay}${art.over ?? ""}${sparkles}</g></g>`,
     box,
-    css: life.css + (sprite.css ?? ""),
+    css: life.css + (sprite.css ?? "") + (rainy || leaf || dust ? WEAR_CSS : ""),
   };
 }
 
@@ -379,6 +381,34 @@ function bar(label: string, ratio: number, value: string, y: number, color: stri
   <text x="${PANEL_RIGHT}" y="${y}" class="pf-value" text-anchor="end">${escapeXml(value)}</text>`;
 }
 
+/**
+ * HP as the last 14 days, one segment a day, shaded like GitHub's graph by how much you
+ * contributed; today's segment breathes.
+ */
+function daysBar(state: PetState, y: number): string {
+  const days = state.recent;
+  if (!days || days.length === 0) return bar("HP", state.activeDays14 / 14, `${state.activeDays14}/14d`, y, "var(--pf-hp)");
+  const x0 = PANEL_X + 30;
+  const level = (n: number) => (n <= 0 ? 0 : n <= 2 ? 0.45 : n <= 5 ? 0.7 : n <= 9 ? 0.88 : 1);
+  let segs = "";
+  days.slice(-14).forEach((n, i, all) => {
+    const x = x0 + i * 10;
+    const o = level(n);
+    segs += `<rect class="${o ? "pf-d" : "pf-e"}" x="${x}" y="${y - 9}" width="8" height="10" rx="1.5"${o && o < 1 ? ` opacity="${o}"` : ""}/>`;
+    if (i === all.length - 1) segs += `<rect class="pf-today" x="${x - 1}" y="${y - 10}" width="10" height="12" rx="2" fill="none" style="stroke:var(--pf-hp)" stroke-width="1.2"/>`;
+  });
+  return `
+  <text x="${PANEL_X}" y="${y}" class="pf-label">HP</text>${segs}
+  <text x="${PANEL_RIGHT}" y="${y}" class="pf-value" text-anchor="end">${state.activeDays14}/14d</text>`;
+}
+
+const STAT_ICONS: Record<string, [Grid, Record<string, string>]> = {
+  STR: [["......s", "....ss.", "...ss..", "g.ss...", ".gs....", "hg.....", "h......"], { s: "#ced4da", g: "#fab005", h: "#8a5a33" }],
+  INT: [["bbbbbbb", "bwwbwwb", "bwwbwwb", "bwwbwwb", "bbbbbbb"], { b: "#4dabf7", w: "#f1f3f5" }],
+  CHA: [[".hh.hh.", "hhhhhhh", "hhhhhhh", ".hhhhh.", "..hhh..", "...h..."], { h: "#ff6b8b" }],
+  DEX: [["..bbb..", "..bbb..", "..bbbb.", "..bbbbb", "bbbbbbb", "ddddddd"], { b: "#c0803a", d: "#5c3d2e" }],
+};
+
 function moodLine(state: PetState, special?: string): string {
   if (state.ranAway) return "Ran away · a commit will bring it home";
   const visit = visitorLine(state.care);
@@ -438,8 +468,11 @@ function panel(state: PetState, special?: string): string {
     ] as const
   )
     .map(
-      ([label, value], i) =>
-        `<text x="${PANEL_X + i * 60}" y="128" class="pf-label">${label}</text><text x="${PANEL_X + i * 60}" y="147" class="pf-stat">${value}</text>`,
+      ([label, value], i) => {
+        const [icon, colors] = STAT_ICONS[label]!;
+        const x = PANEL_X + i * 60;
+        return `${renderPixels([{ x: 0, y: 0, grid: icon }], colors, { x, y: 128 - 1.5 * icon.length, scale: 1.5 })}<text x="${x + 13}" y="128" class="pf-label">${label}</text><text x="${x}" y="147" class="pf-stat">${value}</text>`;
+      },
     )
     .join("");
 
@@ -449,7 +482,7 @@ function panel(state: PetState, special?: string): string {
   <clipPath id="pf-name-clip"><text x="${PANEL_X}" y="40" class="pf-name">${escapeXml(state.petName)}</text></clipPath>
   <g clip-path="url(#pf-name-clip)"><g class="pf-shine"><rect transform="skewX(-20)" x="${PANEL_X - 8}" y="20" width="10" height="26" style="fill:var(--pf-accent)" opacity=".75"/></g></g>
   <text x="${PANEL_X}" y="61" class="pf-class"><tspan class="pf-accent">Lv.${state.level} ${star}${escapeXml(state.className)}</tspan><tspan class="pf-muted">${escapeXml(lang)}</tspan></text>
-  ${bar("HP", state.activeDays14 / 14, `${state.activeDays14}/14d`, 88, "var(--pf-hp)")}
+  ${daysBar(state, 88)}
   ${bar("EXP", xpRatio, `${compact(state.xp)}/${compact(state.xpNextLevel)}`, 108, "var(--pf-exp)", state.level < 99)}
   ${stats}
   ${moodIcon(state)}
@@ -485,7 +518,7 @@ export function renderPetCard(original: PetState, options: RenderOptions = {}): 
   const today = surprise(original, world.season);
   const state = today?.state ?? original;
   const art = today?.shown.art ?? {};
-  const creature = pet(state, art);
+  const creature = pet(state, art, world);
   // Several visitors take turns on the card, 6s each.
   const visitors = original.ranAway ? 0 : (original.care?.visitors?.length ?? 0);
   const turns = visitors > 1 ? visitors : 0;
@@ -496,7 +529,7 @@ export function renderPetCard(original: PetState, options: RenderOptions = {}): 
     ? ""
     : `<rect x=".5" y=".5" width="${W - 1}" height="${H - 1}" rx="10" fill="none" style="stroke:var(--pf-border)"/>`;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" class="pf"${original.trick ? ` style="--pf-t0:-${TRICK_PREVIEW_SHIFT}s"` : ""} width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="pf-title pf-desc">
+  return pruneSvgStyle(`<svg xmlns="http://www.w3.org/2000/svg" class="pf"${original.trick ? ` style="--pf-t0:-${TRICK_PREVIEW_SHIFT}s"` : ""} width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="pf-title pf-desc">
 <title id="pf-title">${escapeXml(title)}</title>
 <desc id="pf-desc">${escapeXml(desc)}</desc>
 <style>${themeCss(options.theme)}
@@ -523,16 +556,19 @@ export function renderPetCard(original: PetState, options: RenderOptions = {}): 
 @keyframes pf-shine{0%,70%{transform:translateX(0)}100%{transform:translateX(210px)}}
 .pf-glint{animation:pf-glint 5s ease-in-out infinite}
 @keyframes pf-glint{0%,60%{transform:translateX(0);opacity:0}64%{opacity:.6}96%{opacity:.6}100%{transform:translateX(var(--w));opacity:0}}
+.pf-d{fill:var(--pf-hp)}.pf-e{fill:var(--pf-bar-empty)}
+.pf-today{animation:pf-today 2s ease-in-out infinite}
+@keyframes pf-today{0%,100%{opacity:.25}50%{opacity:1}}
 .pf-charge{animation:pf-charge 2.4s ease-in-out infinite}
 @keyframes pf-charge{0%,100%{opacity:.12}50%{opacity:.45}}
 ${CSS}${turnCss(turns)}${ambient(original.species, AREA).css}${creature.css ?? ""}${today?.shown.css ?? ""}</style>
 ${filter.defs}
 <rect width="${W}" height="${H}" rx="10" style="fill:var(--pf-bg)"/>
 ${border}
-${scene(original, world)}
+${scene(original, world, filter.attr)}
   ${world.night ? lanternAndFireflies({ ...SCENE, ground: GROUND_Y }) : ""}
   ${art.back ?? ""}
-  <g${filter.attr}>
+  <g>
   ${creature.svg}
   ${art.replace ? "" : effects(state, creature.box)}
   </g>
@@ -541,5 +577,5 @@ ${scene(original, world)}
   ${today?.shown.banner ?? ""}
 </g>
 ${panel(original, art.line)}
-</svg>`;
+</svg>`);
 }

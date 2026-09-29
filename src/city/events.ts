@@ -1,5 +1,5 @@
 import type { Rng } from "../random.js";
-import type { Canvas } from "./buildings.js";
+import { classedBatch, type Canvas } from "./buildings.js";
 import { BASE_Y, W } from "./layout.js";
 
 export { holidayFor, type Holiday } from "../world/calendar.js";
@@ -22,14 +22,13 @@ export const EVENTS_CSS = `
 const XMAS = ["#ff4d4d", "#ffd166", "#7dd3fc", "#7dff9b"];
 
 /** Rooftop decorations for the holiday, on a building whose roof is at `top`. */
-export function roofDecor(c: Canvas, rng: Rng, x: number, top: number, holiday: Holiday | null): void {
+export function roofDecor(c: Canvas, rng: Rng, x: number, w: number, top: number, holiday: Holiday | null): void {
   if (holiday === "halloween" && rng() < 0.22) {
-    pumpkin(c, x + 4, top - 4);
+    pumpkin(c, x + Math.floor(w / 2) - 3, top - 4);
   } else if (holiday === "christmas") {
     // A string of lights along the roofline, blinking in two alternating sets.
-    for (let i = 0; i < 5; i++) {
-      const cls = i % 2 ? "pf-xmas-b" : "pf-xmas-a";
-      c.extras.push(`<rect class="${cls}" x="${x + 1 + i * 3}" y="${top - 1}" width="2" height="2" fill="${XMAS[(i + Math.floor(rng() * 4)) % 4]}"/>`);
+    for (let i = 0; i < Math.floor((w - 1) / 3); i++) {
+      classedBatch(c, i % 2 ? "pf-xmas-b" : "pf-xmas-a").add(XMAS[(i + Math.floor(rng() * 4)) % 4]!, x + 1 + i * 3, top - 1, 2, 2);
     }
   } else if (holiday === "lunar-new-year" && rng() < 0.3) {
     lantern(c, x + 1, top + 2);
@@ -37,9 +36,9 @@ export function roofDecor(c: Canvas, rng: Rng, x: number, top: number, holiday: 
 }
 
 /** Park decorations: pumpkins on the grass, lanterns on a string. */
-export function parkDecor(c: Canvas, rng: Rng, x: number, holiday: Holiday | null): void {
+export function parkDecor(c: Canvas, rng: Rng, x: number, w: number, holiday: Holiday | null): void {
   if (holiday === "halloween" && rng() < 0.6) pumpkin(c, x + 1, BASE_Y - 6);
-  if (holiday === "lunar-new-year" && rng() < 0.5) lantern(c, x + 8, BASE_Y - 24);
+  if (holiday === "lunar-new-year" && rng() < 0.5) lantern(c, x + w - 6, BASE_Y - 24);
 }
 
 function pumpkin(c: Canvas, x: number, y: number): void {

@@ -22,6 +22,15 @@ export interface Theme {
   bldg1: string;
   bldg2: string;
   bldg3: string;
+  bldg4: string;
+  bldg5: string;
+  /** The hazy far-off city and the hills behind it. */
+  cityHaze: string;
+  cityHill: string;
+  /** The bay: where it meets the quay, and deep in front. */
+  cityWater: string;
+  cityWaterDeep: string;
+  cityQuay: string;
   windowOn: string;
   windowAlt: string;
   windowOff: string;
@@ -51,6 +60,13 @@ const light: Theme = {
   bldg1: "#2f3354",
   bldg2: "#3b4066",
   bldg3: "#262a45",
+  bldg4: "#5a3f62",
+  bldg5: "#2b5566",
+  cityHaze: "#8e82b8",
+  cityHill: "#b69bc0",
+  cityWater: "#7d78bd",
+  cityWaterDeep: "#2c3263",
+  cityQuay: "#6a6388",
   windowOn: "#ffd166",
   windowAlt: "#ffe8a3",
   windowOff: "#4a5078",
@@ -80,6 +96,13 @@ const dark: Theme = {
   bldg1: "#161d33",
   bldg2: "#1d2640",
   bldg3: "#121829",
+  bldg4: "#1d1a33",
+  bldg5: "#122536",
+  cityHaze: "#1b2647",
+  cityHill: "#16203d",
+  cityWater: "#132048",
+  cityWaterDeep: "#050b1c",
+  cityQuay: "#2b3452",
   windowOn: "#ffd166",
   windowAlt: "#9ad1ff",
   windowOff: "#26304d",
@@ -113,6 +136,13 @@ export const THEMES: Record<string, Theme | { light: Theme; dark: Theme }> = {
     bldg1: "#383a4a",
     bldg2: "#44475a",
     bldg3: "#2e3040",
+    bldg4: "#3d3350",
+    bldg5: "#2f3a4a",
+    cityHaze: "#33354a",
+    cityHill: "#2b2c3c",
+    cityWater: "#2c2e40",
+    cityWaterDeep: "#17181f",
+    cityQuay: "#474a5e",
     windowOn: "#f1fa8c",
     windowAlt: "#8be9fd",
     windowOff: "#4d5066",
@@ -141,6 +171,13 @@ export const THEMES: Record<string, Theme | { light: Theme; dark: Theme }> = {
     bldg1: "#306230",
     bldg2: "#0f380f",
     bldg3: "#306230",
+    bldg4: "#306230",
+    bldg5: "#0f380f",
+    cityHaze: "#8bac0f",
+    cityHill: "#8bac0f",
+    cityWater: "#8bac0f",
+    cityWaterDeep: "#306230",
+    cityQuay: "#306230",
     windowOn: "#9bbc0f",
     windowAlt: "#8bac0f",
     windowOff: "#0f380f",
@@ -169,6 +206,13 @@ export const THEMES: Record<string, Theme | { light: Theme; dark: Theme }> = {
     bldg1: "#a85a78",
     bldg2: "#b86d8a",
     bldg3: "#944a67",
+    bldg4: "#9a5a88",
+    bldg5: "#86628a",
+    cityHaze: "#e6a8c0",
+    cityHill: "#f0c0d2",
+    cityWater: "#efb0c6",
+    cityWaterDeep: "#b86c8c",
+    cityQuay: "#b56d8a",
     windowOn: "#fff3b0",
     windowAlt: "#ffd6e4",
     windowOff: "#c98aa3",

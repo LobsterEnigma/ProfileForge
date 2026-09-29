@@ -23,7 +23,8 @@ export function strollingPet(pet: PetState | null): string {
   if (!pet || pet.ranAway) return "";
   // Too small for emote bubbles; the tricks stay on the pet card.
   const sprite = renderPetSprite(pet, 1, { lively: false });
-  const y = ROAD_Y + 1 - sprite.height;
+  // Feet on the sidewalk, in front of the buildings.
+  const y = ROAD_Y - sprite.height;
   const walking = pet.stage !== "egg" && (pet.mood === "happy" || pet.mood === "idle");
 
   if (walking) {

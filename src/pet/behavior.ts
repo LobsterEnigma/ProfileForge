@@ -132,6 +132,8 @@ export const TRICKS: Trick[] = [
   "item-get",
   "bubblegum",
   "sing",
+  "laptop",
+  "coffee",
   "signature",
 ];
 
@@ -239,6 +241,13 @@ const ANIMS = {
   loop: { props: "transform-box:fill-box;transform-origin:center", timing: "linear", frames: "0%,70%,88%,100%{transform:none}73%{transform:translateY(-12px)}77%{transform:translate(-8px,-28px) rotate(-120deg)}81%{transform:translate(-2px,-32px) rotate(-240deg)}85%{transform:translate(4px,-14px) rotate(-360deg)}" },
   jetup: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-out", frames: "0%,70%,88%,100%{transform:none}72%{transform:scale(1.1,.85)}75%{transform:translateY(-32px) scale(.85,1.2)}80%{transform:translateY(-28px)}85%{transform:translateY(-8px)}" },
   belly: { props: "transform-box:fill-box;transform-origin:center", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}73%,85%{transform:rotate(180deg) scaleX(-1) translateY(-2px)}79%{transform:rotate(180deg) scaleX(-1) translateY(-5px)}" },
+  type: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "steps(1)", frames: "0%,70%,88%,100%{transform:none}72%,76%,80%,84%{transform:translateY(1px)}74%,78%,82%,86%{transform:none}" },
+  line1: { props: "opacity:0", timing: "steps(1)", frames: "0%{opacity:0}72%{opacity:1}88%{opacity:0}100%{opacity:0}" },
+  line2: { props: "opacity:0", timing: "steps(1)", frames: "0%{opacity:0}75%{opacity:1}88%{opacity:0}100%{opacity:0}" },
+  line3: { props: "opacity:0", timing: "steps(1)", frames: "0%{opacity:0}78%{opacity:1}88%{opacity:0}100%{opacity:0}" },
+  pushed: { props: "opacity:0", timing: "steps(1)", frames: "0%{opacity:0}81%{opacity:1}88%{opacity:0}100%{opacity:0}" },
+  sip: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}76%,82%{transform:rotate(-6deg) translateY(-1px)}" },
+  steam: { props: "opacity:0", timing: "ease-out", frames: "0%,70%{opacity:0;transform:translate(0,0)}73%{opacity:.9}88%{opacity:0;transform:translate(var(--dx),-16px)}100%{opacity:0}" },
   note: { props: "opacity:0", timing: "ease-out", frames: "0%,70%{opacity:0;transform:translate(0,0)}72%{opacity:1}88%{opacity:0;transform:translate(var(--dx),-30px)}100%{opacity:0}" },
 } satisfies Record<string, { props: string; timing: string; frames: string }>;
 
@@ -407,6 +416,34 @@ export function trickLayers(trick: Trick, species: Species, scale: number, slot 
         .join("");
       const open = `<rect class="${k("show")}" x="${mouth.x - scale}" y="${mouth.y - scale}" width="${2 * scale}" height="${2 * scale}" rx="${scale}" fill="#3b1d1d"/>`;
       return layers(body, open, "", notes);
+    }
+    case "laptop": {
+      // Sat behind a little laptop, typing; the code scrolls up the screen, then it ships.
+      const lx = w / 2 - 22;
+      const ly = h - 20;
+      const laptop = new RectBatch()
+        .add("#343a40", lx, ly, 44, 16)
+        .add("#0b1a12", lx + 3, ly + 3, 38, 11)
+        .add("#adb5bd", lx - 6, ly + 16, 56, 4)
+        .add("#868e96", lx - 6, ly + 19, 56, 1);
+      const line = (n: 1 | 2 | 3, y: number, parts: [number, number, string][]) =>
+        `<g class="${k(`line${n}`)}">${parts.map(([x, lw, c]) => `<rect x="${lx + 5 + x}" y="${ly + y}" width="${lw}" height="2" fill="${c}"/>`).join("")}</g>`;
+      const code =
+        line(1, 5, [[0, 8, "#69db7c"], [10, 14, "#e9ecef"]]) +
+        line(2, 8, [[4, 6, "#74c0fc"], [12, 18, "#ffd43b"]]) +
+        line(3, 11, [[4, 12, "#e9ecef"], [18, 6, "#ff8787"]]);
+      const glow = `<rect class="${k("show")}" x="${lx + 3}" y="${ly + 3}" width="38" height="11" fill="#69db7c" opacity=".12"/>`;
+      return layers(k("type"), "", "", `<g class="${k("show")}">${laptop}</g>${glow}${code}` + bubble(pixelText("PUSHED!"), w - 6, top - 2, k("pushed")));
+    }
+    case "coffee": {
+      // A warm mug in its paws; a sip, a sigh, and the steam curling up.
+      const mx = w * 0.62;
+      const my = mouth.y - 2;
+      const mug = px(outlined(["mccm..", "mmmmm.", "mmmm.m", "mmmmm.", ".mm..."]), { m: "#f1f3f5", c: "#6b4226", o: "#495057" }, mx, my, 2);
+      const steam = [0, 1, 2]
+        .map((i) => `<rect class="${k("steam")}" style="--dx:${(i - 1) * 3}px;animation-delay:calc(var(--pf-t0,0s) + ${i * 0.3}s)" x="${mx + 3 + i * 3}" y="${my - 3}" width="2" height="4" rx="1" fill="#e9ecef"/>`)
+        .join("");
+      return layers(k("sip"), "", "", `<g class="${k("show")}">${mug}</g>${steam}` + say("AAH", "late"));
     }
     case "signature":
       return signature(SIGNATURE[species.id] ?? "bubbles");

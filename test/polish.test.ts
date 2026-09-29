@@ -7,9 +7,9 @@ const area = { x: 12, y: 12, w: 200, ground: 144 };
 
 describe("ambient life", () => {
   it.each([
-    ["crab", "pf-amb-gull"],
     ["gopher", "pf-amb-bee"],
     ["snake", "pf-amb-bob"],
+    ["crab", "pf-bch-gull"],
     ["elephant", "pf-amb-hop"],
     ["chick", "pf-amb-worm"],
     ["turtle", "pf-amb-fish"],
@@ -33,11 +33,23 @@ describe("ambient life", () => {
 });
 
 describe("panel and sky", () => {
-  it("sweeps a shine over the name and a glint along the bars", () => {
+  it("sweeps a shine over the name and a glint along the EXP bar", () => {
     const svg = renderPetCard(demoState("happy"));
     expect(svg).toContain('clipPath id="pf-name-clip"');
-    expect(svg.match(/class="pf-glint"/g)).toHaveLength(2);
+    expect(svg.match(/class="pf-glint"/g)).toHaveLength(1);
     expect(svg).toContain('class="pf-charge"');
+  });
+
+  it("draws HP as the last 14 days, shaded by how much you did, with today breathing", () => {
+    const svg = renderPetCard(demoState("happy"));
+    expect(svg.match(/class="pf-d"/g)).toHaveLength(13);
+    expect(svg.match(/class="pf-e"/g)).toHaveLength(1);
+    expect(svg).toContain('class="pf-today"');
+    // A big day is solid, a light one faint.
+    expect(svg).toMatch(/class="pf-d"[^>]*opacity="0\.45"/);
+    // Without the daily numbers it falls back to a plain ratio bar.
+    const plain = renderPetCard({ ...demoState("happy"), recent: undefined });
+    expect(plain).not.toContain('class="pf-today"');
   });
 
   it("has nothing left to charge at the level cap, and no glint on an empty bar", () => {

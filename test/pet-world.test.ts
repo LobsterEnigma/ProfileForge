@@ -32,9 +32,35 @@ describe("scenery", () => {
     expect(terrainFor("dragon")).toBe("beach");
   });
 
-  it("tints the ground everywhere but the beach", () => {
-    expect(renderPetCard(demoState("idle", "adult", undefined, "crab"))).not.toContain('class="pf-tint"');
-    expect(renderPetCard(demoState("idle", "adult", undefined, "gopher"))).toContain('class="pf-tint"');
+  it("tints the ground of every home above water, sand included", () => {
+    for (const species of Object.keys(SPECIES)) {
+      if (["reef", "deepsea"].includes(terrainFor(species))) continue;
+      expect(renderPetCard(demoState("idle", "adult", undefined, species)), species).toContain('class="pf-tint"');
+    }
+  });
+
+  it("gives the crab a sea with waves washing up the sand", () => {
+    const svg = renderPetCard(demoState("idle", "adult", undefined, "crab"));
+    for (const cls of ["pf-bch-swash", "pf-bch-wet", "pf-bch-crest", "pf-bch-glint"]) expect(svg).toContain(cls);
+    // At night the moon lays a path of light on the water, and the gulls have gone to sleep.
+    const night = renderPetCard(demoState("sleeping", "adult", undefined, "crab"));
+    expect(night).toContain('fill="#fff1b8"');
+    expect(night).not.toContain('class="pf-bch-gull"');
+  });
+
+  it("puts something on the horizon of every home but the beach", () => {
+    for (const species of Object.keys(SPECIES)) {
+      const svg = renderPetCard(demoState("idle", "adult", undefined, species));
+      if (terrainFor(species) === "beach") expect(svg).not.toContain('id="pf-bd"');
+      else {
+        expect(svg, species).toContain('<g id="pf-bd">');
+        expect(svg, species).toContain('mask="url(#pf-bd-m)"');
+      }
+    }
+    // Underwater homes swap the sky for water.
+    expect(renderPetCard(demoState("idle", "adult", undefined, "octopus"))).toContain("url(#pf-bd-water)");
+    expect(renderPetCard(demoState("idle", "adult", undefined, "squid"))).toContain("url(#pf-bd-water)");
+    expect(renderPetCard(demoState("idle", "adult", undefined, "gopher"))).not.toContain("url(#pf-bd-water)");
   });
 
   for (const species of Object.keys(SPECIES)) {

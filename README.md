@@ -116,7 +116,7 @@ Your top language picks the species (pin one with `species=`):
 | <img src="examples/species-octopus.svg" width="260"><br>🐙 **octopus** · C (a hand per pointer) | <img src="examples/species-squid.svg" width="260"><br>🦑 **squid** · C++ (eight arms, plus two) | <img src="examples/species-snail.svg" width="260"><br>🐌 **snail** · Shell (carries its own) |
 | <img src="examples/species-fox.svg" width="260"><br>🦊 **fox** · Ruby | <img src="examples/species-swift.svg" width="260"><br>🐦 **swift** · Swift | |
 
-Each one lives somewhere that suits it (a beach, a meadow with a burrow, a jungle, the savanna, a farm, a pond, a hot spring, a forest floor, a coral reef, a garden after rain, a pine wood, a tree with a birdhouse, the deep sea, a river), with a little neighbour of its own, and shares the city's world: the same season, and the same weather, so a hungry pet sits in the rain and a sleeping one in the fog.
+Each one lives somewhere that suits it (a beach with waves washing up the sand, a meadow with a burrow, a jungle, the savanna under Kilimanjaro, a farm with a red barn across the fields, a pond, a hot spring below Mount Fuji, a forest floor, a coral reef, a garden after rain, a pine wood, a tree with a birdhouse, the deep sea, a river), with a view to the horizon and a little neighbour of its own, and shares the city's world: the same season, and the same weather, so a hungry pet sits in the rain and a sleeping one in the fog.
 
 ### It has moods
 
@@ -143,7 +143,8 @@ XP = lifetime contributions + 2 × stars + 3 × followers, so **levels never go 
 ### It has a life of its own
 
 - It follows **a routine that changes from day to day**: walking, sniffing around, sitting, yawning, hopping, doing laps, and the odd nap.
-- It **looks around**, says the odd word (`LGTM`, `WIP`, `404`…) and performs **four tricks a day**, taking turns, from 19: dancing, twirling, a backflip, a moonwalk, juggling, blowing a kiss, spinning until it's dizzy, hiccups, a magic trick, jump rope, a selfie, hunting down a bug, holding up a commit like treasure, bubblegum, singing, heart eyes, a sneeze, sticking its tongue out, or its species' signature move (crab bubbles, gopher digging, snake hissing, elephant spraying, chick pecking, turtle zoomies, a yuzu balanced on the capybara's head, a hedgehog roll, an octopus ink jet, a snail's slime trail, a fox's snow dive, a swift's loop-the-loop, a squid's jet, an otter floating on its back with a pebble). Tomorrow brings a different four.
+- It **looks around**, says the odd word (`LGTM`, `WIP`, `404`…) and performs **four tricks a day**, taking turns, from 21: dancing, twirling, a backflip, a moonwalk, juggling, blowing a kiss, spinning until it's dizzy, hiccups, a magic trick, jump rope, a selfie, hunting down a bug, holding up a commit like treasure, bubblegum, singing, shipping code on a tiny laptop, a coffee break, heart eyes, a sneeze, sticking its tongue out, or its species' signature move (crab bubbles, gopher digging, snake hissing, elephant spraying, chick pecking, turtle zoomies, a yuzu balanced on the capybara's head, a hedgehog roll, an octopus ink jet, a snail's slime trail, a fox's snow dive, a swift's loop-the-loop, a squid's jet, an otter floating on its back with a pebble). Tomorrow brings a different four.
+- It **dresses for the weather**: an umbrella in the rain, a knitted beanie in winter, and in autumn a leaf sometimes lands on its head before the wind takes it. Happy bounces kick up little puffs of dust.
 - After **30 days without contributions it runs away**, leaving a note and a trail of footprints. Your next commit brings it home. Not your thing? Add `runaway=false`.
 
 ### Every day could be special
@@ -242,20 +243,20 @@ To turn it off, remove `care: true` and the `issue_comment` trigger.
 ### It has RPG stats
 
 - **Class**: picked from your top language. Rust → *Berserker*, Haskell → *Archmage*, CSS → *Bard*, Shell → *Necromancer*, … ([full list](src/pet/classes.ts))
-- **HP**: how many of the last 14 days you contributed
+- **HP**: the last 14 days, one segment each, shaded like your contribution graph (today's segment breathes)
 - **EXP**: progress to the next level
 - **STR** commits · **INT** PRs + reviews · **CHA** stars + followers · **DEX** issues (last year, log scale, 1–99)
 
 ## 🌃 Pixel city
 
-Your last year of contributions as a skyline. Every piece of it means something:
+Your last year of contributions as a skyline on the water, mirrored in the bay. Every piece of it means something:
 
 | In the city | From your data |
 |---|---|
-| 🏢 One building per week | Height = that week's contributions |
-| 💡 Lit windows | How many days that week you contributed |
+| 🏢 One building per week | Height = that week's contributions, width = how many days you showed up |
+| 💡 Lit windows | How many days that week you contributed (at night they glow, and so does their reflection) |
 | 🌳 A park | A week with no contributions (trees, pines, flower beds) |
-| 🗼 Neon sign on the tallest tower | Your best week, lit up in your top language's color |
+| 🗼 Neon sign on the tallest tower | Your best week, lit up in your top language's color, with searchlights sweeping the night sky |
 | 🏗️ Crane on the far right | This week, still under construction (if it's your best week yet, the crane is lifting the sign into place) |
 | 🚗 Traffic | Your last 14 days; no commits means empty streets |
 | 🏠 Little houses | Quiet weeks with 1–3 contributions: the suburbs |
@@ -267,9 +268,9 @@ Your last year of contributions as a skyline. Every piece of it means something:
 | 🍂 The season | Cherry blossoms in spring, fireflies in summer, falling leaves in autumn, snow in winter |
 | 🎃 Holidays | Pumpkins and bats for Halloween, rooftop lights for Christmas, red lanterns for Lunar New Year |
 
-Six building styles (houses, classic, brick, glass, art-deco setbacks and spires), drifting clouds, a plane crossing the sky and birds heading home at dusk keep every skyline different, and all the randomness is seeded from your login, so no two cities look alike.
+Six building styles (houses, classic, brick, glass, art-deco setbacks and spires) in five materials, hills, a hazy far-off city and a TV tower behind, a ferry and a sailboat on the bay, a hot-air balloon, a plane and birds heading home keep every skyline different, and all the randomness is seeded from your login, so no two cities look alike.
 
-Light themes paint it at sunset, dark themes at night. Seasons follow the date, flipped with `hemisphere=south`; pass `season=` to pin one yourself:
+Light themes paint it at sunset, with the sun's path glittering on the water; dark themes at night, under the Milky Way and the moon. Seasons follow the date, flipped with `hemisphere=south`; pass `season=` to pin one yourself:
 
 | | |
 |---|---|
@@ -293,7 +294,7 @@ Light themes paint it at sunset, dark themes at night. Seasons follow the date, 
 | `hemisphere` | `north` | `south` flips the automatic seasons (December is summer) and mirrors the city's moon. |
 | `mood`, `stage`, `trick`, `away`, `visit`, `dirt`, `surprise` | | Previews only, with `user=demo`: force a mood, stage, trick, visit, dirt level (`dirt=0…3`) or surprise (`christmas`, `postcard`, `ufo`…). To stop your real pet getting dirty, use the Action's `dirt: false` input instead. |
 
-`auto` follows the viewer's light/dark setting: the beach gets stars and the city switches from sunset to night.
+`auto` follows the viewer's light/dark setting: the pet's home gets stars and moonlit silhouettes, and the city switches from sunset to night. `gameboy` repaints the whole scene in the Game Boy's four greens.
 
 | | | |
 |---|---|---|
@@ -377,7 +378,7 @@ GitHub strips JavaScript from README images, so everything is plain SVG + CSS:
 
 Every pet is one file of ASCII art. Copy [`src/pet/species/crab.ts`](src/pet/species/crab.ts), redraw the grids
 (body, four eye styles, three mouths, two limb frames per mood), register it in `index.ts`, and check it at `/zoom`.
-Then map your language to it in `BY_LANGUAGE`, give it a home in `pet/homes.ts`, a signature move in `pet/life.ts` and `pet/behavior.ts`, and a favourite food in `pet/visits.ts`. A Haskell sloth, a Lua moon rabbit, an R pirate parrot: all very welcome.
+Then map your language to it in `BY_LANGUAGE`, give it a home in `pet/homes.ts` (and a horizon in `pet/backdrop.ts`), a signature move in `pet/life.ts` and `pet/behavior.ts`, and a favourite food in `pet/visits.ts`. A Haskell sloth, a Lua moon rabbit, an R pirate parrot: all very welcome.
 
 ## Roadmap
 
