@@ -9,8 +9,9 @@ var H = 260;
 var U = 2;
 var BASE_Y = 182;
 var ROAD_Y = 185;
-var QUAY_Y = 199;
-var WATER_Y = 209;
+var LANE_H = 10;
+var QUAY_Y = ROAD_Y + 2 * LANE_H;
+var WATER_Y = QUAY_Y + 10;
 var MIRROR_Y = WATER_Y + 4;
 var BUILDING_W = 7 * U;
 var FLOOR_H = 3 * U;
@@ -1463,14 +1464,14 @@ var RectBatch = class {
 var num = (n) => String(Math.round(n * 1e3) / 1e3);
 function pathData(list) {
   let d = "";
-  let px9 = 0;
+  let px10 = 0;
   let py = 0;
   list.forEach(([x, y, w, h], i) => {
     const abs = `M${num(x)} ${num(y)}`;
-    const rel = `m${num(x - px9)} ${num(y - py)}`;
+    const rel = `m${num(x - px10)} ${num(y - py)}`;
     const move = i === 0 || abs.length <= rel.length ? abs : rel;
     d += `${move}h${num(w)}v${num(h)}h${num(-w)}z`;
-    px9 = x;
+    px10 = x;
     py = y;
   });
   return d;
@@ -1489,13 +1490,13 @@ var LineBatch = class {
       const [color, w] = key.split("|");
       const stroke = color.startsWith("var(") ? `style="stroke:${color}"` : `stroke="${color}"`;
       let d = "";
-      let px9 = 0;
+      let px10 = 0;
       let py = 0;
       list.forEach(([x, y, h], i) => {
         const abs = `M${num(x)} ${num(y)}`;
-        const rel = `m${num(x - px9)} ${num(y - py)}`;
+        const rel = `m${num(x - px10)} ${num(y - py)}`;
         d += `${i === 0 || abs.length <= rel.length ? abs : rel}v${num(h)}`;
-        px9 = x;
+        px10 = x;
         py = y + h;
       });
       return `<path ${stroke} stroke-width="${w}" d="${d}"/>`;
@@ -1704,12 +1705,12 @@ function confetti(rng, scene2, count2, colors = CONFETTI) {
 // src/pet/behavior.ts
 function shiftPupils(grid, dir) {
   return grid.map((row2) => {
-    const px9 = [...row2];
-    const order = dir === -1 ? px9.keys() : [...px9.keys()].reverse();
+    const px10 = [...row2];
+    const order = dir === -1 ? px10.keys() : [...px10.keys()].reverse();
     for (const i of order) {
-      if (px9[i] === "k" && px9[i + dir] === "w") [px9[i], px9[i + dir]] = [px9[i + dir], px9[i]];
+      if (px10[i] === "k" && px10[i + dir] === "w") [px10[i], px10[i + dir]] = [px10[i + dir], px10[i]];
     }
-    return px9.join("");
+    return px10.join("");
   });
 }
 function glance(eyes6) {
@@ -1906,7 +1907,7 @@ function trickLayers(trick, species, scale, slot = 0) {
   const burst = (from, color, size, particles2, round3 = false, anim = "burst") => particles2.map(
     (p) => `<rect class="${k(anim)}" style="--dx:${p.dx}px;--dy:${p.dy}px;animation-delay:calc(var(--pf-t0,0s) + ${p.delay}s)" x="${from.x - size / 2}" y="${from.y - size / 2}" width="${size}" height="${size}"${round3 ? ` rx="${size / 2}" fill="none" stroke="${color}" stroke-width="1"` : ` fill="${color}"`}/>`
   ).join("");
-  const px9 = (grid, palette, x, y, s) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale: s });
+  const px10 = (grid, palette, x, y, s) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale: s });
   const a = anchors(species);
   const at2 = (p) => ({ x: p.x * scale, y: p.y * scale });
   const mouth = at2(a.mouth);
@@ -1924,7 +1925,7 @@ function trickLayers(trick, species, scale, slot = 0) {
       return layers(k("twirl"));
     case "heart-eyes": {
       const hs = Math.max(1, Math.round(scale * 0.75));
-      const hearts = a.eyes.map((e) => at2(e)).map((e) => px9(HEART, FX_PALETTE, e.x - 5 * hs / 2, e.y - 2 * hs, hs)).join("");
+      const hearts = a.eyes.map((e) => at2(e)).map((e) => px10(HEART, FX_PALETTE, e.x - 5 * hs / 2, e.y - 2 * hs, hs)).join("");
       return layers("", `<g class="${k("show")}">${hearts}</g>`);
     }
     case "sneeze": {
@@ -1943,14 +1944,14 @@ function trickLayers(trick, species, scale, slot = 0) {
       const star = ["..y..", ".yyy.", "..y.."];
       const stars = [0, 1, 2].map((i) => {
         const angle = i / 3 * Math.PI * 2;
-        return px9(star, { y: "#ffd43b" }, w / 2 + Math.cos(angle) * 16 - 7.5, top - 6 + Math.sin(angle) * 5 - 4.5, 3);
+        return px10(star, { y: "#ffd43b" }, w / 2 + Math.cos(angle) * 16 - 7.5, top - 6 + Math.sin(angle) * 5 - 4.5, 3);
       }).join("");
       const body = k("dizzy");
       return layers(body, `<g class="${k("late")}"><g class="pf-stars">${stars}</g></g>`);
     }
     case "kiss": {
       const body = k("pucker");
-      return layers(body, `<g class="${k("kiss")}">${px9(HEART, FX_PALETTE, mouth.x - 5, mouth.y - 6, 2)}</g>`);
+      return layers(body, `<g class="${k("kiss")}">${px10(HEART, FX_PALETTE, mouth.x - 5, mouth.y - 6, 2)}</g>`);
     }
     case "juggle": {
       const balls = ["#ff6b6b", "#ffd43b", "#4dabf7"].map((color, i) => {
@@ -1980,15 +1981,15 @@ function trickLayers(trick, species, scale, slot = 0) {
       return layers(body, "", "", say("CHEESE", "early") + flash);
     }
     case "bug-hunt": {
-      const bug = px9(["k.k.k", ".ggg.", "gGgGg", ".ggg.", "k.k.k"], { k: "#1f2328", g: "#2f9e44", G: "#8ce99a" }, w / 2 + 16, h - 15, 3);
+      const bug = px10(["k.k.k", ".ggg.", "gGgGg", ".ggg.", "k.k.k"], { k: "#1f2328", g: "#2f9e44", G: "#8ce99a" }, w / 2 + 16, h - 15, 3);
       const body = k("pounce");
       return layers(body, "", "", `<g class="${k("crawl")}">${bug}</g>` + bubble(pixelText("FIXED!"), w + 6, top - 2, k("fixed")));
     }
     case "item-get": {
       const body = k("raise");
       const cs = Math.max(2, scale);
-      const item = px9(COMMIT, FX_PALETTE, w / 2 - 2 * cs, top - 6 * cs, cs);
-      const sparkles = [[-3, 0], [5, -1], [-2, -4], [4.5, -4.5]].map(([dx, dy]) => px9(["..s..", ".sss.", "..s.."], FX_PALETTE, w / 2 + dx * cs - 5, top - 5 * cs + dy * cs, 2)).join("");
+      const item = px10(COMMIT, FX_PALETTE, w / 2 - 2 * cs, top - 6 * cs, cs);
+      const sparkles = [[-3, 0], [5, -1], [-2, -4], [4.5, -4.5]].map(([dx, dy]) => px10(["..s..", ".sss.", "..s.."], FX_PALETTE, w / 2 + dx * cs - 5, top - 5 * cs + dy * cs, 2)).join("");
       return layers(body, `<g class="${k("lift")}">${item}${sparkles}</g>`);
     }
     case "bubblegum": {
@@ -1998,7 +1999,7 @@ function trickLayers(trick, species, scale, slot = 0) {
     }
     case "sing": {
       const body = k("sway");
-      const notes = [0, 1, 2].map((i) => `<g class="${k("note")}" style="--dx:${6 + i * 6}px;animation-delay:calc(var(--pf-t0,0s) + ${i * 0.45}s)">${px9(["..xx", "..x.", "..x.", "xxx.", "xx.."], { x: "#1f2328" }, mouth.x + 4, mouth.y - 10, 2)}</g>`).join("");
+      const notes = [0, 1, 2].map((i) => `<g class="${k("note")}" style="--dx:${6 + i * 6}px;animation-delay:calc(var(--pf-t0,0s) + ${i * 0.45}s)">${px10(["..xx", "..x.", "..x.", "xxx.", "xx.."], { x: "#1f2328" }, mouth.x + 4, mouth.y - 10, 2)}</g>`).join("");
       const open = `<rect class="${k("show")}" x="${mouth.x - scale}" y="${mouth.y - scale}" width="${2 * scale}" height="${2 * scale}" rx="${scale}" fill="#3b1d1d"/>`;
       return layers(body, open, "", notes);
     }
@@ -2014,7 +2015,7 @@ function trickLayers(trick, species, scale, slot = 0) {
     case "coffee": {
       const mx = w * 0.62;
       const my = mouth.y - 2;
-      const mug = px9(outlined(["mccm..", "mmmmm.", "mmmm.m", "mmmmm.", ".mm..."]), { m: "#f1f3f5", c: "#6b4226", o: "#495057" }, mx, my, 2);
+      const mug = px10(outlined(["mccm..", "mmmmm.", "mmmm.m", "mmmmm.", ".mm..."]), { m: "#f1f3f5", c: "#6b4226", o: "#495057" }, mx, my, 2);
       const steam = [0, 1, 2].map((i) => `<rect class="${k("steam")}" style="--dx:${(i - 1) * 3}px;animation-delay:calc(var(--pf-t0,0s) + ${i * 0.3}s)" x="${mx + 3 + i * 3}" y="${my - 3}" width="2" height="4" rx="1" fill="#e9ecef"/>`).join("");
       return layers(k("sip"), "", "", `<g class="${k("show")}">${mug}</g>${steam}` + say("AAH", "late"));
     }
@@ -2040,7 +2041,7 @@ function trickLayers(trick, species, scale, slot = 0) {
         return layers(body, `<g class="${k("show")}">${seeds}</g>`);
       }
       case "yuzu": {
-        const yuzu = px9(outlined([".l.", "yyy", "yYy", ".y."]), { y: "#fcc419", Y: "#ffe066", l: "#51cf66", o: "#8a6a00" }, (species.crownAnchor.x - 2.5) * scale, (species.crownAnchor.y - 5) * scale, scale);
+        const yuzu = px10(outlined([".l.", "yyy", "yYy", ".y."]), { y: "#fcc419", Y: "#ffe066", l: "#51cf66", o: "#8a6a00" }, (species.crownAnchor.x - 2.5) * scale, (species.crownAnchor.y - 5) * scale, scale);
         return layers("", `<g class="${k("lift")}">${yuzu}</g>`);
       }
       case "roll":
@@ -2059,7 +2060,7 @@ function trickLayers(trick, species, scale, slot = 0) {
       case "jetup":
         return layers(k("jetup"), "", "", burst({ x: w / 2, y: h }, "#d0ebff", scale, fan(5, 30, -6)));
       case "float": {
-        const pebble = px9(outlined(["ss", "sS"]), { s: "#adb5bd", S: "#dee2e6", o: "#495057" }, w / 2 - 2 * scale, -2 * scale, scale);
+        const pebble = px10(outlined(["ss", "sS"]), { s: "#adb5bd", S: "#dee2e6", o: "#495057" }, w / 2 - 2 * scale, -2 * scale, scale);
         return layers(k("belly"), "", "", `<g class="${k("show")}">${pebble}</g>`);
       }
       case "zoomies": {
@@ -3816,13 +3817,13 @@ function renderPetSprite(state, scale, { lively = true, emote = true, eyes: swap
   const species = getSpecies(state.species);
   const legendary = state.stage === "legendary";
   const palette = legendary ? { ...species.palette, ...species.legendaryPalette } : species.palette;
-  const px9 = (layers) => renderPixels(layers, palette, { scale });
+  const px10 = (layers) => renderPixels(layers, palette, { scale });
   const face = FACE2[state.mood];
   const [limbA, limbB] = species.limbs[state.mood];
   const side = glance(species.eyes.open);
-  let eyes6 = state.mood === "idle" ? `<g class="pf-eo">${px9(species.eyes.open)}</g>${side ? `<g class="pf-eg">${px9(side)}</g>` : ""}<g class="pf-es">${px9(species.eyes.closed)}</g>` : px9(species.eyes[face.eyes]);
+  let eyes6 = state.mood === "idle" ? `<g class="pf-eo">${px10(species.eyes.open)}</g>${side ? `<g class="pf-eg">${px10(side)}</g>` : ""}<g class="pf-es">${px10(species.eyes.closed)}</g>` : px10(species.eyes[face.eyes]);
   if (swap) {
-    const alt = (kind) => px9(kind === "closed" ? species.eyes.closed : crossEyes(species.eyes.open, species.width));
+    const alt = (kind) => px10(kind === "closed" ? species.eyes.closed : crossEyes(species.eyes.open, species.width));
     eyes6 = `<g class="${swap.hide}">${eyes6}</g>${swap.alts.map((a) => `<g class="${a.cls}">${alt(a.kind)}</g>`).join("")}`;
   }
   let crown2 = "";
@@ -3837,10 +3838,10 @@ function renderPetSprite(state, scale, { lively = true, emote = true, eyes: swap
     crown2 = `<g class="pf-bob">${renderPixels([{ x: 0, y: 0, grid: CROWN }], FX_PALETTE, { x: cx, y: cy, scale: cs })}</g>`;
   }
   let svg = [
-    frames(px9(limbA), px9(limbB), FRAME_SPEED[state.mood]),
-    px9(species.body),
-    px9(species.mouths[face.mouth]),
-    face.blush ? px9(species.blush) : "",
+    frames(px10(limbA), px10(limbB), FRAME_SPEED[state.mood]),
+    px10(species.body),
+    px10(species.mouths[face.mouth]),
+    face.blush ? px10(species.blush) : "",
     eyes6,
     faceArt,
     crown2
@@ -5329,6 +5330,107 @@ function drawCrane(c, x, base, sign = null) {
   if (sign) neonSign(c, hookX + 0.5, mastTop + 14, sign);
 }
 
+// src/city/bay.ts
+var px3 = (grid, palette, x = 0, y = 0, scale = 2) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
+var only = (grid, ch) => grid.map((row2) => row2.replace(new RegExp(`[^${ch}]`, "g"), "."));
+var BAY_CSS = `
+.pf-ferry{animation:pf-ferry 80s linear infinite}
+@keyframes pf-ferry{0%{transform:translateX(-70px)}100%{transform:translateX(${W + 70}px)}}
+.pf-sloop{animation:pf-sloop 110s linear infinite}
+@keyframes pf-sloop{0%{transform:translateX(${W + 40}px)}100%{transform:translateX(-50px)}}
+.pf-rock{transform-box:fill-box;transform-origin:50% 100%;animation:pf-rock 3.2s ease-in-out infinite}
+@keyframes pf-rock{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg) translateY(1px)}}
+.pf-heave{animation:pf-heave 2.6s ease-in-out infinite}
+@keyframes pf-heave{0%,100%{transform:translateY(0)}50%{transform:translateY(1px)}}
+.pf-wake{animation:pf-wake 1.4s steps(2) infinite}
+@keyframes pf-wake{0%{opacity:.8}100%{opacity:.35}}
+.pf-bear{animation:pf-bear 150s linear infinite}
+@keyframes pf-bear{0%{transform:translateX(-60px)}100%{transform:translateX(${W + 40}px)}}
+.pf-seal{animation:pf-seal 9s ease-in-out infinite}
+@keyframes pf-seal{0%,52%,100%{transform:translateY(9px)}60%,86%{transform:translateY(0)}}
+`;
+var FERRY = [
+  "...............k..........",
+  "...cc..........kff........",
+  "...bb..........k..........",
+  "...cc....wwwwwwwwwww......",
+  "...cc....wlwlwlwlwwgg.....",
+  "..kkkkkkkkkkkkkkkkkkkkk...",
+  "..wwwwwwwwwwwwwwwwwwwwww..",
+  "..wlwwlwwlwwlwwlwwlwwlww..",
+  "nnnnnnnnnnnnnnnnnnnnnnnnnN",
+  ".nnnnnnnnnnnnnnnnnnnnnnnn.",
+  "..rrrrrrrrrrrrrrrrrrrrrr.."
+];
+var FERRY_COLORS = {
+  k: "#2b2d42",
+  c: "#f4a261",
+  b: "#2b2d42",
+  f: "#e63946",
+  w: "#f8f9fa",
+  l: "#8ecae6",
+  g: "#5c7ea6",
+  n: "#1d3557",
+  N: "#274b7a",
+  r: "#e63946"
+};
+function ferry(y) {
+  const art = px3(FERRY, FERRY_COLORS) + // At night the cabins glow and the masthead light shines.
+  `<g class="pf-night">${px3(only(FERRY, "l"), { l: "var(--pf-window-on)" })}<rect x="30" y="-2" width="2" height="2" fill="#fffbe6"/><rect x="50" y="16" width="2" height="2" fill="#7dff9b"/></g>`;
+  const wake = `<g class="pf-wake"><rect x="-18" y="21" width="16" height="1" fill="#ffffff" opacity=".7"/><rect x="-30" y="22" width="12" height="1" fill="#ffffff" opacity=".4"/><rect x="-10" y="20" width="10" height="1" fill="#ffffff"/></g>`;
+  return `<g class="pf-ferry" style="animation-delay:-26s"><g transform="translate(0 ${y})">${wake}<g class="pf-heave"><g id="pf-ferry-art">${art}</g></g><use href="#pf-ferry-art" transform="matrix(1 0 0 -1 0 44)" opacity=".18"/></g></g>`;
+}
+var SLOOP = [
+  ".......kf.....",
+  ".......kff....",
+  "......sks.....",
+  "......sksS....",
+  ".....ssksSS...",
+  ".....ssksSSS..",
+  "....sssksSSSS.",
+  "....sssksSSSS.",
+  "...ssssksSSSSS",
+  "..sssssksSSSSS",
+  ".......k......",
+  ".hhhhhhhhhhhhh",
+  "hbbbbbbbbbbbbh",
+  ".hhhhhhhhhhhh.",
+  "..hhhhhhhhhh.."
+];
+function sailboat(y) {
+  const art = px3(SLOOP, { k: "#5b4636", f: "#e63946", s: "#fdfcf7", S: "#dfe7ef", h: "#f8f9fa", b: "#3a86c8" });
+  const wake = `<g class="pf-wake"><rect x="30" y="29" width="12" height="1" fill="#ffffff" opacity=".7"/><rect x="40" y="30" width="10" height="1" fill="#ffffff" opacity=".4"/></g>`;
+  return `<g class="pf-day"><g class="pf-sloop" style="animation-delay:-70s"><g transform="translate(0 ${y})">${wake}<g class="pf-rock">${art}</g></g></g></g>`;
+}
+var BEAR = [
+  "............oo.",
+  "...ooooooooowwo",
+  "..owwwwwwwwwwwwo",
+  ".owwwwwwwwwwwwkwk",
+  ".owwwwwwwwwwwwwo",
+  "owwWwwwwwwwwwwo.",
+  "oWWWWWWWWWWWWo.."
+];
+var BEAR_LEGS_A = [".oWo..oWo..oWo.oWo", ".oo...oo....oo..oo"];
+var BEAR_LEGS_B = ["..oWo.oWo...oWooWo.", "..oo...oo....oo.oo."];
+var CUB = ["......oo", "..ooooowo", ".owwwwwkwk", "owwwwwwwo", "oWWWWWWo."];
+var CUB_LEGS_A = [".oo.oo.oo", "........."];
+var CUB_LEGS_B = ["..oo.oo.oo", ".........."];
+var BEAR_COLORS = { o: "#8a97a8", w: "#fbfcfd", W: "#dde5ee", k: "#1a1a1a" };
+function walker(body, legsA, legsB, x, y, speed) {
+  const legY = y + body.length * 2 - 2;
+  return px3(body, BEAR_COLORS, x, y) + `<g class="pf-fa" style="animation-duration:${speed}s">${px3(legsA, BEAR_COLORS, x, legY)}</g><g class="pf-fb" style="animation-duration:${speed}s">${px3(legsB, BEAR_COLORS, x, legY)}</g>`;
+}
+function frozenBay(top, height) {
+  const ice = `<rect x="0" y="${top}" width="${W}" height="${height}" fill="url(#pf-ice)"/><g opacity=".55" fill="none" stroke="#9fb4cc" stroke-width="1"><path d="M40 ${top + 12}l18 4l10 -2l16 6M210 ${top + 30}l14 -5l20 3l8 8M420 ${top + 18}l22 4l12 -3M560 ${top + 36}l-14 6l-20 -2M690 ${top + 10}l16 5l14 -1"/></g><g fill="#ffffff" opacity=".7"><ellipse cx="120" cy="${top + 40}" rx="30" ry="3"/><ellipse cx="330" cy="${top + 22}" rx="22" ry="2"/><ellipse cx="610" cy="${top + 44}" rx="36" ry="3"/><ellipse cx="760" cy="${top + 26}" rx="18" ry="2"/></g>`;
+  const night = `<g class="pf-night"><rect x="0" y="${top}" width="${W}" height="${height}" fill="#0e1a36" opacity=".4"/></g>`;
+  const hx = 505;
+  const hy = top + 30;
+  const seal = `<ellipse cx="${hx}" cy="${hy}" rx="9" ry="3" fill="#2b3a55"/><clipPath id="pf-hole"><rect x="${hx - 10}" y="${hy - 14}" width="20" height="14"/></clipPath><g clip-path="url(#pf-hole)"><g class="pf-seal">${px3(["..ooo..", ".ossso.", "oskssko", "osssnso", ".ossso."], { o: "#4a5568", s: "#8d99ae", k: "#111111", n: "#2b2d42" }, hx - 7, hy - 10)}</g></g>`;
+  const bears = `<g class="pf-bear" style="animation-delay:-40s"><g transform="translate(0 ${top + 10})">` + walker(BEAR, BEAR_LEGS_A, BEAR_LEGS_B, 0, 0, 1.4) + walker(CUB, CUB_LEGS_A, CUB_LEGS_B, -26, 6, 1) + `</g></g>`;
+  return ice + seal + bears + night;
+}
+
 // src/city/events.ts
 var EVENTS_CSS = `
 .pf-xmas-a{animation:pf-xmas 1.4s steps(1) infinite}
@@ -5504,17 +5606,17 @@ function moonPhaseName(phase) {
   ];
   return names[Math.round(phase * 8) % 8];
 }
-function pixelCircle(batch, fill, cx, cy, radius, px9) {
-  const r2 = Math.round(radius / px9);
+function pixelCircle(batch, fill, cx, cy, radius, px10) {
+  const r2 = Math.round(radius / px10);
   for (let dy = -r2; dy < r2; dy++) {
     const half = Math.round(Math.sqrt(r2 * r2 - (dy + 0.5) ** 2));
-    batch.add(fill, cx - half * px9, cy + dy * px9, half * 2 * px9, px9);
+    batch.add(fill, cx - half * px10, cy + dy * px10, half * 2 * px10, px10);
   }
 }
-function pixelMoon(cx, cy, radius, px9, phase, south = false) {
+function pixelMoon(cx, cy, radius, px10, phase, south = false) {
   const lit = new RectBatch();
   const dark2 = new RectBatch();
-  const r2 = Math.round(radius / px9);
+  const r2 = Math.round(radius / px10);
   const terminator = Math.cos(2 * Math.PI * phase);
   for (let dy = -r2; dy < r2; dy++) {
     const yc = (dy + 0.5) / r2;
@@ -5524,7 +5626,7 @@ function pixelMoon(cx, cy, radius, px9, phase, south = false) {
     let runLit = null;
     const flush = (end) => {
       if (runLit === null || end <= runStart) return;
-      (runLit ? lit : dark2).add("var(--pf-celestial)", cx + runStart * px9, cy + dy * px9, (end - runStart) * px9, px9);
+      (runLit ? lit : dark2).add("var(--pf-celestial)", cx + runStart * px10, cy + dy * px10, (end - runStart) * px10, px10);
     };
     for (let dx = -cols; dx < cols; dx++) {
       const xc = (dx + 0.5) / r2 * (south ? -1 : 1);
@@ -5547,17 +5649,13 @@ var SHADES = ["var(--pf-bldg1)", "var(--pf-bldg2)", "var(--pf-bldg3)", "var(--pf
 var SUN = { x: 640, y: 122, r: 30 };
 var MOON = { x: 700, y: 70, r: 13 };
 var CAR = [
-  "...ccccc....",
-  "..cwwcwwc...",
-  "qccccccccccy",
-  "cccccccccccc",
-  "cckkcccckkcc",
-  ".kggk..kggk.",
-  "..kk....kk.."
+  "...cccc....",
+  "..cwwcwwc..",
+  "qcccccccccy",
+  "cckkcccckkc",
+  ".kgk...kgk."
 ];
 var CAR_COLORS = ["#e63946", "#4ea8de", "#f4a261"];
-var FERRY = ["....ss.......", "..wwwwwwwww..", "..wlwlwlwlw..", "rrrrrrrrrrrrr", ".hhhhhhhhhhh."];
-var SAILBOAT = ["...m....", "..sm....", ".ssm....", "sssm....", "...m....", "hhhhhhh.", ".hhhhh.."];
 var BALLOON3 = ["..rrrr..", ".ryrryr.", "ryrrrryr", "ryrrrryr", ".ryrryr.", "..rrrr..", "...kk...", "...bb..."];
 var CSS = `
 .pf-twinkle{transform-box:fill-box;transform-origin:center;animation:pf-twinkle 2.2s ease-in-out infinite}
@@ -5584,10 +5682,6 @@ var CSS = `
 .pf-drive-l{animation:pf-drive-l 18s linear infinite}
 @keyframes pf-drive-r{0%{transform:translateX(-60px)}100%{transform:translateX(${W + 60}px)}}
 @keyframes pf-drive-l{0%{transform:translateX(${W + 60}px)}100%{transform:translateX(-60px)}}
-.pf-sail-r{animation:pf-drive-r 70s linear infinite}
-.pf-sail-l{animation:pf-drive-l 95s linear infinite}
-.pf-bob{animation:pf-bob 2.4s ease-in-out infinite}
-@keyframes pf-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(1px)}}
 .pf-fly{animation:pf-fly 38s linear infinite}
 @keyframes pf-fly{0%{transform:translateX(${W + 40}px)}100%{transform:translateX(-80px)}}
 .pf-flock{animation:pf-flock 46s linear infinite}
@@ -5611,6 +5705,7 @@ var CSS = `
 ${SEASON_CSS}
 ${WEATHER_CSS}
 ${EVENTS_CSS}
+${BAY_CSS}
 ${CITY_PET_CSS}
 ${SPRITE_CSS}
 .pf-title{font:700 18px ${SANS};fill:var(--pf-city-text)}
@@ -5627,7 +5722,7 @@ function floorsFor(week, maxTotal) {
 function widthFor(week) {
   return week.activeDays <= 1 ? 10 : week.activeDays <= 3 ? 12 : week.activeDays <= 5 ? 14 : 16;
 }
-var px3 = (grid, palette, x, y, scale = U) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
+var px4 = (grid, palette, x, y, scale = U) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
 function sky2(state, rng, weather, south, retro) {
   const base = `<rect width="${W}" height="${H}" fill="url(#pf-sky)"/>`;
   if (weather !== "clear") return base;
@@ -5679,7 +5774,7 @@ function flyers(weather) {
 <rect class="pf-strobe" x="16" y="-2" width="2" height="2" fill="#ffffff"/></g></g>`;
   const bird = (dx, dy) => `<g transform="translate(${dx} ${dy})"><path class="pf-flap-a" d="M0 0L3 3L6 0"/><path class="pf-flap-b" d="M0 3L3 2L6 3"/></g>`;
   const flock = `<g class="pf-flock" style="animation-delay:-20s"><g transform="translate(0 116)" fill="none" stroke="var(--pf-bldg3)" stroke-width="1.3">${bird(0, 0)}${bird(10, 5)}${bird(-9, 6)}${bird(20, 10)}</g></g>`;
-  const balloon = `<g class="pf-balloon" style="animation-delay:-38s"><g transform="translate(0 78)">${px3(BALLOON3, { r: "#e8505b", y: "#ffd166", k: "#5b3a29", b: "#8a5a33" }, 0, 0, 2)}</g></g>`;
+  const balloon = `<g class="pf-balloon" style="animation-delay:-38s"><g transform="translate(0 78)">${px4(BALLOON3, { r: "#e8505b", y: "#ffd166", k: "#5b3a29", b: "#8a5a33" }, 0, 0, 2)}</g></g>`;
   return weather === "clear" ? `${flyingPlane}<g class="pf-day">${flock}${balloon}</g>` : flyingPlane;
 }
 function farside(rng) {
@@ -5698,7 +5793,7 @@ function farside(rng) {
     if (mast && masts.length < 4) masts.push(`<rect class="pf-beacon" style="animation-delay:-${(rng() * 1.6).toFixed(2)}s" x="${mast.x}" y="${mast.y - 2}" width="2" height="2" fill="#ff4d4d"/>`);
     x += w + (rng() < 0.3 ? 3 : 0);
   }
-  return `<g opacity=".7">${hills2}</g><g id="pf-far" opacity=".62">${blocks2}</g><rect x="0" y="${BASE_Y - 100}" width="${W}" height="100" fill="url(#pf-farwin)" mask="url(#pf-farmask)"/><g class="pf-night" opacity=".7">${lights}${masts.join("")}</g>${tvTower()}<rect x="0" y="${BASE_Y - 70}" width="${W}" height="70" fill="url(#pf-haze)"/>` + midtown(rng);
+  return `<g opacity=".7">${hills2}</g><g id="pf-far" opacity=".62">${blocks2}</g><rect x="0" y="${BASE_Y - 100}" width="${W}" height="100" fill="url(#pf-farwin)" mask="url(#pf-farmask)"/><g class="pf-night">${lights}${masts.join("")}</g>${tvTower()}<rect x="0" y="${BASE_Y - 70}" width="${W}" height="70" fill="url(#pf-haze)"/>` + midtown(rng);
 }
 function silhouette(b, fill, rng, x, w, h) {
   let tx = x;
@@ -5743,7 +5838,7 @@ function midtown(rng) {
     }
     x += w + (rng() < 0.4 ? 3 : 0);
   }
-  return `<g opacity=".72"><g id="pf-mid">${blocks2}</g></g><rect class="pf-day" x="0" y="${BASE_Y - 110}" width="${W}" height="110" fill="url(#pf-midwin)" mask="url(#pf-midmask)"/><g class="pf-night" opacity=".42">${windows}</g><rect x="0" y="${BASE_Y - 40}" width="${W}" height="40" fill="url(#pf-haze)" opacity=".6"/>`;
+  return `<g opacity=".72"><g id="pf-mid">${blocks2}</g></g><rect class="pf-day" x="0" y="${BASE_Y - 110}" width="${W}" height="110" fill="url(#pf-midwin)" mask="url(#pf-midmask)"/><g class="pf-night">${windows}</g><rect x="0" y="${BASE_Y - 40}" width="${W}" height="40" fill="url(#pf-haze)" opacity=".6"/>`;
 }
 function tvTower() {
   const cx = 150;
@@ -5819,7 +5914,7 @@ function quay(state, season, pet2) {
   for (let x = 0; x < W; x += 16) joints.add("#000000", x, QUAY_Y + 3, 1, 3).add("#000000", x + 8, QUAY_Y + 7, 1, WATER_Y - QUAY_Y - 7);
   const curb = new RectBatch().add("#ffffff", 0, BASE_Y, W, 1).add("#000000", 0, ROAD_Y, W, 1);
   const lane = new RectBatch();
-  for (let x = 6; x < W; x += 26) lane.add("#f2e3a8", x, ROAD_Y + 7, 12, 1);
+  for (let x = 6; x < W; x += 26) lane.add("#f2e3a8", x, ROAD_Y + LANE_H, 12, 1);
   const bollards = new RectBatch();
   for (let x = 20; x < W; x += 40) bollards.add("var(--pf-road)", x, QUAY_Y - 2, 2, 3);
   const lamps = new RectBatch();
@@ -5831,14 +5926,14 @@ function quay(state, season, pet2) {
   }
   const cars = state.activeDays14 === 0 ? 0 : state.activeDays14 <= 4 ? 1 : state.activeDays14 <= 9 ? 2 : 3;
   const lanes = [
-    { dir: "r", y: ROAD_Y - 2, delay: 3 },
-    { dir: "l", y: ROAD_Y, delay: 7 },
-    { dir: "r", y: ROAD_Y - 2, delay: 10 }
+    { dir: "r", y: ROAD_Y, delay: 3 },
+    { dir: "l", y: ROAD_Y + LANE_H, delay: 7 },
+    { dir: "r", y: ROAD_Y, delay: 10 }
   ];
   const traffic = lanes.slice(0, cars).map(({ dir, y, delay }, i) => {
     const palette = { c: CAR_COLORS[i], w: "#bde0fe", k: "#0b0b0f", g: "#c3c8d0", y: "#fff3a0", q: "#ff4d4d" };
     const grid = dir === "r" ? CAR : mirror(CAR);
-    const beam = dir === "r" ? `<path class="pf-beam" d="M24 5L58 1V11Z" fill="url(#pf-beam-r)"/>` : `<path class="pf-beam" d="M0 5L-34 1V11Z" fill="url(#pf-beam-l)"/>`;
+    const beam = dir === "r" ? `<path class="pf-beam" d="M22 5L52 2V8Z" fill="url(#pf-beam-r)"/>` : `<path class="pf-beam" d="M0 5L-30 2V8Z" fill="url(#pf-beam-l)"/>`;
     return `<g class="pf-drive-${dir}" style="animation-delay:-${delay}s"><g transform="translate(0 ${y})">${beam}${renderPixels([{ x: 0, y: 0, grid }], palette, { scale: U })}</g></g>`;
   });
   return `${ground2}<g opacity=".14">${curb}</g><g opacity=".5">${lane}</g>${litter(LOOKS[season], seeded(`litter:${state.login}`))}<g class="pf-glow">${glows.join("")}</g>${lamps}${pet2}${traffic.join("")}${wall}<g opacity=".35">${coping}</g><g opacity=".3">${joints}</g>${bollards}`;
@@ -5846,7 +5941,9 @@ function quay(state, season, pet2) {
 function bay(rng, season, weather) {
   const h = H - WATER_Y;
   const water3 = `<rect x="0" y="${WATER_Y}" width="${W}" height="${h}" fill="url(#pf-water)"/>`;
-  const reflection = `<g mask="url(#pf-reflect)" opacity=".6"><use href="#pf-city" transform="matrix(1 0 0 -1 0 ${BASE_Y + MIRROR_Y})"/></g><rect x="0" y="${WATER_Y}" width="${W}" height="${MIRROR_Y - WATER_Y}" style="fill:var(--pf-city-quay)" opacity=".55"/><g class="pf-wave" opacity=".3"><rect x="-10" y="${WATER_Y}" width="${W + 20}" height="1" fill="#ffffff"/></g>`;
+  const frozen = season === "winter";
+  const reflection = `<g mask="url(#pf-reflect)" opacity="${frozen ? ".22" : ".6"}"><use href="#pf-city" transform="matrix(1 0 0 -1 0 ${BASE_Y + MIRROR_Y})"/></g><rect x="0" y="${WATER_Y}" width="${W}" height="${MIRROR_Y - WATER_Y}" style="fill:var(--pf-city-quay)" opacity=".55"/>`;
+  if (frozen) return water3 + reflection + frozenBay(WATER_Y, h);
   const path = (cx, color, spread) => {
     const out = [];
     for (let i = 0; i < 9; i++) {
@@ -5862,12 +5959,10 @@ function bay(rng, season, weather) {
     const y = WATER_Y + 4 + Math.round(rng() * (h - 8));
     waves.add("#ffffff", Math.round(rng() * W), y, 8 + Math.round(rng() * 22), 1);
   }
-  const ferry = `<g class="pf-sail-r" style="animation-delay:-22s"><g transform="translate(0 ${WATER_Y + 12})"><g class="pf-bob">${px3(FERRY, { s: "#3a3f55", w: "#f1f3f5", l: "var(--pf-window-on)", r: "#c0392b", h: "#23263b" }, 0, 0, 2)}</g><rect x="-10" y="11" width="10" height="1" fill="#ffffff" opacity=".5"/></g></g>`;
-  const sailboat = weather !== "clear" ? "" : `<g class="pf-day"><g class="pf-sail-l" style="animation-delay:-60s"><g transform="translate(0 ${WATER_Y + 30})"><g class="pf-bob" style="animation-delay:-1s">${px3(SAILBOAT, { s: "#fdfcf7", m: "#6b4b2a", h: "#2c4a5e" }, 0, 0, 2)}</g></g></g></g>`;
-  const winter = season === "winter" ? `<rect x="0" y="${WATER_Y}" width="${W}" height="${h}" fill="#eef4fb" opacity=".22"/>` : "";
+  const lap = `<g class="pf-wave" opacity=".3"><rect x="-10" y="${WATER_Y}" width="${W + 20}" height="1" fill="#ffffff"/></g>`;
   const drops = weather === "rain" ? Array.from({ length: 10 }, () => `<ellipse class="pf-drop" style="animation-delay:-${(rng() * 1.6).toFixed(2)}s" cx="${Math.round(rng() * W)}" cy="${WATER_Y + 6 + Math.round(rng() * (h - 10))}" rx="5" ry="1.5" fill="none" stroke="#dbe7ff" stroke-width=".8"/>`).join("") : "";
   const lights = weather === "clear" ? `<g class="pf-day">${path(SUN.x, "var(--pf-celestial)", 60)}</g><g class="pf-night">${path(MOON.x, "#fff4d6", 26)}</g>` : "";
-  return `${water3}${reflection}<g class="pf-wave" opacity=".14">${waves}</g>${lights}${winter}${drops}${ferry}${sailboat}`;
+  return `${water3}${reflection}${lap}<g class="pf-wave" opacity=".14">${waves}</g>${lights}${drops}${ferry(WATER_Y + 3)}${weather === "clear" ? sailboat(WATER_Y + 12) : ""}`;
 }
 var TROPHY = ["y.yyy.y", "y.yyy.y", ".yyyyy.", "..yyy..", "...y...", "..yyy..", ".yyyyy."];
 var FLAME = ["...o...", "..oo...", "..ooo..", ".ooyoo.", ".oyyyo.", ".oyyyo.", "..ooo.."];
@@ -5885,7 +5980,7 @@ function chips(state) {
     const w = Math.round(label.length * 6.1 + 26);
     const x = right - w;
     out.unshift(
-      `<g><rect x="${x}" y="20" width="${w}" height="18" rx="9" fill="#0b0f1e" fill-opacity=".38"/>${px3(icon, palette, x + 7, 24, 1.5)}<text x="${x + 20}" y="32.5" class="pf-chip">${escapeXml(label)}</text></g>`
+      `<g><rect x="${x}" y="20" width="${w}" height="18" rx="9" fill="#0b0f1e" fill-opacity=".38"/>${px4(icon, palette, x + 7, 24, 1.5)}<text x="${x + 20}" y="32.5" class="pf-chip">${escapeXml(label)}</text></g>`
     );
     right = x - 6;
   }
@@ -5941,6 +6036,7 @@ function renderCityCard(state, options = {}) {
     <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
   </filter>
   <linearGradient id="pf-volume" gradientUnits="userSpaceOnUse" x1="0" y1="70" x2="0" y2="${BASE_Y}"><stop offset="0" stop-color="#fff" stop-opacity=".08"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".34"/></linearGradient>
+  <linearGradient id="pf-ice" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef4fa" stop-opacity=".8"/><stop offset="1" stop-color="#c9d8e8" stop-opacity=".74"/></linearGradient>
   <linearGradient id="pf-haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--pf-city-sky-bottom);stop-opacity:0"/><stop offset="1" style="stop-color:var(--pf-city-sky-bottom);stop-opacity:.55"/></linearGradient>
   <pattern id="pf-farwin" width="3" height="4" patternUnits="userSpaceOnUse"><rect x="1" y="1" width="1" height="2" fill="#fff" opacity=".13"/></pattern>
   <pattern id="pf-midwin" width="4" height="5" patternUnits="userSpaceOnUse"><rect x="1" y="1" width="2" height="2" fill="#fff" opacity=".1"/></pattern>
@@ -6061,7 +6157,7 @@ function row(area, from, step, cy, r2, wobble, seed = 0) {
   for (let i = 0, x = from; x < area.w + r2; i++, x += step) out.push([area.x + x, cy - Math.round(jitter(i + seed, wobble)), r2]);
   return out;
 }
-var px4 = (grid, palette, x, y) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale: 2 });
+var px5 = (grid, palette, x, y) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale: 2 });
 var BARN = [
   "...RRRR...",
   "..RRRRRR..",
@@ -6126,7 +6222,7 @@ function backdrop(terrain, area, night, season) {
     case "farm":
       art += skyline3(area, hills(area, (x) => 14 + 5 * Math.sin(x / 27 + 0.5)), "#c3dca2", "#d5e8ba");
       art += skyline3(area, hills(area, (x) => 6 + 2 * Math.sin(x / 17)), "#e8d58f", "#f2e3a8");
-      art += px4(BARN, { R: "#9b3b33", r: "#c4574c", w: "#f4ede0" }, L + 150, g - 30) + px4(SILO, { s: "#b8c2cc", S: "#9aa6b2" }, L + 172, g - 30);
+      art += px5(BARN, { R: "#9b3b33", r: "#c4574c", w: "#f4ede0" }, L + 150, g - 30) + px5(SILO, { s: "#b8c2cc", S: "#9aa6b2" }, L + 172, g - 30);
       break;
     case "pond":
       art += skyline3(area, hills(area, (x) => 8 + 3 * Math.sin(x / 19)), "#c6dfb4");
@@ -6266,7 +6362,7 @@ var GULL_UP = ["g.....g", ".w...w.", "..www.."];
 var GULL_DOWN = ["..www..", ".w...w.", "g.....g"];
 var GULL_COLORS = { w: "#f8f9fa", g: "#6c757d" };
 var band2 = (fill, left, w, top, bottom) => stepped(fill, left, w, top, bottom);
-var px5 = (grid, palette, x, y, scale = 2) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
+var px6 = (grid, palette, x, y, scale = 2) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
 function beachProps(area) {
   const g = area.ground;
   const left = area.x;
@@ -6288,10 +6384,10 @@ function beachProps(area) {
   ]) {
     grains.add(dark2 ? "var(--pf-ground-dark)" : "#fff3d6", left + dx, g + dy, 2, dark2 ? 2 : 1);
   }
-  return grains.toString() + px5(STARFISH, { s: "#f4845f", S: "#f9a47f" }, left + 18, g + 12) + px5(SHELL3, { p: "#f7c6d9", P: "#e39bb6" }, right - 32, g + 16);
+  return grains.toString() + px6(STARFISH, { s: "#f4845f", S: "#f9a47f" }, left + 18, g + 12) + px6(SHELL3, { p: "#f7c6d9", P: "#e39bb6" }, right - 32, g + 16);
 }
 function palm(area) {
-  return px5(PALM3, PALM_COLORS, area.x - 8, area.ground + 8 - PALM3.length * 3, 3);
+  return px6(PALM3, PALM_COLORS, area.x - 8, area.ground + 8 - PALM3.length * 3, 3);
 }
 function beachAmbient(area, night) {
   const g = area.ground;
@@ -6328,7 +6424,7 @@ function beachAmbient(area, night) {
     const wet = band2("#5c4a2e", left, w, () => g, (x) => g + Math.max(1, reach + lobe(x, phase)));
     return `<g class="pf-bch-wet" style="animation-delay:-${delay}s">${wet}</g><g clip-path="url(#pf-bch-shore)"><g class="pf-bch-swash" style="--reach:${reach}px;animation-delay:-${delay}s"><g opacity=".55">${sheet}</g>${foam}${streaks}</g></g>`;
   };
-  const gull = night ? "" : `<g class="pf-bch-gull-sky" transform="translate(0 ${area.y + 34})"><g class="pf-bch-gull"><g class="pf-fa" style="animation-duration:.9s">${px5(GULL_UP, GULL_COLORS, 0, 0)}</g><g class="pf-fb" style="animation-duration:.9s">${px5(GULL_DOWN, GULL_COLORS, 0, 0)}</g></g></g>`;
+  const gull = night ? "" : `<g class="pf-bch-gull-sky" transform="translate(0 ${area.y + 34})"><g class="pf-bch-gull"><g class="pf-fa" style="animation-duration:.9s">${px6(GULL_UP, GULL_COLORS, 0, 0)}</g><g class="pf-fb" style="animation-duration:.9s">${px6(GULL_DOWN, GULL_COLORS, 0, 0)}</g></g></g>`;
   const surf = `<g class="pf-bch-surf">${swash(9, 0, 0)}${swash(5, 3.6, 2.4)}${breaker}</g>`;
   const svg = `<clipPath id="pf-bch-shore"><rect x="${left}" y="${g - 2}" width="${w}" height="${HORIZON}"/></clipPath>` + sea + swells + `<g class="pf-bch-drift">${glints}</g>` + dark2 + moonPath + surf + palm(area) + gull;
   const css = `.pf-bch-dark{opacity:calc(var(--pf-stars) * .55)}
@@ -6350,7 +6446,7 @@ function beachAmbient(area, night) {
 }
 
 // src/pet/homes.ts
-var px6 = (grid, palette, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
+var px7 = (grid, palette, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
 var BAMBOO = ["g.", "gl", "gg", "Gg", "gg", "gl", "gg", "Gg", "gg", "gl", "gg", "Gg"];
 var BAMBOO_LEAF = ["..ll", "lll.", "l..."];
 var YUZU = outlined([".l.", "yyy", "yYy", ".y."]);
@@ -6397,9 +6493,9 @@ function homeProps(home, area) {
   let art = "";
   switch (home) {
     case "onsen": {
-      art += px6(BAMBOO, { g: "#5aa35a", G: "#2f7a3a", l: "#8fd18f" }, left + 6, g - 36, 3);
-      art += px6(BAMBOO, { g: "#5aa35a", G: "#2f7a3a", l: "#8fd18f" }, left + 16, g - 28, 3);
-      art += px6(BAMBOO_LEAF, { l: "#6fbf6a" }, left + 12, g - 40, 3);
+      art += px7(BAMBOO, { g: "#5aa35a", G: "#2f7a3a", l: "#8fd18f" }, left + 6, g - 36, 3);
+      art += px7(BAMBOO, { g: "#5aa35a", G: "#2f7a3a", l: "#8fd18f" }, left + 16, g - 28, 3);
+      art += px7(BAMBOO_LEAF, { l: "#6fbf6a" }, left + 12, g - 40, 3);
       const px0 = right - 62;
       b.add("#8a9099", px0, g + 3, 56, 18).add("#8a9099", px0 + 4, g + 1, 48, 22);
       b.add("#7fd3d8", px0 + 5, g + 5, 46, 14).add("#b6ecee", px0 + 10, g + 7, 16, 2).add("#b6ecee", px0 + 30, g + 12, 12, 2);
@@ -6409,9 +6505,9 @@ function homeProps(home, area) {
       break;
     }
     case "forest": {
-      art += px6(LOG, { b: "#8a5a33", B: "#6b4226", r: "#d9a066", R: "#b07d4a", o: "#3b2616" }, left + 2, g - 9, 3);
-      art += px6(MUSHROOM, { r: "#e03131", w: "#ffffff", s: "#f1e3c6", o: "#4a1a0c" }, right - 30, g - 24, 3);
-      art += px6(MUSHROOM_SMALL, { r: "#e03131", w: "#ffffff", s: "#f1e3c6", o: "#4a1a0c" }, right - 44, g - 14, 2);
+      art += px7(LOG, { b: "#8a5a33", B: "#6b4226", r: "#d9a066", R: "#b07d4a", o: "#3b2616" }, left + 2, g - 9, 3);
+      art += px7(MUSHROOM, { r: "#e03131", w: "#ffffff", s: "#f1e3c6", o: "#4a1a0c" }, right - 30, g - 24, 3);
+      art += px7(MUSHROOM_SMALL, { r: "#e03131", w: "#ffffff", s: "#f1e3c6", o: "#4a1a0c" }, right - 44, g - 14, 2);
       for (const [x, y, c] of [[left + 50, g + 12, "#d9822b"], [left + 90, g + 20, "#b5651d"], [right - 70, g + 14, "#e8a45a"], [left + 30, g + 22, "#b5651d"]]) {
         b.add(c, x, y, 4, 2).add(c, x + 1, y - 1, 2, 1);
       }
@@ -6420,22 +6516,22 @@ function homeProps(home, area) {
     case "reef": {
       art += `<rect class="pf-amb-water" x="${left}" y="${area.y}" width="${area.w}" height="${g - area.y}" fill="#1c7fc4"/>`;
       art += `<g class="pf-amb-rays" fill="#ffffff">${[20, 70, 130].map((x) => `<path d="M${left + x} ${area.y}h14l-40 ${g - area.y}h-14z"/>`).join("")}</g>`;
-      art += px6(CORAL2, { c: "#ff7f9e" }, left + 4, g - 24, 3);
-      art += px6(CORAL2, { c: "#ffb35c" }, left + 22, g - 16, 2);
-      art += px6(CLAM, { p: "#f7c6d9", P: "#e39bb6", o: "#8a4a64" }, right - 44, g + 8, 2);
+      art += px7(CORAL2, { c: "#ff7f9e" }, left + 4, g - 24, 3);
+      art += px7(CORAL2, { c: "#ffb35c" }, left + 22, g - 16, 2);
+      art += px7(CLAM, { p: "#f7c6d9", P: "#e39bb6", o: "#8a4a64" }, right - 44, g + 8, 2);
       break;
     }
     case "garden": {
-      art += px6(BIG_LEAF, { g: "#5cb85c", G: "#8fd18f", s: "#3f8f4f", o: "#2c6b3a" }, left + 2, g - 36, 4);
-      art += px6(TULIP, { r: "#ff6b6b", g: "#3f8f4f" }, right - 36, g - 22, 3);
-      art += px6(TULIP, { r: "#ffd43b", g: "#3f8f4f" }, right - 20, g - 18, 3);
+      art += px7(BIG_LEAF, { g: "#5cb85c", G: "#8fd18f", s: "#3f8f4f", o: "#2c6b3a" }, left + 2, g - 36, 4);
+      art += px7(TULIP, { r: "#ff6b6b", g: "#3f8f4f" }, right - 36, g - 22, 3);
+      art += px7(TULIP, { r: "#ffd43b", g: "#3f8f4f" }, right - 20, g - 18, 3);
       b.add("#9fd0ec", left + 60, g + 12, 30, 5).add("#9fd0ec", left + 64, g + 11, 22, 1).add("#d0ebff", left + 66, g + 13, 8, 1);
       break;
     }
     case "pinewood": {
       const pine = { g: "#2f6b3a", G: "#4f9a55", b: "#6b4226", o: "#173a20" };
-      art += px6(PINE, pine, left - 4, g - 36, 3) + px6(PINE, pine, left + 18, g - 26, 2) + px6(PINE, pine, right - 26, g - 36, 3);
-      art += px6(STUMP, { w: "#e9c89a", b: "#8a5a33", B: "#6b4226", o: "#3b2616" }, right - 52, g - 10, 2);
+      art += px7(PINE, pine, left - 4, g - 36, 3) + px7(PINE, pine, left + 18, g - 26, 2) + px7(PINE, pine, right - 26, g - 36, 3);
+      art += px7(STUMP, { w: "#e9c89a", b: "#8a5a33", B: "#6b4226", o: "#3b2616" }, right - 52, g - 10, 2);
       break;
     }
     case "deepsea": {
@@ -6453,8 +6549,8 @@ function homeProps(home, area) {
       break;
     }
     case "treetop": {
-      art += px6(TREE2, { g: "#4f9a55", G: "#7fc27a", b: "#7a4a24", o: "#24502b" }, left - 14, g - 46, 3);
-      art += px6(BIRDHOUSE, { r: "#c92a2a", w: "#e9c89a", k: "#3b2616", b: "#8a5a33", o: "#3b2616" }, right - 28, g - 42, 3);
+      art += px7(TREE2, { g: "#4f9a55", G: "#7fc27a", b: "#7a4a24", o: "#24502b" }, left - 14, g - 46, 3);
+      art += px7(BIRDHOUSE, { r: "#c92a2a", w: "#e9c89a", k: "#3b2616", b: "#8a5a33", o: "#3b2616" }, right - 28, g - 42, 3);
       break;
     }
   }
@@ -6470,8 +6566,8 @@ function homeAmbient(home, area) {
   const right = area.x + area.w;
   switch (home) {
     case "onsen": {
-      const steam = [0, 1.2, 2.4].map((d, i) => `<g class="pf-amb-steam" style="animation-delay:-${d}s">${px6(["x.", ".x", "x.", ".x", "x."], { x: "#d6e2ee" }, right - 50 + i * 16, g - 8, 3)}</g>`).join("");
-      const yuzu = `<g class="pf-amb-bob2">${px6(YUZU, { y: "#fcc419", Y: "#ffe066", l: "#51cf66", o: "#8a6a00" }, right - 30, g + 6, 2)}</g>`;
+      const steam = [0, 1.2, 2.4].map((d, i) => `<g class="pf-amb-steam" style="animation-delay:-${d}s">${px7(["x.", ".x", "x.", ".x", "x."], { x: "#d6e2ee" }, right - 50 + i * 16, g - 8, 3)}</g>`).join("");
+      const yuzu = `<g class="pf-amb-bob2">${px7(YUZU, { y: "#fcc419", Y: "#ffe066", l: "#51cf66", o: "#8a6a00" }, right - 30, g + 6, 2)}</g>`;
       return {
         svg: steam + yuzu,
         css: `.pf-amb-steam{opacity:0;animation:pf-amb-steam 3.6s ease-out infinite}@keyframes pf-amb-steam{0%{transform:translate(0,0);opacity:0}25%{opacity:.7}100%{transform:translate(4px,-30px);opacity:0}}
@@ -6480,13 +6576,13 @@ function homeAmbient(home, area) {
     }
     case "forest":
       return {
-        svg: `<g class="pf-amb-crawl">${px6(LADYBUG, { r: "#e03131", k: "#1a1a1a", o: "#1a1a1a" }, left + 6, g - 13, 2)}</g>`,
+        svg: `<g class="pf-amb-crawl">${px7(LADYBUG, { r: "#e03131", k: "#1a1a1a", o: "#1a1a1a" }, left + 6, g - 13, 2)}</g>`,
         css: `.pf-amb-crawl{animation:pf-amb-crawl 12s ease-in-out infinite alternate}@keyframes pf-amb-crawl{0%,10%{transform:translateX(0)}90%,100%{transform:translateX(26px)}}`
       };
     case "reef": {
       const bubbles = [0, 1.1, 2.3, 3.2].map((d, i) => `<rect class="pf-amb-rise" style="animation-delay:-${d}s" x="${[left + 30, right - 30, left + 60, right - 60][i]}" y="${g}" width="3" height="3" rx="1.5" fill="none" stroke="#d0ebff" stroke-width="1"/>`).join("");
-      const fish = `<g class="pf-amb-swim">${px6(FISH, { y: "#ffd43b", k: "#1a1a1a", o: "#8a6a00" }, 0, area.y + 38, 2)}</g>`;
-      const weed = [0, 0.8].map((d, i) => `<g class="pf-amb-sway" style="animation-delay:-${d}s">${px6(["g", "gg", ".g", "gg", "g.", "gg", ".g", "g", "g"], { g: "#2f9e44" }, right - 22 + i * 8, g - 26 + i * 6, 3)}</g>`).join("");
+      const fish = `<g class="pf-amb-swim">${px7(FISH, { y: "#ffd43b", k: "#1a1a1a", o: "#8a6a00" }, 0, area.y + 38, 2)}</g>`;
+      const weed = [0, 0.8].map((d, i) => `<g class="pf-amb-sway" style="animation-delay:-${d}s">${px7(["g", "gg", ".g", "gg", "g.", "gg", ".g", "g", "g"], { g: "#2f9e44" }, right - 22 + i * 8, g - 26 + i * 6, 3)}</g>`).join("");
       return {
         svg: weed + bubbles + fish,
         css: `.pf-amb-water{opacity:calc(.28 + var(--pf-stars) * .12)}.pf-amb-rays{opacity:calc(.1 - var(--pf-stars) * .08)}
@@ -6503,21 +6599,21 @@ function homeAmbient(home, area) {
     case "pinewood": {
       const hx = right - 70;
       return {
-        svg: `<clipPath id="pf-amb-burrow"><rect x="${hx - 2}" y="${g}" width="16" height="12"/></clipPath><rect x="${hx}" y="${g + 10}" width="12" height="3" rx="1" fill="#3b2616"/><g clip-path="url(#pf-amb-burrow)"><g class="pf-amb-peek">${px6(MOUSE, { m: "#b8a898", k: "#1a1a1a", n: "#ff8fa3", o: "#5b4636" }, hx + 1, g + 10, 2)}</g></g>`,
+        svg: `<clipPath id="pf-amb-burrow"><rect x="${hx - 2}" y="${g}" width="16" height="12"/></clipPath><rect x="${hx}" y="${g + 10}" width="12" height="3" rx="1" fill="#3b2616"/><g clip-path="url(#pf-amb-burrow)"><g class="pf-amb-peek">${px7(MOUSE, { m: "#b8a898", k: "#1a1a1a", n: "#ff8fa3", o: "#5b4636" }, hx + 1, g + 10, 2)}</g></g>`,
         css: `.pf-amb-peek{animation:pf-amb-peek 8s ease-in-out infinite}@keyframes pf-amb-peek{0%,50%,100%{transform:none}58%,78%{transform:translateY(-9px)}}`
       };
     }
     case "deepsea": {
       const jelly = outlined([".jjj.", "jJjjj", "jjjjj", "j.j.j", "j.j.j"]);
       return {
-        svg: `<g class="pf-amb-jelly">${px6(jelly, { j: "#f3a6ff", J: "#ffffff", o: "#9b4fb3" }, right - 46, area.y + 40, 2)}</g>`,
+        svg: `<g class="pf-amb-jelly">${px7(jelly, { j: "#f3a6ff", J: "#ffffff", o: "#9b4fb3" }, right - 46, area.y + 40, 2)}</g>`,
         css: `.pf-amb-deep{opacity:calc(.62 + var(--pf-stars) * .13)}
 .pf-amb-jelly{animation:pf-amb-jelly 5s ease-in-out infinite}@keyframes pf-amb-jelly{0%,100%{transform:translate(0,0) scale(1,1)}25%{transform:translate(-4px,-10px) scale(1.1,.85)}50%{transform:translate(-6px,-18px) scale(.95,1.08)}75%{transform:translate(-2px,-8px)}}`
       };
     }
     case "river": {
       const ripples = [0, 1, 2].map((i) => `<rect class="pf-amb-flow" style="animation-delay:-${i * 1.7}s" x="${left}" y="${g + 13 + i % 2 * 4}" width="10" height="1" fill="#d0ebff"/>`).join("");
-      const leaf2 = `<g class="pf-amb-flow" style="animation-duration:9s;animation-delay:-3s">${px6(["..gg", ".ggg", "ggg.", "g..."], { g: "#51cf66" }, left, g + 9, 2)}</g>`;
+      const leaf2 = `<g class="pf-amb-flow" style="animation-duration:9s;animation-delay:-3s">${px7(["..gg", ".ggg", "ggg.", "g..."], { g: "#51cf66" }, left, g + 9, 2)}</g>`;
       return {
         svg: ripples + leaf2,
         css: `.pf-amb-flow{animation:pf-amb-flow 5s linear infinite}@keyframes pf-amb-flow{from{transform:translateX(-12px)}to{transform:translateX(${area.w}px)}}`
@@ -6525,7 +6621,7 @@ function homeAmbient(home, area) {
     }
     case "treetop":
       return {
-        svg: `<g class="pf-amb-feather">${px6(FEATHER, { f: "#ffffff" }, left + 24, area.y + 30, 2)}</g>`,
+        svg: `<g class="pf-amb-feather">${px7(FEATHER, { f: "#ffffff" }, left + 24, area.y + 30, 2)}</g>`,
         css: `.pf-amb-feather{animation:pf-amb-feather 9s ease-in-out infinite}@keyframes pf-amb-feather{0%{transform:translate(0,0);opacity:0}10%{opacity:1}30%{transform:translate(12px,26px)}55%{transform:translate(-2px,54px)}80%{transform:translate(10px,82px);opacity:1}95%,100%{transform:translate(4px,96px);opacity:0}}`
       };
   }
@@ -6642,7 +6738,7 @@ function fern(b, x, ground2) {
   }
   b.add(DARK_GREEN, x - 1, ground2 - 4, 3, 4);
 }
-var px7 = (grid, palette, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
+var px8 = (grid, palette, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], palette, { x, y, scale });
 var BEE = [".ww.", "ykyk", ".yk."];
 var PARROT = [".rr.", "rrwk", "rrry", ".gr.", ".gg.", ".bb."];
 var BIRD = [".kk.", "kkkw", "kkk.", ".y.."];
@@ -6656,7 +6752,7 @@ function ambient(species, area, night = false) {
     case "beach":
       return beachAmbient(area, night);
     case "meadow": {
-      const bee = `<g class="pf-amb-bee"><g class="pf-fa" style="animation-duration:.2s">${px7(BEE, { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.2s">${px7(BEE.slice(1), { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 2, 2)}</g></g>`;
+      const bee = `<g class="pf-amb-bee"><g class="pf-fa" style="animation-duration:.2s">${px8(BEE, { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 0, 2)}</g><g class="pf-fb" style="animation-duration:.2s">${px8(BEE.slice(1), { w: "#e7f5ff", y: "#ffd43b", k: "#343a40" }, 0, 2, 2)}</g></g>`;
       return {
         svg: `<g transform="translate(${right - 40} ${g - 26})">${bee}</g>`,
         css: `.pf-amb-bee{animation:pf-amb-bee 7s ease-in-out infinite}@keyframes pf-amb-bee{0%,100%{transform:translate(0,0)}20%{transform:translate(-14px,-8px)}40%{transform:translate(-4px,-16px)}60%{transform:translate(12px,-6px)}80%{transform:translate(4px,4px)}}`
@@ -6664,17 +6760,17 @@ function ambient(species, area, night = false) {
     }
     case "jungle":
       return {
-        svg: `<g transform="translate(${right - 22} ${g - 40})"><g class="pf-amb-bob">${px7(PARROT, { r: "#e03131", w: "#ffffff", k: "#1f2328", y: "#ffd43b", g: "#2f9e44", b: "#1c7ed6" }, 0, 0, 3)}</g></g>`,
+        svg: `<g transform="translate(${right - 22} ${g - 40})"><g class="pf-amb-bob">${px8(PARROT, { r: "#e03131", w: "#ffffff", k: "#1f2328", y: "#ffd43b", g: "#2f9e44", b: "#1c7ed6" }, 0, 0, 3)}</g></g>`,
         css: `.pf-amb-bob{transform-box:fill-box;transform-origin:50% 100%;animation:pf-amb-bob 5s steps(1) infinite}@keyframes pf-amb-bob{0%,60%{transform:none}64%{transform:rotate(-12deg)}72%{transform:none}76%{transform:rotate(-12deg)}84%,100%{transform:none}}`
       };
     case "savanna":
       return {
-        svg: `<g transform="translate(${right - 44} ${g - 64})"><g class="pf-amb-hop">${px7(BIRD, { k: "#5c3d2e", w: "#ffffff", y: "#f59f00" }, 0, 0, 2)}</g></g>`,
+        svg: `<g transform="translate(${right - 44} ${g - 64})"><g class="pf-amb-hop">${px8(BIRD, { k: "#5c3d2e", w: "#ffffff", y: "#f59f00" }, 0, 0, 2)}</g></g>`,
         css: `.pf-amb-hop{animation:pf-amb-hop 6s ease-in-out infinite}@keyframes pf-amb-hop{0%,30%{transform:none}35%{transform:translate(6px,-4px)}40%,65%{transform:translate(12px,0)}70%{transform:translate(6px,-4px)}75%,100%{transform:none}}`
       };
     case "farm":
       return {
-        svg: `<clipPath id="pf-amb-soil"><rect x="${left + 50}" y="${g}" width="12" height="16"/></clipPath><rect x="${left + 52}" y="${g + 14}" width="8" height="2" fill="#6b4226"/><g clip-path="url(#pf-amb-soil)"><g class="pf-amb-worm">${px7(WORM, { p: "#f783ac" }, left + 54, g + 14, 2)}</g></g>`,
+        svg: `<clipPath id="pf-amb-soil"><rect x="${left + 50}" y="${g}" width="12" height="16"/></clipPath><rect x="${left + 52}" y="${g + 14}" width="8" height="2" fill="#6b4226"/><g clip-path="url(#pf-amb-soil)"><g class="pf-amb-worm">${px8(WORM, { p: "#f783ac" }, left + 54, g + 14, 2)}</g></g>`,
         css: `.pf-amb-worm{transform-box:fill-box;transform-origin:50% 100%;animation:pf-amb-worm 9s ease-in-out infinite}@keyframes pf-amb-worm{0%,55%,100%{transform:none}62%,80%{transform:translateY(-10px)}70%{transform:translateY(-10px) rotate(8deg)}}`
       };
     case "pond": {
@@ -6682,7 +6778,7 @@ function ambient(species, area, night = false) {
       const cy = g + 13;
       const ripple = (d) => `<ellipse class="pf-amb-ripple" style="animation-delay:-${d}s" cx="${cx}" cy="${cy}" rx="8" ry="2.5" fill="none" stroke="#d0ebff" stroke-width="1"/>`;
       return {
-        svg: `${ripple(0)}${ripple(1.5)}<g class="pf-amb-fish">${px7(FISH2, { o: "#ff922b" }, cx - 6, cy - 2, 2)}</g>`,
+        svg: `${ripple(0)}${ripple(1.5)}<g class="pf-amb-fish">${px8(FISH2, { o: "#ff922b" }, cx - 6, cy - 2, 2)}</g>`,
         css: `.pf-amb-ripple{transform-box:fill-box;transform-origin:center;animation:pf-amb-ripple 3s ease-out infinite}@keyframes pf-amb-ripple{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.6);opacity:0}}
 .pf-amb-fish{opacity:0;transform-box:fill-box;transform-origin:center;animation:pf-amb-fish 8s ease-in-out infinite}@keyframes pf-amb-fish{0%,70%{opacity:0;transform:translate(-8px,4px) rotate(-40deg)}72%{opacity:1}80%{transform:translate(0,-14px) rotate(0)}88%{opacity:1;transform:translate(8px,2px) rotate(40deg)}90%,100%{opacity:0;transform:translate(8px,4px) rotate(40deg)}}`
       };
@@ -6835,12 +6931,12 @@ var BALL_B = outlined([".yyyy.", "ywyyyy", "yywyyy", "yyyywy", "yyyyyw", ".yyyy.
 var BALL_COLORS = { y: "#c6e33a", w: "#ffffff", o: "#5f7a12" };
 var HAND = outlined(["..ssss....", ".sssssss..", "sssssssccc", "sssssssccc", ".ssssss.cc", "..sss....."]);
 var HAND_COLORS = { s: "#f2c29b", c: "#4c6ef5", o: "#8a5a3c" };
-var px8 = (grid, colors, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], colors, { x, y, scale });
+var px9 = (grid, colors, x, y, scale) => renderPixels([{ x: 0, y: 0, grid }], colors, { x, y, scale });
 function shadow(x, y, w) {
   return `<rect x="${x}" y="${y}" width="${w}" height="6" rx="3" opacity=".3" style="fill:var(--pf-ground-dark)"/>`;
 }
-var bowl = (x, ground2, heap = 0) => (heap === null ? "" : px8(HEAPS[heap], KIBBLE, x + 3, ground2 - 26, 3)) + px8(BOWL, BOWL_COLORS, x, ground2 - 21, 3);
-var ball = (x, ground2) => px8(BALL_A, BALL_COLORS, x, ground2 - 16, 2);
+var bowl = (x, ground2, heap = 0) => (heap === null ? "" : px9(HEAPS[heap], KIBBLE, x + 3, ground2 - 26, 3)) + px9(BOWL, BOWL_COLORS, x, ground2 - 21, 3);
+var ball = (x, ground2) => px9(BALL_A, BALL_COLORS, x, ground2 - 16, 2);
 var MEAL = 6;
 function feed(sprite, w, h, scale, stage, species) {
   const pct3 = (t) => `${+(t / MEAL * 100).toFixed(2)}%`;
@@ -6853,7 +6949,7 @@ function feed(sprite, w, h, scale, stage, species) {
   const bagX = bowlX + bowlW - 14;
   const bagY = stage.ground - 92;
   const treat = TREATS[species.id] ?? TREATS.crab;
-  const bag = `<g class="pf-bag"><g transform="translate(${bagX} ${bagY})">${px8(BAG, BAG_COLORS, 0, 0, 3)}${px8(treat.grid, treat.colors, 18 - treat.grid[0].length * 3 / 2, 18 - treat.grid.length * 3 / 2 + 3, 3)}</g></g>`;
+  const bag = `<g class="pf-bag"><g transform="translate(${bagX} ${bagY})">${px9(BAG, BAG_COLORS, 0, 0, 3)}${px9(treat.grid, treat.colors, 18 - treat.grid[0].length * 3 / 2, 18 - treat.grid.length * 3 / 2 + 3, 3)}</g></g>`;
   const spout = { x: bagX - 2, y: bagY + 20 };
   const kibble = Array.from({ length: 10 }, (_, i) => {
     const t = 0.55 + i * 0.09;
@@ -6862,7 +6958,7 @@ function feed(sprite, w, h, scale, stage, species) {
     return `<rect class="pf-kib" style="--dx:${dx}px;--dy:${dy}px;animation-delay:${t}s" x="${spout.x}" y="${spout.y}" width="3" height="3" fill="${i % 2 ? KIBBLE.K : KIBBLE.k}"/>`;
   }).join("");
   const heapShown = (level, from, to) => `.pf-heap${level}{opacity:0;animation:pf-heap${level} ${MEAL}s steps(1) infinite}@keyframes pf-heap${level}{0%{opacity:0}${pct3(from)}{opacity:1}${pct3(to)}{opacity:0}100%{opacity:0}}`;
-  const heaps = HEAPS.map((heap, i) => `<g class="pf-heap${i}">${px8(heap, KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`).reverse().join("");
+  const heaps = HEAPS.map((heap, i) => `<g class="pf-heap${i}">${px9(heap, KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`).reverse().join("");
   const bites = [2.1, 2.6, 3.1, 3.6, 4.1];
   const dip = side ? "translateY(4px) rotate(10deg)" : "rotate(14deg) translateY(3px)";
   const chompFrames = ["0%{transform:none}", ...bites.flatMap((b) => [`${pct3(b)}{transform:none}`, `${pct3(b + 0.2)}{transform:${dip}}`, `${pct3(b + 0.4)}{transform:none}`]), "100%{transform:none}"].join("");
@@ -6874,7 +6970,7 @@ function feed(sprite, w, h, scale, stage, species) {
   const tongue = `<rect class="pf-lick" x="${mouth.x - scale}" y="${mouth.y - scale / 2}" width="${2 * scale}" height="${1.5 * scale}" rx="${scale / 2}" fill="#ff6b8b"/>`;
   const excited = emoteBubble("bang", w - 6, -4, "pf-want-food");
   const nom = bubble(pixelText("NOM"), w - 6, -4, "pf-nom");
-  const heart = `<g class="pf-yum">${px8(HEART, FX_PALETTE, w / 2 - 5, -10, 2)}</g>`;
+  const heart = `<g class="pf-yum">${px9(HEART, FX_PALETTE, w / 2 - 5, -10, 2)}</g>`;
   const css = [
     `.pf-bag{transform-box:fill-box;transform-origin:50% 50%;animation:pf-bag ${MEAL}s ease-in-out infinite}@keyframes pf-bag{0%{transform:translate(50px,-40px)}${pct3(0.35)}{transform:translate(0,0)}${pct3(0.55)},${pct3(1.45)}{transform:rotate(-65deg)}${pct3(1.6)}{transform:rotate(-10deg)}${pct3(1.9)},100%{transform:translate(50px,-40px)}}`,
     `.pf-kib{opacity:0;animation:pf-kib ${MEAL}s cubic-bezier(.4,0,1,1) infinite}@keyframes pf-kib{0%{opacity:1;transform:translate(0,0)}7%{opacity:1;transform:translate(var(--dx),var(--dy))}7.1%,100%{opacity:0}}`,
@@ -6894,9 +6990,9 @@ function feed(sprite, w, h, scale, stage, species) {
     `.pf-yum{opacity:0;animation:pf-yum ${MEAL}s ease-out infinite}@keyframes pf-yum{0%,${pct3(4.7)}{opacity:0;transform:translate(0,0)}${pct3(4.8)}{opacity:1}${pct3(5.8)},100%{opacity:0;transform:translate(4px,-24px)}}`
   ].join("\n");
   const pet2 = `<g class="pf-meal-walk">${shadow(box.x + w * 0.1, box.y + h - 2, w * 0.8)}<g transform="translate(${box.x} ${box.y})"><g class="pf-meal-bounce"><g class="pf-chomp">${sprite}${tongue}</g></g>${excited}${nom}${heart}</g></g>`;
-  const eaten = `<g class="pf-heap1b">${px8(HEAPS[1], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g><g class="pf-heap2b">${px8(HEAPS[2], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`;
+  const eaten = `<g class="pf-heap1b">${px9(HEAPS[1], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g><g class="pf-heap2b">${px9(HEAPS[2], KIBBLE, bowlX + 3, stage.ground - 26, 3)}</g>`;
   return {
-    svg: `${pet2}${heaps}${eaten}${px8(BOWL, BOWL_COLORS, bowlX, stage.ground - 21, 3)}${crumbs}${kibble}${bag}`,
+    svg: `${pet2}${heaps}${eaten}${px9(BOWL, BOWL_COLORS, bowlX, stage.ground - 21, 3)}${crumbs}${kibble}${bag}`,
     box,
     css
   };
@@ -6908,12 +7004,12 @@ function bath(sprite, w, h, scale, stage, species, asleep) {
   const tubY = stage.ground - tubH + 3;
   const box = { x: stage.cx - w / 2, y: Math.round(tubY + 4 - h * 0.7), w, h };
   const crown2 = { x: box.x + species.crownAnchor.x * scale, y: box.y + species.crownAnchor.y * scale };
-  const headSuds = `<g class="pf-suds">${px8(SUDS, SUDS_COLORS, crown2.x - 11, crown2.y - 13, 2)}</g>`;
-  const rimSuds = [-50, -30, 18, 40].map((dx, i) => `<g class="pf-suds" style="animation-delay:-${i * 0.4}s">${px8(SUDS, SUDS_COLORS, stage.cx + dx - 9, tubY - 9 + i % 2 * 2, 2)}</g>`).join("");
+  const headSuds = `<g class="pf-suds">${px9(SUDS, SUDS_COLORS, crown2.x - 11, crown2.y - 13, 2)}</g>`;
+  const rimSuds = [-50, -30, 18, 40].map((dx, i) => `<g class="pf-suds" style="animation-delay:-${i * 0.4}s">${px9(SUDS, SUDS_COLORS, stage.cx + dx - 9, tubY - 9 + i % 2 * 2, 2)}</g>`).join("");
   const pipeX = tubX + tubW - 12;
   const headY = Math.max(stage.ground - 128, box.y - 50);
   const pipe = `<rect x="${pipeX}" y="${headY + 2}" width="4" height="${tubY - headY}" fill="#e0a800"/><rect x="${stage.cx + 6}" y="${headY}" width="${pipeX - stage.cx - 2}" height="4" fill="#e0a800"/><rect x="${pipeX + 4}" y="${headY + 2}" width="1" height="${tubY - headY}" fill="#8a6a00"/>`;
-  const head = px8(SHOWER_HEAD, SHOWER_COLORS, stage.cx - 12, headY + 1, 3);
+  const head = px9(SHOWER_HEAD, SHOWER_COLORS, stage.cx - 12, headY + 1, 3);
   const fall = box.y - headY - 26;
   const drops = [-9, -4, 1, 6, 11].map((dx, i) => `<rect class="pf-drop" style="--fall:${fall}px;animation-delay:-${i * 0.29 % 0.7}s" x="${stage.cx + dx}" y="${headY + 16}" width="2" height="4" fill="#7cc4f2"/>`).join("");
   const bubbles = [
@@ -6923,13 +7019,13 @@ function bath(sprite, w, h, scale, stage, species, asleep) {
     [48, -4, 0.5],
     [-42, 3, 2.3]
   ].map(
-    ([x, dx, delay]) => `<g class="pf-bubble" style="--dx:${dx}px;animation-delay:-${delay}s">${px8(outlined([".b.", "bhb", ".b."]), { b: "#dff1ff", h: "#ffffff", o: "#8ec5ea" }, stage.cx + x - 4, tubY - 6, 2)}</g>`
+    ([x, dx, delay]) => `<g class="pf-bubble" style="--dx:${dx}px;animation-delay:-${delay}s">${px9(outlined([".b.", "bhb", ".b."]), { b: "#dff1ff", h: "#ffffff", o: "#8ec5ea" }, stage.cx + x - 4, tubY - 6, 2)}</g>`
   ).join("");
-  const steam = [-40, -24, 32].map((x, i) => `<g class="pf-steam" style="animation-delay:-${i * 1.3}s">${px8(["x.", ".x", "x.", ".x"], { x: "#ffffff" }, stage.cx + x, tubY - 16, 2)}</g>`).join("");
-  const duck = `<g class="pf-duck">${px8(DUCK2, DUCK_COLORS, stage.cx + 24, tubY - 12, 2)}</g>`;
+  const steam = [-40, -24, 32].map((x, i) => `<g class="pf-steam" style="animation-delay:-${i * 1.3}s">${px9(["x.", ".x", "x.", ".x"], { x: "#ffffff" }, stage.cx + x, tubY - 16, 2)}</g>`).join("");
+  const duck = `<g class="pf-duck">${px9(DUCK2, DUCK_COLORS, stage.cx + 24, tubY - 12, 2)}</g>`;
   const pet2 = asleep ? sprite : `<g class="pf-scrub">${sprite}</g>`;
   return {
-    svg: `${shadow(tubX + 8, stage.ground + 1, tubW - 16)}${pipe}${head}${steam}<g transform="translate(${box.x} ${box.y})">${pet2}</g>${headSuds}${asleep ? "" : drops}${px8(TUB, TUB_COLORS, tubX, tubY, 3)}${rimSuds}${duck}${bubbles}`,
+    svg: `${shadow(tubX + 8, stage.ground + 1, tubW - 16)}${pipe}${head}${steam}<g transform="translate(${box.x} ${box.y})">${pet2}</g>${headSuds}${asleep ? "" : drops}${px9(TUB, TUB_COLORS, tubX, tubY, 3)}${rimSuds}${duck}${bubbles}`,
     box
   };
 }
@@ -7014,13 +7110,13 @@ function play(sprite, w, h, scale, stage, species) {
   const box = { x: stage.cx - w / 2, y: stage.ground - h + scale, w, h };
   const ballSize = BALL_A[0].length * 2;
   const ballAt = { x: stage.cx - ballSize / 2, y: stage.ground - ballSize };
-  const ballSvg = `<g class="pf-fetch-ball"><g class="pf-ball-a">${px8(BALL_A, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g><g class="pf-ball-b">${px8(BALL_B, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g></g>`;
+  const ballSvg = `<g class="pf-fetch-ball"><g class="pf-ball-a">${px9(BALL_A, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g><g class="pf-ball-b">${px9(BALL_B, BALL_COLORS, ballAt.x, ballAt.y, 2)}</g></g>`;
   const ballShadow = `<g class="pf-fetch-shadow"><rect x="${stage.cx - 6}" y="${stage.ground + 2}" width="12" height="4" rx="2" style="fill:var(--pf-ground-dark)"/></g>`;
-  const hand = `<g class="pf-hand">${px8(HAND, HAND_COLORS, stage.cx + 86, stage.ground - 72, 2)}</g>`;
+  const hand = `<g class="pf-hand">${px9(HAND, HAND_COLORS, stage.cx + 86, stage.ground - 72, 2)}</g>`;
   const dust = [1.1, 1.5, 1.9, 3.4, 3.8, 4.2].map((t) => {
     const p = CHOREOGRAPHY.pet(t);
     const behind = t < 3 ? w / 2 : -w / 2;
-    return `<g class="pf-dust" style="animation-delay:${t - FETCH}s">${px8(outlined([".dd.", "dddd", ".dd."]), { d: "#e9e3d5", o: "#b9ad93" }, stage.cx + p.x + behind - 4, stage.ground - 6, 2)}</g>`;
+    return `<g class="pf-dust" style="animation-delay:${t - FETCH}s">${px9(outlined([".dd.", "dddd", ".dd."]), { d: "#e9e3d5", o: "#b9ad93" }, stage.cx + p.x + behind - 4, stage.ground - 6, 2)}</g>`;
   }).join("");
   const catchBubble = emoteBubble("bang", w - 6, -4, "pf-catch");
   const body = side ? `<g class="pf-fetch-face">${sprite}</g>` : sprite;

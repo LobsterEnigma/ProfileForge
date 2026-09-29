@@ -9,7 +9,7 @@ describe("the city on the waterfront", () => {
   it("mirrors the skyline in the bay, rippled and fading", () => {
     const svg = renderCityCard(demo);
     expect(svg).toContain('<g id="pf-city">');
-    expect(svg).toContain('<use href="#pf-city" transform="matrix(1 0 0 -1 0 395)"/>');
+    expect(svg).toContain('<use href="#pf-city" transform="matrix(1 0 0 -1 0 401)"/>');
     expect(svg).toContain('mask="url(#pf-reflect)"');
     expect(svg).toContain('class="pf-ripple"');
   });
@@ -37,5 +37,13 @@ describe("the city on the waterfront", () => {
   it("puts the stats in pills", () => {
     const svg = renderCityCard(demo);
     for (const label of [`BEST WEEK ${demo.bestWeek!.total}`, `STREAK ${demo.currentStreak}D`, `LONGEST ${demo.longestStreak}D`]) expect(svg).toContain(`>${label}</text>`);
+  });
+});
+
+describe("day and night layers", () => {
+  it("never put an opacity attribute on an element whose class sets the opacity", () => {
+    // .pf-night / .pf-day set opacity in CSS, which would silently override the attribute.
+    const svgs = [renderCityCard(demo), renderCityCard(demo, { season: "winter" })];
+    for (const svg of svgs) expect(svg).not.toMatch(/class="pf-(night|day)"[^>]*\sopacity="/);
   });
 });

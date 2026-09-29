@@ -10,10 +10,12 @@ export const U = 2;
 export const BASE_Y = 182;
 /** The road along the quay, below a strip of sidewalk. */
 export const ROAD_Y = 185;
+/** Two lanes of 10px, so cars going opposite ways pass without overlapping. */
+export const LANE_H = 10;
 /** The coping on top of the seawall; its stone face drops from here to the water. */
-export const QUAY_Y = 199;
+export const QUAY_Y = ROAD_Y + 2 * LANE_H;
 /** The waterline, at the foot of the seawall. */
-export const WATER_Y = 209;
+export const WATER_Y = QUAY_Y + 10;
 /** The quay's reflection hugs the wall; the city's starts just below it. */
 export const MIRROR_Y = WATER_Y + 4;
 /** A regular week's building width; busy weeks are wider, see `widthFor`. */

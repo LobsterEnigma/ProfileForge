@@ -287,7 +287,7 @@ Your last year of contributions as a skyline on the water, mirrored in the bay. 
 | 🍂 The season | Cherry blossoms in spring, fireflies in summer, falling leaves in autumn, snow in winter |
 | 🎃 Holidays | Pumpkins and bats for Halloween, rooftop lights for Christmas, red lanterns for Lunar New Year |
 
-Six building styles (houses, classic, brick, glass, art-deco setbacks and spires) in five materials, hills, a hazy far-off city and a TV tower behind, a ferry and a sailboat on the bay, a hot-air balloon, a plane and birds heading home keep every skyline different, and all the randomness is seeded from your login, so no two cities look alike.
+Six building styles (houses, classic, brick, glass, art-deco setbacks and spires) in five materials, hills, a hazy far-off city and a TV tower behind, a ferry and a sailboat on the bay (frozen in winter, with a polar bear, her cub and a seal on the ice), a hot-air balloon, a plane and birds heading home keep every skyline different, and all the randomness is seeded from your login, so no two cities look alike.
 
 Light themes paint it at sunset, with the sun's path glittering on the water; dark themes at night, under the Milky Way and the moon. Seasons follow the date, flipped with `hemisphere=south`; pass `season=` to pin one yourself:
 

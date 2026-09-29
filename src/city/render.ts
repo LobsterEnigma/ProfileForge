@@ -7,11 +7,12 @@ import { stepped } from "../svg/stepped.js";
 import { SPRITE_CSS } from "../pet/sprite.js";
 import { themeCss, themeFilter } from "../themes.js";
 import { drawBuilding, drawCrane, drawLandmark, drawPark, newCanvas, pickStyle, renderCanvas } from "./buildings.js";
+import { BAY_CSS, ferry, frozenBay, sailboat } from "./bay.js";
 import { bats, EVENTS_CSS, fireworks, holidayFor, parkDecor, roofDecor, type Holiday } from "./events.js";
 import { CITY_PET_CSS, strollingPet } from "./pet.js";
 import { fog, overcast, rain, WEATHER_CSS, weatherFor, type Weather } from "../world/weather.js";
 import { moonPhase, moonPhaseName, pixelCircle, pixelMoon } from "./celestial.js";
-import { BASE_Y, H, MAX_FLOORS, MIRROR_Y, QUAY_Y, RIGHT_EDGE, ROAD_Y, U, W, WATER_Y } from "./layout.js";
+import { BASE_Y, H, LANE_H, MAX_FLOORS, MIRROR_Y, QUAY_Y, RIGHT_EDGE, ROAD_Y, U, W, WATER_Y } from "./layout.js";
 import { fallingParticles, fireflies, litter, LOOKS, SEASON_CSS, seasonFor, type Hemisphere, type Season } from "../world/seasons.js";
 import type { CityState, Week } from "./state.js";
 
@@ -34,19 +35,15 @@ const MOON = { x: 700, y: 70, r: 13 };
 
 /** Round wheels with a light hub, so they read against the dark road. */
 const CAR: Grid = [
-  "...ccccc....",
-  "..cwwcwwc...",
-  "qccccccccccy",
-  "cccccccccccc",
-  "cckkcccckkcc",
-  ".kggk..kggk.",
-  "..kk....kk..",
+  "...cccc....",
+  "..cwwcwwc..",
+  "qcccccccccy",
+  "cckkcccckkc",
+  ".kgk...kgk.",
 ];
 const CAR_COLORS = ["#e63946", "#4ea8de", "#f4a261"];
 
 /** A little ferry with a row of cabin windows, and a sailboat. */
-const FERRY: Grid = ["....ss.......", "..wwwwwwwww..", "..wlwlwlwlw..", "rrrrrrrrrrrrr", ".hhhhhhhhhhh."];
-const SAILBOAT: Grid = ["...m....", "..sm....", ".ssm....", "sssm....", "...m....", "hhhhhhh.", ".hhhhh.."];
 /** A hot-air balloon drifting over the city by day. */
 const BALLOON: Grid = ["..rrrr..", ".ryrryr.", "ryrrrryr", "ryrrrryr", ".ryrryr.", "..rrrr..", "...kk...", "...bb..."];
 
@@ -75,10 +72,6 @@ const CSS = `
 .pf-drive-l{animation:pf-drive-l 18s linear infinite}
 @keyframes pf-drive-r{0%{transform:translateX(-60px)}100%{transform:translateX(${W + 60}px)}}
 @keyframes pf-drive-l{0%{transform:translateX(${W + 60}px)}100%{transform:translateX(-60px)}}
-.pf-sail-r{animation:pf-drive-r 70s linear infinite}
-.pf-sail-l{animation:pf-drive-l 95s linear infinite}
-.pf-bob{animation:pf-bob 2.4s ease-in-out infinite}
-@keyframes pf-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(1px)}}
 .pf-fly{animation:pf-fly 38s linear infinite}
 @keyframes pf-fly{0%{transform:translateX(${W + 40}px)}100%{transform:translateX(-80px)}}
 .pf-flock{animation:pf-flock 46s linear infinite}
@@ -102,6 +95,7 @@ const CSS = `
 ${SEASON_CSS}
 ${WEATHER_CSS}
 ${EVENTS_CSS}
+${BAY_CSS}
 ${CITY_PET_CSS}
 ${SPRITE_CSS}
 .pf-title{font:700 18px ${SANS};fill:var(--pf-city-text)}
@@ -227,7 +221,7 @@ function farside(rng: Rng): string {
   return (
     `<g opacity=".7">${hills}</g><g id="pf-far" opacity=".62">${blocks}</g>` +
     `<rect x="0" y="${BASE_Y - 100}" width="${W}" height="100" fill="url(#pf-farwin)" mask="url(#pf-farmask)"/>` +
-    `<g class="pf-night" opacity=".7">${lights}${masts.join("")}</g>${tvTower()}` +
+    `<g class="pf-night">${lights}${masts.join("")}</g>${tvTower()}` +
     // Haze settling between the far side and the city.
     `<rect x="0" y="${BASE_Y - 70}" width="${W}" height="70" fill="url(#pf-haze)"/>` +
     midtown(rng)
@@ -289,7 +283,7 @@ function midtown(rng: Rng): string {
   return (
     `<g opacity=".72"><g id="pf-mid">${blocks}</g></g>` +
     `<rect class="pf-day" x="0" y="${BASE_Y - 110}" width="${W}" height="110" fill="url(#pf-midwin)" mask="url(#pf-midmask)"/>` +
-    `<g class="pf-night" opacity=".42">${windows}</g>` +
+    `<g class="pf-night">${windows}</g>` +
     `<rect x="0" y="${BASE_Y - 40}" width="${W}" height="40" fill="url(#pf-haze)" opacity=".6"/>`
   );
 }
@@ -403,7 +397,7 @@ function quay(state: CityState, season: Season, pet: string): string {
   const curb = new RectBatch().add("#ffffff", 0, BASE_Y, W, 1).add("#000000", 0, ROAD_Y, W, 1);
   // A dashed center line splits the two lanes.
   const lane = new RectBatch();
-  for (let x = 6; x < W; x += 26) lane.add("#f2e3a8", x, ROAD_Y + 7, 12, 1);
+  for (let x = 6; x < W; x += 26) lane.add("#f2e3a8", x, ROAD_Y + LANE_H, 12, 1);
   // Bollards along the coping.
   const bollards = new RectBatch();
   for (let x = 20; x < W; x += 40) bollards.add("var(--pf-road)", x, QUAY_Y - 2, 2, 3);
@@ -418,18 +412,19 @@ function quay(state: CityState, season: Season, pet: string): string {
 
   // Traffic follows the last two weeks: no commits, empty streets.
   const cars = state.activeDays14 === 0 ? 0 : state.activeDays14 <= 4 ? 1 : state.activeDays14 <= 9 ? 2 : 3;
+  // Each direction keeps to its own lane: eastbound on the far side, westbound nearer.
   const lanes = [
-    { dir: "r", y: ROAD_Y - 2, delay: 3 },
-    { dir: "l", y: ROAD_Y, delay: 7 },
-    { dir: "r", y: ROAD_Y - 2, delay: 10 },
+    { dir: "r", y: ROAD_Y, delay: 3 },
+    { dir: "l", y: ROAD_Y + LANE_H, delay: 7 },
+    { dir: "r", y: ROAD_Y, delay: 10 },
   ];
   const traffic = lanes.slice(0, cars).map(({ dir, y, delay }, i) => {
     const palette = { c: CAR_COLORS[i]!, w: "#bde0fe", k: "#0b0b0f", g: "#c3c8d0", y: "#fff3a0", q: "#ff4d4d" };
     const grid = dir === "r" ? CAR : mirror(CAR);
     const beam =
       dir === "r"
-        ? `<path class="pf-beam" d="M24 5L58 1V11Z" fill="url(#pf-beam-r)"/>`
-        : `<path class="pf-beam" d="M0 5L-34 1V11Z" fill="url(#pf-beam-l)"/>`;
+        ? `<path class="pf-beam" d="M22 5L52 2V8Z" fill="url(#pf-beam-r)"/>`
+        : `<path class="pf-beam" d="M0 5L-30 2V8Z" fill="url(#pf-beam-l)"/>`;
     return `<g class="pf-drive-${dir}" style="animation-delay:-${delay}s"><g transform="translate(0 ${y})">${beam}${renderPixels([{ x: 0, y: 0, grid }], palette, { scale: U })}</g></g>`;
   });
 
@@ -445,12 +440,13 @@ function quay(state: CityState, season: Season, pet: string): string {
 function bay(rng: Rng, season: Season, weather: Weather): string {
   const h = H - WATER_Y;
   const water = `<rect x="0" y="${WATER_Y}" width="${W}" height="${h}" fill="url(#pf-water)"/>`;
-  // The whole waterfront, upside down, broken into ripples and fading with depth.
+  const frozen = season === "winter";
+  // The whole waterfront, upside down, broken into ripples and fading with depth (on ice, just a sheen).
   const reflection =
-    `<g mask="url(#pf-reflect)" opacity=".6"><use href="#pf-city" transform="matrix(1 0 0 -1 0 ${BASE_Y + MIRROR_Y})"/></g>` +
-    // The seawall's own dark reflection, right under it, and water lapping at its foot.
-    `<rect x="0" y="${WATER_Y}" width="${W}" height="${MIRROR_Y - WATER_Y}" style="fill:var(--pf-city-quay)" opacity=".55"/>` +
-    `<g class="pf-wave" opacity=".3"><rect x="-10" y="${WATER_Y}" width="${W + 20}" height="1" fill="#ffffff"/></g>`;
+    `<g mask="url(#pf-reflect)" opacity="${frozen ? ".22" : ".6"}"><use href="#pf-city" transform="matrix(1 0 0 -1 0 ${BASE_Y + MIRROR_Y})"/></g>` +
+    // The seawall's own dark reflection, right under it.
+    `<rect x="0" y="${WATER_Y}" width="${W}" height="${MIRROR_Y - WATER_Y}" style="fill:var(--pf-city-quay)" opacity=".55"/>`;
+  if (frozen) return water + reflection + frozenBay(WATER_Y, h);
 
   // Light on the water: the sun's or the moon's path, and long slow waves.
   const path = (cx: number, color: string, spread: number) => {
@@ -468,12 +464,7 @@ function bay(rng: Rng, season: Season, weather: Weather): string {
     const y = WATER_Y + 4 + Math.round(rng() * (h - 8));
     waves.add("#ffffff", Math.round(rng() * W), y, 8 + Math.round(rng() * 22), 1);
   }
-
-  // A ferry with its cabin lights, and a sailboat by day.
-  const ferry = `<g class="pf-sail-r" style="animation-delay:-22s"><g transform="translate(0 ${WATER_Y + 12})"><g class="pf-bob">${px(FERRY, { s: "#3a3f55", w: "#f1f3f5", l: "var(--pf-window-on)", r: "#c0392b", h: "#23263b" }, 0, 0, 2)}</g><rect x="-10" y="11" width="10" height="1" fill="#ffffff" opacity=".5"/></g></g>`;
-  const sailboat = weather !== "clear" ? "" : `<g class="pf-day"><g class="pf-sail-l" style="animation-delay:-60s"><g transform="translate(0 ${WATER_Y + 30})"><g class="pf-bob" style="animation-delay:-1s">${px(SAILBOAT, { s: "#fdfcf7", m: "#6b4b2a", h: "#2c4a5e" }, 0, 0, 2)}</g></g></g></g>`;
-
-  const winter = season === "winter" ? `<rect x="0" y="${WATER_Y}" width="${W}" height="${h}" fill="#eef4fb" opacity=".22"/>` : "";
+  const lap = `<g class="pf-wave" opacity=".3"><rect x="-10" y="${WATER_Y}" width="${W + 20}" height="1" fill="#ffffff"/></g>`;
   const drops =
     weather === "rain"
       ? Array.from({ length: 10 }, () => `<ellipse class="pf-drop" style="animation-delay:-${(rng() * 1.6).toFixed(2)}s" cx="${Math.round(rng() * W)}" cy="${WATER_Y + 6 + Math.round(rng() * (h - 10))}" rx="5" ry="1.5" fill="none" stroke="#dbe7ff" stroke-width=".8"/>`).join("")
@@ -484,8 +475,8 @@ function bay(rng: Rng, season: Season, weather: Weather): string {
       : "";
 
   return (
-    `${water}${reflection}` +
-    `<g class="pf-wave" opacity=".14">${waves}</g>${lights}${winter}${drops}${ferry}${sailboat}`
+    `${water}${reflection}${lap}` +
+    `<g class="pf-wave" opacity=".14">${waves}</g>${lights}${drops}${ferry(WATER_Y + 3)}${weather === "clear" ? sailboat(WATER_Y + 12) : ""}`
   );
 }
 
@@ -575,6 +566,7 @@ export function renderCityCard(state: CityState, options: RenderOptions = {}): s
     <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
   </filter>
   <linearGradient id="pf-volume" gradientUnits="userSpaceOnUse" x1="0" y1="70" x2="0" y2="${BASE_Y}"><stop offset="0" stop-color="#fff" stop-opacity=".08"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".34"/></linearGradient>
+  <linearGradient id="pf-ice" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef4fa" stop-opacity=".8"/><stop offset="1" stop-color="#c9d8e8" stop-opacity=".74"/></linearGradient>
   <linearGradient id="pf-haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--pf-city-sky-bottom);stop-opacity:0"/><stop offset="1" style="stop-color:var(--pf-city-sky-bottom);stop-opacity:.55"/></linearGradient>
   <pattern id="pf-farwin" width="3" height="4" patternUnits="userSpaceOnUse"><rect x="1" y="1" width="1" height="2" fill="#fff" opacity=".13"/></pattern>
   <pattern id="pf-midwin" width="4" height="5" patternUnits="userSpaceOnUse"><rect x="1" y="1" width="2" height="2" fill="#fff" opacity=".1"/></pattern>
