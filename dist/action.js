@@ -4192,7 +4192,6 @@ function stateFor(profile, options) {
     xpLevelStart: xpForLevel(level),
     xpNextLevel: xpForLevel(Math.min(level + 1, MAX_LEVEL)),
     activeDays14: lastDays(profile.calendar, 14).filter((d) => d.count > 0).length,
-    recent: lastDays(profile.calendar, 14).map((d) => d.count),
     streak: currentStreak(profile.calendar),
     daysSinceLastContribution: daysSinceLastContribution(profile.calendar),
     stats,
@@ -4204,12 +4203,6 @@ function stateFor(profile, options) {
 // src/demo.ts
 var MOODS = ["happy", "idle", "hungry", "sleeping"];
 var STAGES = ["egg", "baby", "adult", "legendary"];
-var ACTIVITY = {
-  happy: { streak: 12, daysSinceLastContribution: 0, activeDays14: 13, recent: [2, 0, 3, 5, 2, 4, 6, 3, 2, 5, 11, 4, 3, 6] },
-  idle: { streak: 1, daysSinceLastContribution: 1, activeDays14: 6, recent: [0, 2, 0, 1, 0, 3, 3, 0, 0, 1, 0, 0, 2, 0] },
-  hungry: { streak: 0, daysSinceLastContribution: 6, activeDays14: 4, recent: [1, 0, 3, 0, 2, 0, 0, 1, 0, 0, 0, 0, 0, 0] },
-  sleeping: { streak: 0, daysSinceLastContribution: 23, activeDays14: 0, recent: Array(14).fill(0) }
-};
 
 // src/care/commands.ts
 var CARE_ACTIONS = ["feed", "bath", "play"];
@@ -7677,25 +7670,6 @@ function bar(label, ratio, value, y, color, charging = false) {
   <text x="${PANEL_X}" y="${y}" class="pf-label">${label}</text>${segs}${next}${glint}
   <text x="${PANEL_RIGHT}" y="${y}" class="pf-value" text-anchor="end">${escapeXml(value)}</text>`;
 }
-function daysBar(state, y) {
-  const days = state.recent;
-  if (!days || days.length === 0) return bar("HP", state.activeDays14 / 14, `${state.activeDays14}/14d`, y, "var(--pf-hp)");
-  const x0 = PANEL_X + 30;
-  const level = (n) => n <= 0 ? 0 : n <= 2 ? 0.55 : n <= 5 ? 0.75 : n <= 9 ? 0.9 : 1;
-  let segs = "";
-  days.slice(-14).forEach((n, i, all) => {
-    const x = x0 + i * 10;
-    const o = level(n);
-    let seg = `<rect class="${o ? "pf-d" : "pf-e"}" x="${x}" y="${y - 9}" width="8" height="10" rx="1.5"${o && o < 1 ? ` opacity="${o}"` : ""}/>`;
-    if (i === all.length - 1) {
-      seg = o ? `<g class="pf-today">${seg}</g>` : `${seg}<rect class="pf-wait" x="${x}" y="${y - 9}" width="8" height="10" rx="1.5"/>`;
-    }
-    segs += seg;
-  });
-  return `
-  <text x="${PANEL_X}" y="${y}" class="pf-label">HP</text>${segs}
-  <text x="${PANEL_RIGHT}" y="${y}" class="pf-value" text-anchor="end">${state.activeDays14}/14d</text>`;
-}
 var STAT_ICONS = {
   STR: [["......s", "....ss.", "...ss..", "g.ss...", ".gs....", "hg.....", "h......"], { s: "#ced4da", g: "#fab005", h: "#8a5a33" }],
   INT: [["bbbbbbb", "bwwbwwb", "bwwbwwb", "bwwbwwb", "bbbbbbb"], { b: "#4dabf7", w: "#f1f3f5" }],
@@ -7763,7 +7737,7 @@ function panel(state, special) {
   <clipPath id="pf-name-clip"><text x="${PANEL_X}" y="40" class="pf-name">${escapeXml(state.petName)}</text></clipPath>
   <g clip-path="url(#pf-name-clip)"><g class="pf-shine"><rect transform="skewX(-20)" x="${PANEL_X - 8}" y="20" width="10" height="26" style="fill:var(--pf-accent)" opacity=".75"/></g></g>
   <text x="${PANEL_X}" y="61" class="pf-class"><tspan class="pf-accent">Lv.${state.level} ${star}${escapeXml(state.className)}</tspan><tspan class="pf-muted">${escapeXml(lang)}</tspan></text>
-  ${daysBar(state, 88)}
+  ${bar("HP", state.activeDays14 / 14, `${state.activeDays14}/14d`, 88, "var(--pf-hp)")}
   ${bar("EXP", xpRatio, `${compact(state.xp)}/${compact(state.xpNextLevel)}`, 108, "var(--pf-exp)", state.level < 99)}
   ${stats}
   ${moodIcon(state)}
@@ -7827,11 +7801,6 @@ function renderPetCard(original, options = {}) {
 @keyframes pf-shine{0%,70%{transform:translateX(0)}100%{transform:translateX(210px)}}
 .pf-glint{animation:pf-glint 5s ease-in-out infinite}
 @keyframes pf-glint{0%,60%{transform:translateX(0);opacity:0}64%{opacity:.6}96%{opacity:.6}100%{transform:translateX(var(--w));opacity:0}}
-.pf-d{fill:var(--pf-hp)}.pf-e{fill:var(--pf-bar-empty)}
-.pf-today{animation:pf-today 2.4s ease-in-out infinite}
-@keyframes pf-today{0%,100%{opacity:1}50%{opacity:.55}}
-.pf-wait{fill:var(--pf-hp);animation:pf-wait 2.4s ease-in-out infinite}
-@keyframes pf-wait{0%,100%{opacity:0}50%{opacity:.4}}
 .pf-charge{animation:pf-charge 2.4s ease-in-out infinite}
 @keyframes pf-charge{0%,100%{opacity:.12}50%{opacity:.45}}
 ${CSS2}${turnCss(turns)}${ambient(original.species, AREA).css}${creature.css ?? ""}${today?.shown.css ?? ""}</style>

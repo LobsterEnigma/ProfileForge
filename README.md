@@ -243,7 +243,7 @@ To turn it off, remove `care: true` and the `issue_comment` trigger.
 ### It has RPG stats
 
 - **Class**: picked from your top language. Rust → *Berserker*, Haskell → *Archmage*, CSS → *Bard*, Shell → *Necromancer*, … ([full list](src/pet/classes.ts))
-- **HP**: the last 14 days, one segment each, shaded like your contribution graph (today's segment breathes)
+- **HP**: how many of the last 14 days you contributed
 - **EXP**: progress to the next level
 - **STR** commits · **INT** PRs + reviews · **CHA** stars + followers · **DEX** issues (last year, log scale, 1–99)
 

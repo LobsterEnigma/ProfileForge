@@ -12,11 +12,11 @@ export const STAGES: Stage[] = ["egg", "baby", "adult", "legendary"];
 
 const LEVEL: Record<Stage, number> = { egg: 2, baby: 9, adult: 27, legendary: 64 };
 
-const ACTIVITY: Record<Mood, Pick<PetState, "streak" | "daysSinceLastContribution" | "activeDays14" | "recent">> = {
-  happy: { streak: 12, daysSinceLastContribution: 0, activeDays14: 13, recent: [2, 0, 3, 5, 2, 4, 6, 3, 2, 5, 11, 4, 3, 6] },
-  idle: { streak: 1, daysSinceLastContribution: 1, activeDays14: 6, recent: [0, 2, 0, 1, 0, 3, 3, 0, 0, 1, 0, 0, 2, 0] },
-  hungry: { streak: 0, daysSinceLastContribution: 6, activeDays14: 4, recent: [1, 0, 3, 0, 2, 0, 0, 1, 0, 0, 0, 0, 0, 0] },
-  sleeping: { streak: 0, daysSinceLastContribution: 23, activeDays14: 0, recent: Array(14).fill(0) },
+const ACTIVITY: Record<Mood, Pick<PetState, "streak" | "daysSinceLastContribution" | "activeDays14">> = {
+  happy: { streak: 12, daysSinceLastContribution: 0, activeDays14: 13 },
+  idle: { streak: 1, daysSinceLastContribution: 1, activeDays14: 6 },
+  hungry: { streak: 0, daysSinceLastContribution: 6, activeDays14: 4 },
+  sleeping: { streak: 0, daysSinceLastContribution: 23, activeDays14: 0 },
 };
 
 /** The language each species' demo pretends to write. */
@@ -116,7 +116,7 @@ export function demoState(
     xpLevelStart: start,
     xpNextLevel: next,
     ...ACTIVITY[mood],
-    ...(away ? { daysSinceLastContribution: 41, activeDays14: 0, streak: 0, recent: Array(14).fill(0) } : {}),
+    ...(away ? { daysSinceLastContribution: 41, activeDays14: 0, streak: 0 } : {}),
     ranAway: away && stage !== "egg",
     trick,
     // Previews show an ordinary day unless they ask for a surprise.
