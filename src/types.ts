@@ -123,4 +123,9 @@ export type Trick =
   | "sing"
   | "laptop"
   | "coffee"
+  | "rubber-duck"
+  | "compile"
+  | "confetti"
+  | "headphones"
+  | "pizza"
   | "signature";

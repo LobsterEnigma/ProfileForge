@@ -134,6 +134,11 @@ export const TRICKS: Trick[] = [
   "sing",
   "laptop",
   "coffee",
+  "rubber-duck",
+  "compile",
+  "confetti",
+  "headphones",
+  "pizza",
   "signature",
 ];
 
@@ -248,6 +253,14 @@ const ANIMS = {
   pushed: { props: "opacity:0", timing: "steps(1)", frames: "0%{opacity:0}81%{opacity:1}88%{opacity:0}100%{opacity:0}" },
   sip: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}76%,82%{transform:rotate(-6deg) translateY(-1px)}" },
   steam: { props: "opacity:0", timing: "ease-out", frames: "0%,70%{opacity:0;transform:translate(0,0)}73%{opacity:.9}88%{opacity:0;transform:translate(var(--dx),-16px)}100%{opacity:0}" },
+  tilt: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}73%,78%{transform:rotate(-8deg)}80%,86%{transform:translateY(-3px)}" },
+  bulb: { props: "opacity:0;transform-box:fill-box;transform-origin:50% 100%", timing: "ease-out", frames: "0%,78.9%{opacity:0;transform:scale(.3)}79%{opacity:1;transform:scale(.6)}81%,87%{opacity:1;transform:scale(1)}88%,100%{opacity:0;transform:scale(1)}" },
+  fill: { props: "transform-box:fill-box;transform-origin:0 50%", timing: "linear", frames: "0%,70%{transform:scaleX(0)}83%,88%{transform:scaleX(1)}100%{transform:scaleX(0)}" },
+  nod: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}72%,76%,80%,84%{transform:rotate(4deg) translateY(1px)}74%,78%,82%,86%{transform:rotate(-2deg)}" },
+  chew: { props: "transform-box:fill-box;transform-origin:50% 100%", timing: "ease-in-out", frames: "0%,70%,88%,100%{transform:none}74%,80%,86%{transform:scale(1.04,.95)}76%,82%{transform:none}" },
+  bite1: { props: "opacity:0", timing: "steps(1)", frames: "0%{opacity:0}70%{opacity:1}76%{opacity:0}100%{opacity:0}" },
+  bite2: { props: "opacity:0", timing: "steps(1)", frames: "0%{opacity:0}76%{opacity:1}82%{opacity:0}100%{opacity:0}" },
+  bite3: { props: "opacity:0", timing: "steps(1)", frames: "0%{opacity:0}82%{opacity:1}88%{opacity:0}100%{opacity:0}" },
   note: { props: "opacity:0", timing: "ease-out", frames: "0%,70%{opacity:0;transform:translate(0,0)}72%{opacity:1}88%{opacity:0;transform:translate(var(--dx),-30px)}100%{opacity:0}" },
 } satisfies Record<string, { props: string; timing: string; frames: string }>;
 
@@ -444,6 +457,61 @@ export function trickLayers(trick: Trick, species: Species, scale: number, slot 
         .map((i) => `<rect class="${k("steam")}" style="--dx:${(i - 1) * 3}px;animation-delay:calc(var(--pf-t0,0s) + ${i * 0.3}s)" x="${mx + 3 + i * 3}" y="${my - 3}" width="2" height="4" rx="1" fill="#e9ecef"/>`)
         .join("");
       return layers(k("sip"), "", "", `<g class="${k("show")}">${mug}</g>${steam}` + say("AAH", "late"));
+    }
+    case "rubber-duck": {
+      // Rubber duck debugging: explain it to the duck, puzzle over it... and the bulb lights up.
+      const duck = px(outlined(["..yy..", ".yyky.", ".yyyyb", "yyyyy.", ".yyyy."]), { y: "#ffd43b", k: "#1a1a1a", b: "#f76707", o: "#8a6a00" }, w + 2, h - 14, 2);
+      // Above the top of its head (ears and all), not just above its eyes.
+      const crown = species.crownAnchor.y * scale;
+      const bulb = px(outlined([".yyy.", "yyWyy", "yyyyy", ".yyy.", "..g..", ".ggg."]), { y: "#ffe066", W: "#ffffff", g: "#adb5bd", o: "#7a5c00" }, w / 2 - 7, crown - 20, 2);
+      const glow = `<circle cx="${w / 2}" cy="${crown - 12}" r="12" fill="#fff3a0" opacity=".45"/>`;
+      return layers(k("tilt"), "", "", `<g class="${k("show")}">${duck}</g>` + emoteBubble("question", w - 6, top - 2, k("early")) + `<g class="${k("bulb")}">${glow}${bulb}</g>`);
+    }
+    case "compile": {
+      // Watching the build: a progress bar fills up over its head, then OK!
+      const bw = 34;
+      const bx = w / 2 - bw / 2;
+      const by = species.crownAnchor.y * scale - 12;
+      const bar =
+        `<g class="${k("show")}"><rect x="${bx}" y="${by}" width="${bw}" height="7" rx="1.5" fill="#1f2328" stroke="#ffffff" stroke-width="1"/>` +
+        `<rect class="${k("fill")}" x="${bx + 2}" y="${by + 2}" width="${bw - 4}" height="3" fill="#40c057"/></g>`;
+      return layers(k("sway"), "", "", bar + bubble(pixelText("OK!"), w - 6, by - 2, k("tada")));
+    }
+    case "confetti": {
+      // Pop! A party popper, and confetti everywhere.
+      const popper = px(outlined(["...rr", "..rwr", ".rrr.", "rwr..", "rr..."]), { r: "#e64980", w: "#ffd43b", o: "#7a1f3d" }, w - 6, mouth.y - 12, 2);
+      const colors = ["#ff6b6b", "#ffd43b", "#4dabf7", "#69db7c", "#da77f2"];
+      const pieces = colors.map((c, i) => burst({ x: w + 4, y: mouth.y - 12 }, c, 3, fan(3, 70, 30 + i * 6).map((p) => ({ ...p, dx: p.dx + 10 * (i - 2), delay: p.delay + i * 0.05 })))).join("");
+      return layers(k("hop"), "", "", `<g class="${k("show")}">${popper}</g>${pieces}` + say("YAY!", "late"));
+    }
+    case "headphones": {
+      // Headphones on, nodding along; notes spill out of the ear cups.
+      const eyes = a.eyes.map(at);
+      const cy = Math.min(...eyes.map((e) => e.y));
+      // Face on: a cup either side of the eyes. In profile: one cup behind the eye (the far one is
+      // hidden), the band arching over to the front of the head.
+      const profile = eyes.length === 1;
+      const back = species.facing === "right" ? -3 * scale : 3 * scale;
+      const left = profile ? eyes[0]!.x + back : Math.min(...eyes.map((e) => e.x)) - 3 * scale;
+      const right = profile ? eyes[0]!.x - back : Math.max(...eyes.map((e) => e.x)) + 3 * scale;
+      const cup = (x: number) => `<rect x="${x - scale}" y="${cy - scale}" width="${2 * scale}" height="${3 * scale}" rx="${scale / 2}" fill="#2b2d42"/><rect x="${x - scale / 2}" y="${cy}" width="${scale}" height="${scale}" fill="#e63946"/>`;
+      const band = `<path d="M${left} ${cy - scale}Q${(left + right) / 2} ${top - 5 * scale} ${right} ${cy - scale}" fill="none" stroke="#2b2d42" stroke-width="${Math.max(2, scale * 0.75)}"/>`;
+      const phones = `<g class="${k("show")}">${band}${cup(left)}${profile ? "" : cup(right)}</g>`;
+      const notes = [0, 1]
+        .map((i) => `<g class="${k("note")}" style="--dx:${(i ? 1 : -1) * 8}px;animation-delay:calc(var(--pf-t0,0s) + ${i * 0.6}s)">${px(["..xx", "..x.", "..x.", "xxx.", "xx.."], { x: "#1f2328" }, (i ? right : left) - 4, cy - 12, 2)}</g>`)
+        .join("");
+      return layers(k("nod"), phones, "", notes);
+    }
+    case "pizza": {
+      // A slice of pizza, three bites: the tip, the middle, the crust.
+      const colors = { c: "#d9a066", y: "#ffd43b", r: "#e03131", o: "#8a5a2b" };
+      const sx = mouth.x + scale;
+      const sy = mouth.y - 4;
+      const full = px(outlined(["cccccc", "yryyry", ".yyyy.", ".yryy.", "..yy..", "..y..."]), colors, sx, sy, 2);
+      const bitten = px(outlined(["cccccc", "yryyry", ".yyyy.", ".yr..."]), colors, sx, sy, 2);
+      const crust = px(outlined(["cccccc", ".y..y."]), colors, sx, sy, 2);
+      const crumbs = burst({ x: sx + 4, y: sy + 8 }, "#d9a066", 2, fan(4, 24, -8), false, "pop");
+      return layers(k("chew"), "", "", `<g class="${k("bite1")}">${full}</g><g class="${k("bite2")}">${bitten}</g><g class="${k("bite3")}">${crust}</g>${crumbs}`);
     }
     case "signature":
       return signature(SIGNATURE[species.id] ?? "bubbles");
